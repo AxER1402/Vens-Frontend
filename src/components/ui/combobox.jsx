@@ -8,6 +8,8 @@ export function Combobox({
   placeholder = "Seleccionar…",
   searchPlaceholder = "Buscar…",
   emptyText = "No se encontraron resultados.",
+  onAddNew = null,
+  addNewText = "+ Registrar nuevo",
   className = ""
 }) {
   const [isOpen, setIsOpen] = useState(false);
@@ -23,7 +25,7 @@ export function Combobox({
     return { value: item, label: item };
   });
 
-  const selectedItem = normalizedItems.find(i => i.value === value);
+  const selectedItem = normalizedItems.find(i => String(i.value) === String(value));
 
   // Filter items
   const filteredItems = normalizedItems.filter(i =>
@@ -110,12 +112,24 @@ export function Combobox({
           {/* Items List */}
           <div className="combobox-list">
             {filteredItems.length === 0 ? (
-              <div className="p-4 text-center text-sm text-brand-text-muted">
-                {emptyText}
+              <div className="p-4 text-center text-sm text-brand-text-muted flex flex-col items-center gap-2">
+                <span>{emptyText}</span>
+                {onAddNew && (
+                  <button
+                    type="button"
+                    className="btn btn-primary btn-sm mt-1"
+                    onClick={() => {
+                      setIsOpen(false);
+                      onAddNew(search);
+                    }}
+                  >
+                    {addNewText}
+                  </button>
+                )}
               </div>
             ) : (
               filteredItems.map((item) => {
-                const isSelected = item.value === value;
+                const isSelected = String(item.value) === String(value);
                 return (
                   <button
                     key={item.value}

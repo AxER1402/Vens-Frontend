@@ -164,10 +164,10 @@ export function DatePicker({ value, onChange, placeholder = "Seleccionar fechaâ€
                   onClick={() => handleSelectDay(dayNum)}
                   className={`h-8 w-8 text-xs font-medium rounded-lg flex items-center justify-center transition-all ${
                     selected
-                      ? 'bg-brand-deep text-white font-bold shadow-sm'
+                      ? 'bg-[#243757] text-white font-bold shadow-sm'
                       : today
-                      ? 'bg-brand-surface-alt text-brand-deep font-bold border border-brand-slate'
-                      : 'hover:bg-brand-surface-alt text-brand-text'
+                      ? 'bg-[#F5F3EE] text-[#243757] font-bold border border-[#3A5F6F]'
+                      : 'hover:bg-[#F5F3EE] text-[#243757]'
                   }`}
                 >
                   {dayNum}

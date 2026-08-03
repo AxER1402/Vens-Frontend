@@ -161,6 +161,22 @@
   --color-sidebar-border: #1D2D47;
   --color-sidebar-ring: #DAD5B7;
 
+  --color-brand-deep: #243757;
+  --color-brand-slate: #3A5F6F;
+  --color-brand-beige: #DAD5B7;
+  --color-brand-sand: #C2B79B;
+  --color-brand-warm: #665E52;
+
+  --color-brand-text: #243757;
+  --color-brand-text-muted: #665E52;
+  --color-brand-text-light: #8C8477;
+
+  --color-brand-surface: #FAFAF7;
+  --color-brand-surface-alt: #F5F3EE;
+  --color-brand-surface-deep: #EDEAE3;
+  --color-brand-border: #D6D0C4;
+  --color-brand-border-light: #E2DED6;
+
   --radius-lg: var(--radius);
   --radius-md: calc(var(--radius) - 2px);
   --radius-sm: calc(var(--radius) - 4px);

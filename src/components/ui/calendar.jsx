@@ -31,7 +31,7 @@ function Calendar({
         row: "flex w-full mt-1 gap-1",
         cell: "relative p-0 text-center text-sm focus-within:relative focus-within:z-20",
         day: "h-8 w-8 p-0 font-normal aria-selected:opacity-100 hover:bg-brand-surface-alt rounded-md transition-colors flex items-center justify-center text-xs text-brand-text",
-        day_selected: "bg-brand-deep text-white hover:bg-brand-deep hover:text-white font-bold shadow-xs",
+        day_selected: "bg-[#243757] text-white hover:bg-[#243757] hover:text-white font-bold shadow-xs",
         day_today: "bg-brand-surface-alt text-brand-slate font-bold border border-brand-border-light",
         day_outside: "opacity-40",
         day_disabled: "opacity-20 pointer-events-none",
