@@ -1,0 +1,70 @@
+/* Citas Page */
+.citas-summary {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--space-4);
+  margin-bottom: var(--space-6);
+}
+
+.citas-sum-item {
+  background: var(--color-white);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-4) var(--space-5);
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  box-shadow: var(--shadow-sm);
+}
+
+.citas-sum-count {
+  font-size: var(--font-size-2xl);
+  font-weight: var(--font-weight-bold);
+  line-height: 1;
+}
+
+.citas-sum-label {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  font-weight: var(--font-weight-medium);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.sum-confirmed .citas-sum-count { color: var(--color-success); }
+.sum-pending   .citas-sum-count { color: var(--color-warning); }
+.sum-cancelled .citas-sum-count { color: var(--color-danger); }
+.sum-total     .citas-sum-count { color: var(--color-secondary); }
+
+/* Citas Group */
+.citas-group {
+  margin-bottom: var(--space-6);
+}
+
+.citas-group-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-bottom: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  background: rgba(250, 226, 236, 0.5);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.citas-group-date {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semi);
+  color: var(--color-text);
+  text-transform: capitalize;
+}
+
+.citas-hora {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semi);
+  color: var(--color-text);
+  background: rgba(238, 167, 191, 0.12);
+  padding: 3px 10px;
+  border-radius: var(--radius-full);
+  border: 1px solid rgba(238, 167, 191, 0.25);
+}
