@@ -1,16 +1,24 @@
 import { useState, useRef, useEffect } from 'react';
 import { Clock, ChevronDown, Check } from 'lucide-react';
 
-const MORNING_TIMES = [
-  '08:00', '08:30', '09:00', '09:30', '10:00', '10:30', '11:00', '11:30'
-];
-const AFTERNOON_TIMES = [
-  '12:00', '12:30', '14:00', '14:30', '15:00', '15:30', '16:00', '16:30', '17:00'
-];
+/** Franja de atención: 07:00 a 19:00 en bloques de 30 minutos */
+const buildSlots = () => {
+  const slots = [];
+  for (let h = 7; h <= 19; h++) {
+    slots.push(`${String(h).padStart(2, '0')}:00`);
+    if (h !== 19) slots.push(`${String(h).padStart(2, '0')}:30`);
+  }
+  return slots;
+};
+
+const SLOTS = buildSlots();
+const MORNING = SLOTS.filter(t => Number(t.split(':')[0]) < 12);
+const AFTERNOON = SLOTS.filter(t => Number(t.split(':')[0]) >= 12);
 
 const format12H = (time24) => {
   if (!time24) return '';
   const [h, m] = time24.split(':').map(Number);
+  if (Number.isNaN(h) || Number.isNaN(m)) return time24;
   const period = h >= 12 ? 'PM' : 'AM';
   const hour12 = h % 12 === 0 ? 12 : h % 12;
   return `${String(hour12).padStart(2, '0')}:${String(m).padStart(2, '0')} ${period}`;
@@ -37,70 +45,61 @@ export function TimePicker({ value, onChange, placeholder = "Seleccionar hora…
     setIsOpen(false);
   };
 
+  const renderSlots = (list) => (
+    <div className="time-grid">
+      {list.map((t) => {
+        const selected = value === t;
+        return (
+          <button
+            key={t}
+            type="button"
+            onClick={() => handleSelect(t)}
+            className={`time-slot${selected ? ' is-selected' : ''}`}
+          >
+            {format12H(t)}
+          </button>
+        );
+      })}
+    </div>
+  );
+
   return (
     <div className="relative w-full" ref={containerRef}>
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="form-control flex items-center justify-between gap-2 text-left cursor-pointer hover:border-brand-slate h-[42px] px-3 py-0 w-full bg-white"
+        aria-expanded={isOpen}
+        className="form-control select-trigger"
       >
-        <div className="flex items-center gap-2 overflow-hidden">
-          <Clock size={16} className="text-brand-slate shrink-0" />
-          <span className={`text-xs sm:text-sm truncate ${value ? 'text-brand-text font-medium' : 'text-brand-text-muted'}`}>
+        <span className="select-trigger-label">
+          <Clock size={15} />
+          <span className={`select-trigger-text ${value ? '' : 'is-placeholder'}`}>
             {value ? format12H(value) : placeholder}
           </span>
-        </div>
-        <ChevronDown size={16} className="text-brand-slate shrink-0 transition-transform duration-200" style={{ transform: isOpen ? 'rotate(180deg)' : 'none' }} />
+        </span>
+        <span className="select-trigger-icons">
+          {value && !SLOTS.includes(value) && <Check size={13} />}
+          <ChevronDown size={15} className="select-caret" />
+        </span>
       </button>
 
       {isOpen && (
-        <div className="absolute z-[100] right-0 mt-1 w-full min-w-[240px] p-3 bg-white border border-brand-border-light rounded-xl shadow-2xl animate-in fade-in-0 zoom-in-95 max-h-[280px] overflow-y-auto">
-          <div className="text-xs font-semibold text-brand-text-muted mb-2 px-1">
-            ☀️ Mañana
-          </div>
-          <div className="grid grid-cols-2 gap-1.5 mb-3">
-            {MORNING_TIMES.map((t) => {
-              const selected = value === t;
-              return (
-                <button
-                  key={t}
-                  type="button"
-                  onClick={() => handleSelect(t)}
-                  className={`py-1.5 px-2 text-xs font-medium rounded-lg border transition-all flex items-center justify-between ${
-                    selected
-                      ? 'bg-brand-deep text-white border-brand-deep shadow-xs'
-                      : 'bg-brand-surface text-brand-text border-brand-border-light hover:border-brand-slate hover:bg-brand-surface-alt'
-                  }`}
-                >
-                  <span>{format12H(t)}</span>
-                  {selected && <Check size={12} className="text-white" />}
-                </button>
-              );
-            })}
-          </div>
+        <div className="picker-pop animate-in fade-in-0 zoom-in-95" style={{ maxHeight: 320, overflowY: 'auto' }}>
+          <div className="picker-label">Mañana</div>
+          {renderSlots(MORNING)}
 
-          <div className="text-xs font-semibold text-brand-text-muted mb-2 px-1 border-t border-brand-border-light pt-2">
-            🌙 Tarde
-          </div>
-          <div className="grid grid-cols-2 gap-1.5">
-            {AFTERNOON_TIMES.map((t) => {
-              const selected = value === t;
-              return (
-                <button
-                  key={t}
-                  type="button"
-                  onClick={() => handleSelect(t)}
-                  className={`py-1.5 px-2 text-xs font-medium rounded-lg border transition-all flex items-center justify-between ${
-                    selected
-                      ? 'bg-brand-deep text-white border-brand-deep shadow-xs'
-                      : 'bg-brand-surface text-brand-text border-brand-border-light hover:border-brand-slate hover:bg-brand-surface-alt'
-                  }`}
-                >
-                  <span>{format12H(t)}</span>
-                  {selected && <Check size={12} className="text-white" />}
-                </button>
-              );
-            })}
+          <div className="picker-label" style={{ paddingTop: 10 }}>Tarde</div>
+          {renderSlots(AFTERNOON)}
+
+          {/* Cualquier otra hora fuera de los bloques predefinidos */}
+          <div className="picker-foot">
+            <span className="picker-label" style={{ padding: 0, whiteSpace: 'nowrap' }}>Otra hora</span>
+            <input
+              type="time"
+              className="form-control"
+              value={value || ''}
+              onChange={(e) => onChange(e.target.value)}
+            />
           </div>
         </div>
       )}

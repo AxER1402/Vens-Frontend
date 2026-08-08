@@ -896,6 +896,9 @@ h6 {
   width: 100%;
   padding: 10px 14px;
   font-size: 15px;
+  /* Altura explícita: los disparadores de combobox/fecha/hora son <button>
+     y sólo coinciden con los <input> si comparten line-height. */
+  line-height: 1.5;
   font-family: var(--font-sans);
   color: var(--brand-text);
   background: var(--brand-surface);
@@ -932,6 +935,25 @@ select.form-control {
   background-position: right 12px center;
   padding-right: 36px;
   cursor: pointer;
+}
+
+/* Campo con icono a la izquierda: el icono se centra solo, sin `top` fijo */
+.input-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.input-wrap .input-icon {
+  position: absolute;
+  left: 12px;
+  display: flex;
+  color: var(--brand-text-light);
+  pointer-events: none;
+}
+
+.input-wrap .form-control {
+  padding-left: 34px;
 }
 
 /* ======================================
@@ -1261,6 +1283,377 @@ select.form-control {
 /* ======================================
    HISTORIA CLÍNICA, PACIENTES, REPORTES
 ====================================== */
+/* ======================================
+   SISTEMA PLANO (.flat-page)
+   Scope compartido por Historia Clínica, Pacientes, Citas y Dashboard.
+   Vive bajo una clase para no alterar los módulos que aún no migran,
+   ya que .form-control, .btn, .tag y .table-wrap son globales.
+
+   Tres niveles de superficie, todos sin radio:
+     página  #F5F3EE  ->  panel  #FAFAF7  ->  control  #F5F3EE + borde marcado
+====================================== */
+.flat-page {
+  --hc-line: var(--brand-border-light);
+  --hc-panel: var(--brand-surface);
+  --hc-control: var(--brand-surface-alt);
+  --hc-control-line: var(--brand-border);
+}
+
+.flat-page .form-control,
+.flat-page .btn,
+.flat-page .tag {
+  border-radius: 0;
+}
+
+.flat-page .btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.flat-page .btn:disabled:hover {
+  transform: none;
+  box-shadow: var(--shadow-sm);
+}
+
+.flat-page .form-control {
+  font-size: 13px;
+  padding: 9px 12px;
+  background: var(--hc-control);
+  border-color: var(--hc-control-line);
+}
+
+.flat-page .form-control:hover {
+  border-color: var(--brand-slate);
+}
+
+.flat-page textarea.form-control {
+  min-height: 72px;
+}
+
+/* Los botones planos no se levantan al pasar el cursor */
+.flat-page .btn-primary:hover {
+  transform: none;
+  box-shadow: var(--shadow-sm);
+}
+
+/* Panel plano: delimita un área sin esquinas redondeadas */
+.panel {
+  background: var(--hc-panel);
+  border: 1px solid var(--hc-line);
+  border-radius: 0;
+}
+
+.panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 20px;
+  background: var(--brand-surface-deep);
+  border-bottom: 1px solid var(--hc-line);
+}
+
+.panel-title {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--brand-text);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.panel-title svg {
+  color: var(--brand-slate);
+  flex-shrink: 0;
+}
+
+.panel-sub {
+  font-size: 11px;
+  color: var(--brand-text-light);
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.panel-body {
+  padding: 20px;
+}
+
+/* Tablas, tarjetas y barras existentes, en versión plana */
+.flat-page .table-wrap {
+  border-radius: 0;
+  box-shadow: none;
+  border-color: var(--hc-line);
+}
+
+.flat-page .card-base {
+  border-radius: 0;
+  box-shadow: none;
+  border-color: var(--hc-line);
+}
+
+.flat-page .card-base:hover {
+  box-shadow: none;
+}
+
+.flat-page .card-header-row {
+  background: var(--brand-surface-deep);
+  border-bottom: 1px solid var(--hc-line);
+}
+
+.flat-page .stat-card {
+  border-radius: 0;
+  box-shadow: none;
+  border-color: var(--hc-line);
+}
+
+.flat-page .stat-card:hover {
+  box-shadow: none;
+  transform: none;
+  border-color: var(--brand-slate);
+}
+
+.flat-page .stat-icon {
+  border-radius: 0;
+}
+
+/* La barra de filtros pasa a ser un panel */
+.flat-page .toolbar {
+  background: var(--hc-panel);
+  border: 1px solid var(--hc-line);
+  padding: 14px 16px;
+  margin-bottom: 20px;
+}
+
+.flat-page .search-wrap .form-control {
+  padding-left: 36px;
+}
+
+/* El shorthand `padding` de arriba pisa el padding-left de .input-wrap:
+   se restituye con mayor especificidad. */
+.flat-page .input-wrap .form-control {
+  padding-left: 32px;
+}
+
+.flat-page .empty-state {
+  background: var(--hc-panel);
+  border: 1px solid var(--hc-line);
+}
+
+/* Bloque secundario dentro de un formulario (p. ej. cambio de contraseña).
+   Usa la superficie profunda para que los controles resalten sobre él. */
+.form-subpanel {
+  padding: 14px 16px;
+  background: var(--brand-surface-deep);
+  border: 1px solid var(--hc-line);
+}
+
+/* Etiqueta de sección reutilizable fuera de un panel */
+.flat-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--brand-text-muted);
+}
+
+/* Aviso en línea: sustituye los banners emerald/rose sueltos */
+.notice {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 16px;
+  background: var(--hc-panel);
+  border: 1px solid var(--hc-line);
+  border-left: 3px solid var(--brand-slate);
+  font-size: 13px;
+  color: var(--brand-text);
+  margin-bottom: 20px;
+}
+
+.notice-body {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.notice svg {
+  flex-shrink: 0;
+  color: var(--brand-slate);
+}
+
+.notice-success {
+  border-left-color: var(--color-success);
+}
+
+.notice-success svg {
+  color: var(--color-success);
+}
+
+.notice-danger {
+  border-left-color: var(--color-danger);
+}
+
+.notice-danger svg {
+  color: var(--color-danger);
+}
+
+.notice-warning {
+  border-left-color: var(--color-warning);
+}
+
+.notice-warning svg {
+  color: var(--color-warning);
+}
+
+.notice-flush {
+  margin-bottom: 0;
+}
+
+/* Avatar cuadrado de iniciales */
+.avatar-sq {
+  width: 30px;
+  height: 30px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--brand-surface-deep);
+  border: 1px solid var(--hc-control-line);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--brand-slate);
+}
+
+.id-chip {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px;
+  color: var(--brand-text-light);
+}
+
+/* Punto de estado binario */
+.dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  display: inline-block;
+  flex-shrink: 0;
+}
+
+.dot-on {
+  background: var(--color-success);
+}
+
+.dot-off {
+  background: var(--brand-border);
+}
+
+.state-inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12px;
+  color: var(--brand-text-muted);
+}
+
+/* Botones de acción semánticos, en versión plana */
+.flat-page .btn-danger {
+  background: transparent;
+  color: var(--color-danger);
+  border-color: rgba(180, 60, 50, 0.35);
+}
+
+.flat-page .btn-danger:hover {
+  background: var(--color-danger-bg);
+}
+
+.flat-page .btn-success {
+  background: transparent;
+  color: var(--color-success);
+  border-color: rgba(107, 143, 113, 0.4);
+}
+
+.flat-page .btn-success:hover {
+  background: var(--color-success-bg);
+}
+
+.flat-page .data-table tbody tr.row-off {
+  opacity: 0.55;
+}
+
+/* Diálogos planos */
+.flat-page.dialog-flat {
+  border-radius: 0;
+}
+
+.flat-page .dialog-sep {
+  border-top: 1px solid var(--hc-line);
+  padding-top: 14px;
+}
+
+/* Filas clave/valor del diálogo de detalle */
+.detail-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--hc-line);
+  font-size: 13px;
+}
+
+.detail-row-stacked {
+  display: block;
+}
+
+.detail-key {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--brand-text-light);
+}
+
+.detail-val {
+  font-weight: 600;
+  color: var(--brand-text);
+  text-align: right;
+}
+
+.detail-block {
+  margin-top: 6px;
+  padding: 10px 12px;
+  background: var(--hc-control);
+  border: 1px solid var(--hc-line);
+  font-size: 13px;
+  color: var(--brand-text);
+}
+
+/* Acciones rápidas dentro del diálogo de detalle */
+.detail-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding-top: 4px;
+}
+
+.hc-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Base compartida con Facturación y Reporte Doppler — no cambiar */
 .hc-layout {
   display: grid;
   grid-template-columns: 220px 1fr;
@@ -1268,46 +1661,56 @@ select.form-control {
   align-items: start;
 }
 
+.hc-page .hc-layout {
+  grid-template-columns: 200px 1fr;
+  gap: 40px;
+}
+
+.hc-main {
+  min-width: 0;
+}
+
+/* Navegación de secciones: panel plano, activo marcado con barra izquierda */
 .hc-nav {
-  background: var(--brand-surface);
-  border: 1px solid var(--brand-border-light);
-  border-radius: 14px;
-  overflow: hidden;
+  background: var(--hc-panel);
+  border: 1px solid var(--hc-line);
+  border-radius: 0;
+  box-shadow: none;
+  overflow: visible;
   position: sticky;
   top: 80px;
-  box-shadow: var(--shadow-card);
 }
 
 .hc-nav-head {
-  padding: 14px 18px;
+  padding: 12px 14px;
   background: var(--brand-surface-deep);
-  border-bottom: 1px solid var(--brand-border-light);
+  border-bottom: 1px solid var(--hc-line);
   font-size: 10px;
   font-weight: 600;
-  color: var(--brand-text-muted);
+  color: var(--brand-text-light);
   text-transform: uppercase;
   letter-spacing: 0.08em;
 }
 
 .hc-nav-list {
-  padding: 8px;
+  padding: 8px 0;
   display: flex;
   flex-direction: column;
-  gap: 2px;
 }
 
 .hc-nav-btn {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 8px 12px;
-  border-radius: 8px;
+  padding: 9px 14px 9px 12px;
+  border: 0;
+  border-left: 2px solid transparent;
+  border-radius: 0;
   font-size: 12px;
   color: var(--brand-text-muted);
   cursor: pointer;
   transition: all var(--t-fast);
   background: none;
-  border: none;
   width: 100%;
   text-align: left;
   font-family: var(--font-sans);
@@ -1315,19 +1718,30 @@ select.form-control {
 }
 
 .hc-nav-btn:hover {
-  background: var(--brand-surface-deep);
+  background: var(--brand-surface-alt);
   color: var(--brand-text);
 }
 
 .hc-nav-btn.active {
-  background: rgba(58, 95, 111, 0.08);
-  color: var(--brand-slate);
+  background: var(--brand-surface-deep);
+  border-left-color: var(--brand-slate);
+  color: var(--brand-deep);
   font-weight: 600;
 }
 
+.hc-nav-btn svg {
+  color: var(--brand-text-light);
+  flex-shrink: 0;
+}
+
+.hc-nav-btn.active svg {
+  color: var(--brand-slate);
+}
+
+/* Se conserva el círculo: es la forma del indicador, no una esquina */
 .hc-nav-dot {
-  width: 6px;
-  height: 6px;
+  width: 5px;
+  height: 5px;
   border-radius: 50%;
   background: var(--color-success);
   margin-left: auto;
@@ -1338,24 +1752,25 @@ select.form-control {
   background: var(--brand-border);
 }
 
+/* Barra de paciente: panel plano de una sola línea */
 .hc-patient-bar {
-  background: var(--brand-surface);
-  border: 1px solid var(--brand-border-light);
-  border-radius: 14px;
-  padding: 18px 24px;
+  background: var(--hc-panel);
+  border: 1px solid var(--hc-line);
+  border-radius: 0;
+  box-shadow: none;
+  padding: 16px 24px;
+  margin-bottom: 20px;
   display: flex;
   align-items: center;
-  gap: 16px;
-  margin-bottom: 20px;
-  box-shadow: var(--shadow-card);
+  gap: 14px;
 }
 
 .hc-avatar {
-  width: 48px;
-  height: 48px;
-  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  border-radius: 0;
   background: var(--brand-surface-deep);
-  border: 1px solid var(--brand-border-light);
+  border: 1px solid var(--hc-control-line);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1363,27 +1778,53 @@ select.form-control {
   color: var(--brand-slate);
 }
 
+.hc-patient-info {
+  flex: 1;
+  min-width: 0;
+}
+
 .hc-patient-name {
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 600;
   color: var(--brand-text);
   margin-bottom: 4px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
 }
 
 .hc-patient-meta {
   font-size: 12px;
   color: var(--brand-text-light);
   display: flex;
-  gap: 16px;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
   font-weight: 400;
 }
 
+.hc-patient-meta > span + span::before {
+  content: '·';
+  margin-right: 10px;
+  color: var(--brand-border);
+}
+
+.hc-exp {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--brand-text-light);
+}
+
+/* Secciones: paneles planos, sin esquinas redondeadas ni sombra */
 .hc-section {
-  background: var(--brand-surface);
-  border: 1px solid var(--brand-border-light);
-  border-radius: 14px;
-  overflow: hidden;
-  box-shadow: var(--shadow-card);
+  background: var(--hc-panel);
+  border: 1px solid var(--hc-line);
+  border-radius: 0;
+  box-shadow: none;
+  overflow: visible;
+  padding: 0;
   margin-bottom: 20px;
   scroll-margin-top: 80px;
 }
@@ -1391,27 +1832,22 @@ select.form-control {
 .hc-section-head {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 16px 20px;
-  background: var(--brand-surface);
-  border-bottom: 1px solid var(--brand-border-light);
+  gap: 10px;
+  padding: 14px 24px;
+  background: var(--brand-surface-deep);
+  border-bottom: 1px solid var(--hc-line);
 }
 
-.hc-section-icon-wrap {
-  width: 32px;
-  height: 32px;
-  border-radius: 8px;
-  background: var(--brand-surface-deep);
-  display: flex;
-  align-items: center;
-  justify-content: center;
+.hc-section-head svg {
   color: var(--brand-slate);
-  border: 1px solid var(--brand-border-light);
+  flex-shrink: 0;
 }
 
 .hc-section-title {
-  font-size: 14px;
-  font-weight: 600;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
   color: var(--brand-text);
 }
 
@@ -1419,9 +1855,21 @@ select.form-control {
   padding: 24px;
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 28px;
 }
 
+.hc-subhead {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--brand-slate);
+  padding-top: 24px;
+  border-top: 1px solid var(--hc-line);
+  margin-bottom: 18px;
+}
+
+/* Base compartida con Facturación y Reporte Doppler — no cambiar */
 .hc-grid-2 {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -1440,8 +1888,181 @@ select.form-control {
   gap: 16px;
 }
 
+.hc-page .hc-grid-2 {
+  gap: 28px;
+}
+
+.hc-grid-6 {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 16px;
+}
+
+/* Campos: la etiqueta es solo texto, sin borde ni radio */
+.hc-field {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+
+.hc-field-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--brand-text);
+}
+
+/* Apila varios grupos dentro de una columna */
+.hc-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+  min-width: 0;
+}
+
+.hc-field-label-sm {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--brand-text-light);
+}
+
+.hc-field-hint {
+  font-size: 12px;
+  color: var(--brand-text-light);
+}
+
+/* Chip seleccionable */
+.hc-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.hc-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 7px 14px;
+  border: 1px solid var(--hc-control-line);
+  border-radius: 0;
+  background: var(--hc-control);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--brand-text-muted);
+  cursor: pointer;
+  transition: all var(--t-fast);
+  white-space: nowrap;
+}
+
+.hc-chip:hover {
+  border-color: var(--brand-slate);
+  color: var(--brand-text);
+}
+
+.hc-chip.on {
+  background: var(--brand-slate);
+  border-color: var(--brand-slate);
+  color: #F5F3EE;
+}
+
+.hc-chip.grow {
+  flex: 1;
+}
+
+/* Lista vertical de opciones */
+.hc-opts {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.hc-opt {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--brand-text-muted);
+  transition: color var(--t-fast);
+}
+
+.hc-opt:hover {
+  color: var(--brand-text);
+}
+
+.hc-opt.on {
+  color: var(--brand-text);
+  font-weight: 600;
+}
+
+.hc-box {
+  width: 16px;
+  height: 16px;
+  border: 1px solid var(--hc-control-line);
+  border-radius: 0;
+  background: var(--hc-control);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: #F5F3EE;
+  transition: all var(--t-fast);
+}
+
+.hc-box.on {
+  background: var(--brand-slate);
+  border-color: var(--brand-slate);
+}
+
+/* Se conserva el círculo: distingue el radio del checkbox */
+.hc-box.hc-radio {
+  border-radius: 50%;
+}
+
+.hc-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #F5F3EE;
+}
+
+.hc-opt.danger.on {
+  color: var(--color-danger);
+}
+
+.hc-opt.danger .hc-box.on {
+  background: var(--color-danger);
+  border-color: var(--color-danger);
+}
+
+/* Insignia C / E / A / P del CEAP */
+.hc-ceap {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  background: var(--brand-slate);
+  color: #F5F3EE;
+  font-size: 10px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.hc-vitals {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 16px;
+}
+
 .vital-wrap {
   position: relative;
+  display: block;
 }
 
 .vital-unit {
@@ -1451,106 +2072,64 @@ select.form-control {
   transform: translateY(-50%);
   font-size: 11px;
   color: var(--brand-text-light);
-  font-weight: 600;
+  font-weight: 500;
   pointer-events: none;
 }
 
 .vital-wrap .form-control {
-  padding-right: 42px;
+  padding-right: 46px;
 }
 
-.symptom-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 10px;
-}
-
-.symptom-check {
+/* Estado vacío / aviso en línea */
+.hc-notice {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 8px 12px;
-  border: 1px solid var(--brand-border-light);
-  border-radius: 8px;
-  cursor: pointer;
+  gap: 12px;
   font-size: 13px;
-  font-weight: 400;
-  transition: all var(--t-fast);
   color: var(--brand-text-muted);
 }
 
-.symptom-check:hover {
-  border-color: var(--brand-slate);
-  background: var(--brand-surface-deep);
-  color: var(--brand-text);
+.hc-notice svg {
+  color: var(--color-warning);
+  flex-shrink: 0;
 }
 
-.symptom-check input {
-  accent-color: var(--brand-slate);
-  width: 14px;
-  height: 14px;
-}
-
-.cie-row {
+/* Bloque centrado (Doppler) */
+.hc-placeholder {
   display: flex;
-  gap: 8px;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 16px;
 }
 
-.cie-tags {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 8px;
-}
-
-.cie-tag {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 5px 12px;
-  background: var(--color-info-bg);
-  border: 1px solid rgba(58, 95, 111, 0.15);
-  border-radius: 999px;
-  font-size: 12px;
-  font-weight: 500;
-  color: var(--brand-slate);
-}
-
-.cie-rm {
-  cursor: pointer;
-  color: var(--brand-text-light);
-  padding: 2px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-}
-
-.cie-rm:hover {
-  background: rgba(0, 0, 0, 0.06);
-  color: var(--color-danger);
-}
-
+/* Barra de guardado */
 .hc-save-bar {
-  background: var(--brand-surface);
-  border: 1px solid var(--brand-border-light);
-  border-radius: 14px;
+  background: var(--hc-panel);
+  border: 1px solid var(--hc-line);
+  border-radius: 0;
+  box-shadow: 0 -2px 8px rgba(36, 55, 87, 0.04);
   padding: 14px 20px;
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
   position: sticky;
-  bottom: 24px;
+  bottom: 0;
   z-index: 40;
-  box-shadow: var(--shadow-lg);
 }
 
 .hc-save-info {
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 500;
   color: var(--brand-text-light);
   display: flex;
   align-items: center;
   gap: 8px;
+}
+
+.hc-save-info.saved {
+  color: var(--color-success);
 }
 
 .hc-save-actions {
@@ -1558,29 +2137,126 @@ select.form-control {
   gap: 10px;
 }
 
+/* Selector de paciente (diálogo) */
+.hc-pick-list {
+  flex: 1;
+  overflow-y: auto;
+  max-height: 360px;
+  border-top: 1px solid var(--hc-line);
+}
+
+.hc-pick {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 12px 12px 12px 10px;
+  background: none;
+  border: 0;
+  border-bottom: 1px solid var(--hc-line);
+  border-left: 2px solid transparent;
+  text-align: left;
+  cursor: pointer;
+  font-family: var(--font-sans);
+  transition: all var(--t-fast);
+}
+
+.hc-pick:hover {
+  background: var(--brand-surface-alt);
+}
+
+.hc-pick.on {
+  background: var(--brand-surface-deep);
+  border-left-color: var(--brand-slate);
+}
+
+.hc-pick-body {
+  flex: 1;
+  min-width: 0;
+  display: block;
+}
+
+.hc-pick-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--brand-text);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.hc-pick-meta {
+  font-size: 11px;
+  color: var(--brand-text-light);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 3px;
+}
+
+.hc-pick-meta > span + span::before {
+  content: '·';
+  margin-right: 8px;
+  color: var(--brand-border);
+}
+
+.hc-empty {
+  padding: 32px 0;
+  text-align: center;
+  font-size: 12px;
+  color: var(--brand-text-light);
+}
+
+@media (max-width: 1100px) {
+  .hc-page .hc-layout {
+    grid-template-columns: 1fr;
+    gap: 24px;
+  }
+
+  .hc-nav {
+    position: static;
+  }
+
+  .hc-page .hc-grid-2,
+  .hc-page .hc-grid-3 {
+    grid-template-columns: 1fr;
+  }
+
+  .hc-grid-6 {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  .hc-vitals {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
 /* ======================================
-   CITAS
+   CITAS — agenda plana (semana / día / lista)
 ====================================== */
 .citas-summary {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(5, 1fr);
   gap: 16px;
-  margin-bottom: 28px;
+  margin-bottom: 20px;
 }
 
 .cita-sum {
-  background: var(--brand-surface);
-  border: 1px solid var(--brand-border-light);
-  border-radius: 14px;
-  padding: 18px 20px;
+  background: var(--hc-panel);
+  border: 1px solid var(--hc-line);
+  border-left: 3px solid var(--brand-slate);
+  border-radius: 0;
+  padding: 14px 16px;
   display: flex;
-  align-items: center;
-  gap: 14px;
-  box-shadow: var(--shadow-card);
+  flex-direction: column;
+  gap: 6px;
+  box-shadow: none;
 }
 
 .cita-sum-count {
-  font-size: 28px;
+  font-size: 24px;
   font-weight: 600;
   line-height: 1;
   color: var(--brand-text);
@@ -1588,43 +2264,347 @@ select.form-control {
 }
 
 .cita-sum-label {
-  font-size: 11px;
+  font-size: 10px;
   color: var(--brand-text-muted);
   font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.06em;
 }
 
+.sum-ok { border-left-color: var(--color-success); }
+.sum-pend { border-left-color: var(--brand-slate); }
+.sum-reag { border-left-color: var(--color-warning); }
+.sum-cancel { border-left-color: var(--color-danger); }
+.sum-total { border-left-color: var(--brand-deep); }
+
+/* Barra de navegación de la agenda */
+.agenda-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding: 12px 16px;
+  background: var(--hc-panel);
+  border: 1px solid var(--hc-line);
+  margin-bottom: 20px;
+}
+
+.agenda-nav {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.agenda-range {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--brand-text);
+  min-width: 230px;
+  text-align: center;
+  text-transform: capitalize;
+}
+
+.view-switch {
+  display: inline-flex;
+  border: 1px solid var(--hc-control-line);
+}
+
+.view-switch button {
+  padding: 6px 14px;
+  font-size: 12px;
+  font-weight: 500;
+  font-family: var(--font-sans);
+  background: var(--hc-control);
+  color: var(--brand-text-muted);
+  border: 0;
+  border-right: 1px solid var(--hc-control-line);
+  cursor: pointer;
+  transition: all var(--t-fast);
+}
+
+.view-switch button:last-child {
+  border-right: 0;
+}
+
+.view-switch button:hover {
+  color: var(--brand-text);
+}
+
+.view-switch button.on {
+  background: var(--brand-slate);
+  color: #F5F3EE;
+}
+
+/* Rejilla semanal */
+.week-wrap {
+  border: 1px solid var(--hc-line);
+  background: var(--hc-panel);
+  overflow-x: auto;
+}
+
+.week-grid {
+  display: grid;
+  grid-template-columns: 54px repeat(7, minmax(104px, 1fr));
+  min-width: 800px;
+}
+
+.week-head {
+  padding: 10px 6px;
+  text-align: center;
+  background: var(--brand-surface-deep);
+  border-bottom: 1px solid var(--hc-line);
+  border-right: 1px solid var(--hc-line);
+}
+
+/* Octava columna = último día de la semana */
+.week-head:nth-child(8) {
+  border-right: 0;
+}
+
+.week-head-dow {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--brand-text-muted);
+}
+
+.week-head-day {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--brand-text);
+  margin-top: 2px;
+}
+
+.week-head.today {
+  background: rgba(58, 95, 111, 0.12);
+}
+
+.week-head.today .week-head-day,
+.week-head.today .week-head-dow {
+  color: var(--brand-slate);
+}
+
+.week-hour {
+  padding: 6px 8px;
+  font-size: 10px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  color: var(--brand-text-light);
+  text-align: right;
+  background: var(--brand-surface-alt);
+  border-right: 1px solid var(--hc-line);
+  border-bottom: 1px solid var(--hc-line);
+}
+
+.week-cell {
+  border-right: 1px solid var(--hc-line);
+  border-bottom: 1px solid var(--hc-line);
+  padding: 3px;
+  min-height: 46px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.week-cell:nth-child(8n) {
+  border-right: 0;
+}
+
+.week-cell.today {
+  background: rgba(58, 95, 111, 0.04);
+}
+
+/* Bloque de cita */
+.cita-block {
+  display: block;
+  width: 100%;
+  text-align: left;
+  border: 0;
+  border-left: 3px solid var(--brand-slate);
+  background: var(--brand-surface-alt);
+  padding: 4px 6px;
+  cursor: pointer;
+  font-family: var(--font-sans);
+  transition: background var(--t-fast);
+  overflow: hidden;
+}
+
+.cita-block:hover {
+  background: var(--brand-surface-deep);
+}
+
+.cita-block-time {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--brand-text-light);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+.cita-block-name {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--brand-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cita-block-motivo {
+  font-size: 10px;
+  color: var(--brand-text-light);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.st-programada { border-left-color: var(--brand-slate); }
+.st-confirmada { border-left-color: var(--color-success); }
+.st-reagendada { border-left-color: var(--color-warning); }
+.st-completada { border-left-color: var(--brand-deep); }
+
+.st-cancelada {
+  border-left-color: var(--color-danger);
+  opacity: 0.5;
+}
+
+.st-cancelada .cita-block-name {
+  text-decoration: line-through;
+}
+
+/* Leyenda de estados */
+.agenda-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-top: 12px;
+  font-size: 11px;
+  color: var(--brand-text-muted);
+}
+
+.legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.legend-swatch {
+  width: 10px;
+  height: 10px;
+  flex-shrink: 0;
+  background: var(--brand-slate);
+}
+
+.legend-swatch.st-confirmada { background: var(--color-success); }
+.legend-swatch.st-reagendada { background: var(--color-warning); }
+.legend-swatch.st-completada { background: var(--brand-deep); }
+.legend-swatch.st-cancelada { background: var(--color-danger); }
+
+/* Vista de día */
+.day-row {
+  display: grid;
+  grid-template-columns: 68px 1fr;
+  border-bottom: 1px solid var(--hc-line);
+}
+
+.day-row:last-child {
+  border-bottom: 0;
+}
+
+.day-time {
+  padding: 14px 12px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--brand-text);
+  background: var(--brand-surface-alt);
+  border-right: 1px solid var(--hc-line);
+  border-left: 3px solid transparent;
+}
+
+.day-row .day-time.st-programada { border-left-color: var(--brand-slate); }
+.day-row .day-time.st-confirmada { border-left-color: var(--color-success); }
+.day-row .day-time.st-reagendada { border-left-color: var(--color-warning); }
+.day-row .day-time.st-completada { border-left-color: var(--brand-deep); }
+.day-row .day-time.st-cancelada { border-left-color: var(--color-danger); }
+
+.day-body {
+  padding: 12px 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.day-info {
+  flex: 1;
+  min-width: 200px;
+}
+
+.day-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--brand-text);
+}
+
+.day-meta {
+  font-size: 11px;
+  color: var(--brand-text-light);
+  margin-top: 3px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.day-meta > span + span::before {
+  content: '·';
+  margin-right: 8px;
+  color: var(--brand-border);
+}
+
+.day-actions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+/* Lista agrupada por fecha */
 .citas-group {
-  margin-bottom: 28px;
+  margin-bottom: 20px;
 }
 
 .citas-group-head {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 10px;
-  padding: 10px 16px;
+  padding: 12px 16px;
   background: var(--brand-surface-deep);
-  border: 1px solid var(--brand-border-light);
-  border-radius: 10px;
-  margin-bottom: 10px;
+  border: 1px solid var(--hc-line);
+  border-bottom: 0;
+  border-radius: 0;
 }
 
 .citas-group-date {
-  font-size: 13px;
-  font-weight: 600;
+  font-size: 12px;
+  font-weight: 700;
   color: var(--brand-text);
-  text-transform: capitalize;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
 }
 
 .cita-hora {
   font-size: 12px;
   font-weight: 600;
-  color: var(--brand-deep);
-  background: rgba(36, 55, 87, 0.06);
-  padding: 3px 10px;
-  border-radius: 999px;
-  border: 1px solid rgba(36, 55, 87, 0.1);
+  color: var(--brand-text);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+@media (max-width: 1200px) {
+  .citas-summary {
+    grid-template-columns: repeat(3, 1fr);
+  }
 }
 
 /* ======================================
@@ -2133,68 +3113,215 @@ select.form-control {
 }
 
 /* ======================================
-   COMBOBOX EXPLICIT STYLES
+   PICKERS — COMBOBOX, FECHA Y HORA
+
+   Todos comparten un mismo disparador (.select-trigger) que se apoya en
+   .form-control, de modo que miden y se ven igual que cualquier <input>
+   y heredan automáticamente el modo plano de .flat-page.
 ====================================== */
-.combobox-dropdown {
+.select-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.select-trigger:hover {
+  border-color: var(--brand-slate);
+}
+
+.select-trigger:focus-visible {
+  border-color: var(--brand-slate);
+  box-shadow: 0 0 0 3px rgba(58, 95, 111, 0.1);
+}
+
+.select-trigger-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.select-trigger-label>svg {
+  flex-shrink: 0;
+  color: var(--brand-slate);
+}
+
+.select-trigger-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 500;
+}
+
+.select-trigger-text.is-placeholder {
+  font-weight: 400;
+  color: var(--brand-text-light);
+}
+
+.select-trigger-icons {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+  color: var(--brand-slate);
+}
+
+.select-trigger-clear {
+  display: flex;
+  padding: 1px;
+  color: var(--brand-text-light);
+  border-radius: 999px;
+  transition: color var(--t-fast), background var(--t-fast);
+}
+
+.select-trigger-clear:hover {
+  color: var(--brand-text);
+  background: var(--brand-surface-deep);
+}
+
+.select-caret {
+  transition: transform var(--t-base);
+}
+
+.select-trigger[aria-expanded="true"] .select-caret {
+  transform: rotate(180deg);
+}
+
+/* Panel flotante compartido por los tres pickers */
+.picker-pop {
   position: absolute;
   top: 100%;
   left: 0;
-  margin-top: 4px;
+  z-index: 100;
   width: 100%;
   min-width: 240px;
-  padding: 12px;
-  background: #ffffff;
-  border: 1px solid var(--brand-border-light);
-  border-radius: 12px;
-  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
-  z-index: 100;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
+  margin-top: 4px;
+  padding: 8px;
+  background: var(--brand-surface);
+  border: 1px solid var(--brand-border);
+  border-radius: 10px;
+  box-shadow: var(--shadow-lg);
 }
 
+.picker-pop-cal {
+  min-width: 268px;
+}
+
+.picker-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding-bottom: 8px;
+  margin-bottom: 8px;
+  border-bottom: 1px solid var(--brand-border-light);
+}
+
+.picker-head-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--brand-text);
+  text-transform: capitalize;
+}
+
+.picker-nav {
+  display: flex;
+  padding: 4px;
+  color: var(--brand-slate);
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background var(--t-fast);
+}
+
+.picker-nav:hover {
+  background: var(--brand-surface-alt);
+}
+
+.picker-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--brand-text-light);
+  padding: 0 2px 6px;
+}
+
+.picker-foot {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--brand-border-light);
+}
+
+.picker-foot .form-control {
+  font-size: 12px;
+  padding: 6px 8px;
+}
+
+/* ---- Combobox ---- */
 .combobox-search-wrapper {
   position: relative;
   display: flex;
   align-items: center;
+  margin-bottom: 8px;
+}
+
+.combobox-search-icon {
+  position: absolute;
+  left: 10px;
+  display: flex;
+  color: var(--brand-text-light);
+  pointer-events: none;
 }
 
 .combobox-search-input {
   width: 100%;
-  height: 42px;
-  padding-left: 36px !important;
-  padding-right: 12px !important;
-  font-size: 15px !important;
-  border: 1px solid var(--brand-border-light) !important;
-  background: var(--brand-surface) !important;
-  border-radius: 8px !important;
+  padding: 8px 10px 8px 32px;
+  font-size: 13px;
+  font-family: var(--font-sans);
+  color: var(--brand-text);
+  background: var(--brand-surface-alt);
+  border: 1px solid var(--brand-border-light);
+  border-radius: 8px;
+  outline: none;
+}
+
+.combobox-search-input:focus {
+  border-color: var(--brand-slate);
 }
 
 .combobox-list {
-  max-height: 240px;
+  max-height: 220px;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  padding: 2px;
+  gap: 2px;
 }
 
 .combobox-item {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 8px;
   width: 100%;
-  padding: 10px 16px !important;
-  /* Generous 16px left padding */
-  font-size: 15px;
+  padding: 8px 10px;
+  font-size: 13px;
+  font-family: var(--font-sans);
   font-weight: 500;
   text-align: left;
-  border-radius: 8px;
   border: none;
+  border-radius: 6px;
   background: transparent;
   color: var(--brand-text);
   cursor: pointer;
-  transition: background 0.15s ease, color 0.15s ease;
+  transition: background var(--t-fast), color var(--t-fast);
 }
 
 .combobox-item:hover {
@@ -2203,8 +3330,104 @@ select.form-control {
 
 .combobox-item.selected {
   background: var(--brand-deep);
-  color: #ffffff;
+  color: #F5F3EE;
   font-weight: 600;
+}
+
+.combobox-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 16px 8px;
+  font-size: 13px;
+  color: var(--brand-text-light);
+  text-align: center;
+}
+
+/* ---- Calendario del DatePicker ---- */
+.cal-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+  text-align: center;
+}
+
+.cal-dow {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--brand-text-light);
+  padding-bottom: 4px;
+}
+
+.cal-day {
+  height: 32px;
+  font-size: 12px;
+  font-family: var(--font-sans);
+  font-weight: 500;
+  color: var(--brand-text);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background var(--t-fast), color var(--t-fast);
+}
+
+.cal-day:hover {
+  background: var(--brand-surface-alt);
+}
+
+.cal-day.is-today {
+  border-color: var(--brand-slate);
+  font-weight: 700;
+}
+
+.cal-day.is-selected {
+  background: var(--brand-deep);
+  border-color: var(--brand-deep);
+  color: #F5F3EE;
+  font-weight: 700;
+}
+
+/* ---- Rejilla de horas del TimePicker ---- */
+.time-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 4px;
+}
+
+.time-slot {
+  padding: 6px 4px;
+  font-size: 12px;
+  font-family: var(--font-sans);
+  font-weight: 500;
+  color: var(--brand-text);
+  background: var(--brand-surface-alt);
+  border: 1px solid var(--brand-border-light);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all var(--t-fast);
+}
+
+.time-slot:hover {
+  border-color: var(--brand-slate);
+}
+
+.time-slot.is-selected {
+  background: var(--brand-deep);
+  border-color: var(--brand-deep);
+  color: #F5F3EE;
+  font-weight: 600;
+}
+
+/* En el sistema plano los pickers también pierden el radio */
+.flat-page .picker-pop,
+.flat-page .combobox-search-input,
+.flat-page .combobox-item,
+.flat-page .cal-day,
+.flat-page .time-slot,
+.flat-page .picker-nav {
+  border-radius: 0;
 }
 
 .empty-icon {

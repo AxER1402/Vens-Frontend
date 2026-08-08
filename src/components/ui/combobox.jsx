@@ -10,6 +10,10 @@ export function Combobox({
   emptyText = "No se encontraron resultados.",
   onAddNew = null,
   addNewText = "+ Registrar nuevo",
+  icon = null,
+  clearable = true,
+  /** Por defecto el buscador sólo aparece cuando la lista lo amerita */
+  searchable = null,
   className = ""
 }) {
   const [isOpen, setIsOpen] = useState(false);
@@ -26,6 +30,7 @@ export function Combobox({
   });
 
   const selectedItem = normalizedItems.find(i => String(i.value) === String(value));
+  const showSearch = searchable ?? (normalizedItems.length > 6 || Boolean(onAddNew));
 
   // Filter items
   const filteredItems = normalizedItems.filter(i =>
@@ -47,10 +52,10 @@ export function Combobox({
 
   // Focus search input when opening
   useEffect(() => {
-    if (isOpen && inputRef.current) {
+    if (isOpen && showSearch && inputRef.current) {
       inputRef.current.focus();
     }
-  }, [isOpen]);
+  }, [isOpen, showSearch]);
 
   const handleSelect = (itemValue) => {
     onChange(itemValue);
@@ -66,58 +71,63 @@ export function Combobox({
 
   return (
     <div className={`relative w-full ${className}`} ref={containerRef}>
-      {/* Trigger Button */}
+      {/* Disparador: hereda tamaño, color y radio de .form-control */}
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="form-control flex items-center justify-between gap-2 text-left cursor-pointer hover:border-brand-slate h-[42px] px-3 py-0 w-full bg-white"
+        aria-expanded={isOpen}
+        className="form-control select-trigger"
       >
-        <span className={`truncate text-sm ${selectedItem ? 'text-brand-text font-medium' : 'text-brand-text-muted'}`}>
-          {selectedItem ? selectedItem.label : placeholder}
+        <span className="select-trigger-label">
+          {icon}
+          <span className={`select-trigger-text ${selectedItem ? '' : 'is-placeholder'}`}>
+            {selectedItem ? selectedItem.label : placeholder}
+          </span>
         </span>
-        <div className="flex items-center gap-1 shrink-0">
-          {selectedItem && (
+        <span className="select-trigger-icons">
+          {clearable && selectedItem && (
             <span
+              role="button"
+              tabIndex={-1}
               onClick={handleClear}
-              className="p-0.5 rounded-full hover:bg-brand-surface-alt text-brand-text-muted hover:text-brand-text transition-colors cursor-pointer"
+              className="select-trigger-clear"
               title="Limpiar selección"
             >
-              <X size={14} />
+              <X size={13} />
             </span>
           )}
-          <ChevronDown
-            size={16}
-            className="text-brand-slate transition-transform duration-200"
-            style={{ transform: isOpen ? 'rotate(180deg)' : 'none' }}
-          />
-        </div>
+          <ChevronDown size={15} className="select-caret" />
+        </span>
       </button>
 
-      {/* Floating Dropdown */}
       {isOpen && (
-        <div className="combobox-dropdown animate-in fade-in-0 zoom-in-95">
-          {/* Search Bar */}
-          <div className="combobox-search-wrapper">
-            <Search size={15} className="absolute left-3 text-brand-slate pointer-events-none z-10" />
-            <input
-              ref={inputRef}
-              type="text"
-              className="combobox-search-input"
-              placeholder={searchPlaceholder}
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
-          </div>
+        <div className="picker-pop animate-in fade-in-0 zoom-in-95">
+          {/* Buscador */}
+          {showSearch && (
+            <div className="combobox-search-wrapper">
+              <span className="combobox-search-icon">
+                <Search size={14} />
+              </span>
+              <input
+                ref={inputRef}
+                type="text"
+                className="combobox-search-input"
+                placeholder={searchPlaceholder}
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+            </div>
+          )}
 
-          {/* Items List */}
+          {/* Listado */}
           <div className="combobox-list">
             {filteredItems.length === 0 ? (
-              <div className="p-4 text-center text-sm text-brand-text-muted flex flex-col items-center gap-2">
+              <div className="combobox-empty">
                 <span>{emptyText}</span>
                 {onAddNew && (
                   <button
                     type="button"
-                    className="btn btn-primary btn-sm mt-1"
+                    className="btn btn-primary btn-sm"
                     onClick={() => {
                       setIsOpen(false);
                       onAddNew(search);
@@ -138,7 +148,7 @@ export function Combobox({
                     className={`combobox-item ${isSelected ? 'selected' : ''}`}
                   >
                     <span className="truncate">{item.label}</span>
-                    {isSelected && <Check size={16} className="text-white shrink-0 ml-2" />}
+                    {isSelected && <Check size={14} className="shrink-0" />}
                   </button>
                 );
               })

@@ -1,219 +1,305 @@
+import { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import Layout from '../../components/Layout/Layout';
-import { 
-  Users, Calendar, Stethoscope, Clipboard, UserPlus, BarChart3, 
-  TrendingUp, TrendingDown, Minus, ChevronRight, Phone, Clock, 
-  ClipboardList 
+import {
+  Users, Calendar, Stethoscope, Activity, ChevronRight,
+  ClipboardList, CalendarX, RefreshCw
 } from 'lucide-react';
+import * as patientService from '../../services/patientService';
+import * as appointmentService from '../../services/appointmentService';
 import './Dashboard.css';
 
-const stats = [
-  { 
-    to: '/pacientes',
-    label: 'Total Pacientes', 
-    value: '248', 
-    change: '+12 este mes', 
-    trend: 'up', 
-    icon: <Users size={24} />, 
-    cls: 'stat-icon-rose' 
-  },
-  { 
-    to: '/citas',
-    label: 'Citas Hoy', 
-    value: '14', 
-    change: '3 pendientes', 
-    trend: 'neutral', 
-    icon: <Calendar size={24} />, 
-    cls: 'stat-icon-plum' 
-  },
-  { 
-    to: '/historia-clinica',
-    label: 'Consultas / Mes', 
-    value: '186', 
-    change: '+8% vs anterior', 
-    trend: 'up', 
-    icon: <Stethoscope size={24} />, 
-    cls: 'stat-icon-sage' 
-  },
-  { 
-    to: '/reportes',
-    label: 'Sin completar', 
-    value: '17', 
-    change: 'historias abiertas', 
-    trend: 'down', 
-    icon: <Clipboard size={24} />, 
-    cls: 'stat-icon-amber' 
-  },
-];
+const PATIENT_TAG = {
+  Activo: 'tag-success',
+  Seguimiento: 'tag-warning',
+  Alta: 'tag-info'
+};
 
-const recentPatients = [
-  { id: 'P-001', initials: 'AG', name: 'Ana García López',   tel: '+502 5555-1234', last: '22 Jul 2026', estado: 'Activo', statusType: 'success' },
-  { id: 'P-002', initials: 'CM', name: 'Carlos Méndez Ruiz', tel: '+502 5555-5678', last: '21 Jul 2026', estado: 'Activo', statusType: 'success' },
-  { id: 'P-003', initials: 'MV', name: 'María Velásquez',     tel: '+502 5555-9012', last: '20 Jul 2026', estado: 'Seguimiento', statusType: 'warning' },
-  { id: 'P-004', initials: 'RH', name: 'Roberto Herrera',     tel: '+502 5555-3456', last: '19 Jul 2026', estado: 'Activo', statusType: 'success' },
-  { id: 'P-005', initials: 'SR', name: 'Sofía Ramírez Cruz', tel: '+502 5555-7890', last: '18 Jul 2026', estado: 'Alta', statusType: 'info' },
-];
+const APPT_TAG = {
+  Programada: 'tag-info',
+  Confirmada: 'tag-success',
+  Reagendada: 'tag-warning',
+  Completada: 'tag-primary',
+  Cancelada: 'tag-danger'
+};
 
-const appointments = [
-  { hour: '08:00', period: 'AM', patient: 'Ana García López',  type: 'Consulta inicial', status: 'Confirmada', statusType: 'success' },
-  { hour: '09:30', period: 'AM', patient: 'Carlos Méndez',    type: 'Seguimiento vascular', status: 'En espera', statusType: 'warning' },
-  { hour: '11:00', period: 'AM', patient: 'María Velásquez',   type: 'Control post-op', status: 'Confirmada', statusType: 'success' },
-  { hour: '02:00', period: 'PM', patient: 'Julio Torres',      type: 'Doppler venoso', status: 'Confirmada', statusType: 'success' },
-  { hour: '03:30', period: 'PM', patient: 'Laura Morales',     type: 'Primera consulta', status: 'Pendiente', statusType: 'info' },
-];
+const toISODate = (d) => {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+};
+
+const parseTime = (dateTimeStr) => {
+  if (!dateTimeStr) return '';
+  const s = String(dateTimeStr).trim();
+  const sep = s.includes('T') ? 'T' : ' ';
+  return (s.split(sep)[1] || '').substring(0, 5);
+};
+
+const getInitials = (name) => {
+  if (!name) return 'PA';
+  const parts = name.trim().split(' ');
+  if (parts.length >= 2) return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
+  return name.slice(0, 2).toUpperCase();
+};
+
+const getPatientName = (appointment, patients) => {
+  if (appointment.paciente?.nombre) return appointment.paciente.nombre;
+  if (appointment.patient?.nombre) return appointment.patient.nombre;
+  const p = patients.find(x => Number(x.id) === Number(appointment.patient_id));
+  return p ? p.nombre : `Paciente #${appointment.patient_id || '—'}`;
+};
 
 function Dashboard() {
-  const todayFormatted = new Date().toLocaleDateString('es-GT', {
+  const [patients, setPatients] = useState([]);
+  const [todayAppointments, setTodayAppointments] = useState([]);
+  const [monthAppointments, setMonthAppointments] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
+
+  const today = useMemo(() => new Date(), []);
+  const todayISO = toISODate(today);
+
+  const todayFormatted = today.toLocaleDateString('es-GT', {
     weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'
   });
 
+  useEffect(() => {
+    let isMounted = true;
+
+    const load = async () => {
+      setLoading(true);
+      setLoadError('');
+
+      const [patientsRes, todayRes, monthRes] = await Promise.all([
+        patientService.getPatients(),
+        appointmentService.getAppointments({ date: todayISO }),
+        appointmentService.getAppointments({
+          year: today.getFullYear(),
+          month: today.getMonth() + 1
+        })
+      ]);
+
+      if (!isMounted) return;
+
+      if (patientsRes.success) setPatients(patientsRes.data || []);
+      if (todayRes.success) setTodayAppointments(todayRes.data || []);
+      if (monthRes.success) setMonthAppointments(monthRes.data || []);
+
+      if (!patientsRes.success || !todayRes.success || !monthRes.success) {
+        setLoadError('No se pudieron cargar todos los datos del resumen.');
+      }
+      setLoading(false);
+    };
+
+    load();
+    return () => { isMounted = false; };
+  }, [todayISO, today]);
+
+  const stats = useMemo(() => {
+    const activos = patients.filter(p => Boolean(p.activo)).length;
+    const seguimiento = patients.filter(p => p.estado === 'Seguimiento').length;
+    const porConfirmar = todayAppointments.filter(a => a.estado === 'Programada').length;
+    const confirmadasMes = monthAppointments.filter(a => a.estado === 'Confirmada').length;
+
+    return [
+      {
+        to: '/pacientes',
+        label: 'Pacientes registrados',
+        value: patients.length,
+        detail: `${activos} activos`,
+        icon: <Users size={20} />
+      },
+      {
+        to: '/citas',
+        label: 'Citas de hoy',
+        value: todayAppointments.length,
+        detail: porConfirmar > 0 ? `${porConfirmar} por confirmar` : 'todas confirmadas',
+        icon: <Calendar size={20} />
+      },
+      {
+        to: '/citas',
+        label: 'Citas del mes',
+        value: monthAppointments.length,
+        detail: `${confirmadasMes} confirmadas`,
+        icon: <Stethoscope size={20} />
+      },
+      {
+        to: '/pacientes',
+        label: 'En seguimiento',
+        value: seguimiento,
+        detail: 'pacientes en control',
+        icon: <Activity size={20} />
+      }
+    ];
+  }, [patients, todayAppointments, monthAppointments]);
+
+  const recentPatients = useMemo(
+    () => [...patients].sort((a, b) => Number(b.id) - Number(a.id)).slice(0, 5),
+    [patients]
+  );
+
+  const sortedTodayAppointments = useMemo(
+    () => [...todayAppointments].sort((a, b) =>
+      String(a.fecha_hora_inicio || '').localeCompare(String(b.fecha_hora_inicio || ''))
+    ),
+    [todayAppointments]
+  );
+
   return (
     <Layout breadcrumb="Dashboard">
-      {/* Header */}
-      <div className="page-header">
-        <div>
-          <h1 className="page-title">Inicio</h1>
-          <p className="page-subtitle">Resumen general — <span className="capitalize">{todayFormatted}</span></p>
+      <div className="flat-page">
+        <div className="page-header">
+          <div>
+            <h1 className="page-title">Inicio</h1>
+            <p className="page-subtitle">
+              Resumen general — <span className="capitalize">{todayFormatted}</span>
+            </p>
+          </div>
+          <div className="page-actions">
+            <Link to="/citas" className="btn btn-secondary btn-sm flex items-center gap-1.5">
+              <Calendar size={14} /> Ver agenda
+            </Link>
+            <Link to="/historia-clinica" className="btn btn-primary btn-sm flex items-center gap-1.5">
+              <ClipboardList size={14} /> Nueva historia
+            </Link>
+          </div>
         </div>
-        <div className="page-actions">
-          <Link to="/citas" className="btn btn-secondary btn-sm flex items-center gap-1.5">
-            <Calendar size={15} /> Ver agenda
-          </Link>
-          <Link to="/historia-clinica" className="btn btn-primary btn-sm flex items-center gap-1.5">
-            <ClipboardList size={15} /> + Nueva historia
-          </Link>
-        </div>
-      </div>
 
-      {/* Interactive Stat Cards Grid */}
-      <div className="grid grid-4 gap-5 mb-8">
-        {stats.map((s, i) => (
-          <Link to={s.to} className="stat-card" key={i} title={`Ir a ${s.label}`}>
-            <div>
-              <div className="stat-label">{s.label}</div>
-              <div className="stat-value">{s.value}</div>
-              <div className={`stat-change ${s.trend}`}>
-                {s.trend === 'up' ? <TrendingUp size={13} /> : s.trend === 'down' ? <TrendingDown size={13} /> : <Minus size={13} />}
-                <span>{s.change}</span>
+        {loadError && (
+          <div className="notice notice-danger">
+            <span className="notice-body">{loadError}</span>
+          </div>
+        )}
+
+        {/* Indicadores */}
+        <div className="stat-grid">
+          {stats.map((s, i) => (
+            <Link to={s.to} className="stat-card" key={i} title={`Ir a ${s.label}`}>
+              <div>
+                <div className="stat-label">{s.label}</div>
+                <div className="stat-value">{loading ? '—' : s.value}</div>
+                <div className="stat-change neutral">
+                  <span>{loading ? 'cargando…' : s.detail}</span>
+                </div>
               </div>
-            </div>
-            <div className={`stat-icon ${s.cls}`}>{s.icon}</div>
-          </Link>
-        ))}
-      </div>
-
-      {/* Main Content Grid: Recent Patients Table + Today's Appointments */}
-      <div className="dashboard-grid mb-6">
-
-        {/* Recent Patients Table */}
-        <div className="card-base">
-          <div className="card-header-row flex items-center justify-between p-5 border-b border-border-light">
-            <div>
-              <h3 className="text-lg font-semibold text-brand-deep">Pacientes recientes</h3>
-              <p className="text-xs text-muted mt-0.5">Últimas interacciones registradas</p>
-            </div>
-            <Link to="/pacientes" className="btn btn-secondary btn-xs flex items-center gap-1">
-              Ver todos <ChevronRight size={14} />
+              <div className="stat-icon stat-icon-rose">{s.icon}</div>
             </Link>
-          </div>
-
-          <div style={{ overflowX: 'auto' }}>
-            <table className="data-table-enhanced">
-              <thead>
-                <tr>
-                  <th>Paciente</th>
-                  <th>Teléfono</th>
-                  <th>Última visita</th>
-                  <th>Estado</th>
-                  <th style={{ textAlign: 'right' }}>Acciones</th>
-                </tr>
-              </thead>
-              <tbody>
-                {recentPatients.map(p => (
-                  <tr key={p.id}>
-                    <td>
-                      <div className="flex items-center gap-3">
-                        <div className="patient-avatar">{p.initials}</div>
-                        <div>
-                          <div className="font-semibold text-brand-deep">{p.name}</div>
-                          <div className="text-xs text-muted">{p.id}</div>
-                        </div>
-                      </div>
-                    </td>
-                    <td>
-                      <div className="flex items-center gap-1.5 text-sm text-brand-warm">
-                        <Phone size={13} className="text-muted" />
-                        <span>{p.tel}</span>
-                      </div>
-                    </td>
-                    <td>
-                      <span className="text-sm text-brand-warm">{p.last}</span>
-                    </td>
-                    <td>
-                      <span className={`status-dot-pill ${p.statusType}`}>
-                        <span className={`status-dot ${p.statusType}`}></span>
-                        {p.estado}
-                      </span>
-                    </td>
-                    <td style={{ textAlign: 'right' }}>
-                      <Link 
-                        to="/historia-clinica" 
-                        className="btn btn-ghost btn-xs text-brand-slate hover:bg-brand-surface-alt flex items-center gap-1 justify-end ml-auto"
-                        title="Ver Historia Clínica"
-                      >
-                        <ClipboardList size={14} />
-                        <span>Ver HC</span>
-                      </Link>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          ))}
         </div>
 
-        {/* Today's Appointments List */}
-        <div className="card-base">
-          <div className="card-header-row flex items-center justify-between p-5 border-b border-border-light">
-            <div>
-              <h3 className="text-lg font-semibold text-brand-deep">Citas de hoy</h3>
-              <p className="text-xs text-muted mt-0.5">{appointments.length} agendadas para hoy</p>
+        <div className="dashboard-grid">
+
+          {/* Pacientes recientes */}
+          <div className="panel">
+            <div className="panel-head">
+              <span className="panel-title">
+                <Users size={14} />
+                Pacientes recientes
+                <span className="panel-sub">últimos registros</span>
+              </span>
+              <Link to="/pacientes" className="btn btn-secondary btn-sm flex items-center gap-1">
+                Ver todos <ChevronRight size={13} />
+              </Link>
             </div>
-            <Link to="/citas" className="btn btn-secondary btn-xs flex items-center gap-1">
-              Ver todas <ChevronRight size={14} />
-            </Link>
+
+            {loading ? (
+              <div className="panel-empty flex items-center justify-center gap-2">
+                <RefreshCw size={14} className="animate-spin" /> Cargando pacientes…
+              </div>
+            ) : recentPatients.length === 0 ? (
+              <div className="panel-empty">Aún no hay pacientes registrados.</div>
+            ) : (
+              <div style={{ overflowX: 'auto' }}>
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th>Paciente</th>
+                      <th>Teléfono</th>
+                      <th>Residencia</th>
+                      <th>Estado</th>
+                      <th className="text-right">Acciones</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {recentPatients.map(p => (
+                      <tr key={p.id} className={p.activo ? '' : 'row-off'}>
+                        <td>
+                          <div className="flex items-center gap-3">
+                            <div className="avatar-sq">{getInitials(p.nombre)}</div>
+                            <div>
+                              <div className="font-semibold text-brand-text">{p.nombre}</div>
+                              <div className="id-chip">#{p.id}</div>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="text-muted">{p.telefono || '—'}</td>
+                        <td className="text-muted">{p.lugar_residencia || '—'}</td>
+                        <td>
+                          <span className={`tag ${PATIENT_TAG[p.estado] || 'tag-info'}`}>
+                            {p.estado || 'Activo'}
+                          </span>
+                        </td>
+                        <td className="text-right">
+                          <Link
+                            to={`/historia-clinica?patientId=${p.id}`}
+                            className="btn btn-secondary btn-sm inline-flex items-center gap-1"
+                            title="Ver historia clínica"
+                          >
+                            <ClipboardList size={13} /> Historia
+                          </Link>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
 
-          <div className="p-4 flex flex-col gap-3">
-            {appointments.map((a, i) => (
-              <div className="appt-card-item" key={i}>
-                <div className="appt-time-pill">
-                  <span className="appt-time-hour">{a.hour}</span>
-                  <span className="appt-time-period">{a.period}</span>
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="font-semibold text-brand-deep truncate">{a.patient}</div>
-                  <div className="text-xs text-muted truncate mt-0.5 flex items-center gap-1">
-                    <Clock size={12} />
-                    <span>{a.type}</span>
-                  </div>
-                </div>
-                <span className={`status-dot-pill ${a.statusType}`}>
-                  <span className={`status-dot ${a.statusType}`}></span>
-                  {a.status}
+          {/* Citas de hoy */}
+          <div className="panel">
+            <div className="panel-head">
+              <span className="panel-title">
+                <Calendar size={14} />
+                Citas de hoy
+                <span className="panel-sub">
+                  {loading ? '—' : `${sortedTodayAppointments.length} agendadas`}
                 </span>
+              </span>
+            </div>
+
+            {loading ? (
+              <div className="panel-empty flex items-center justify-center gap-2">
+                <RefreshCw size={14} className="animate-spin" /> Cargando agenda…
               </div>
-            ))}
+            ) : sortedTodayAppointments.length === 0 ? (
+              <div className="panel-empty flex flex-col items-center gap-2">
+                <CalendarX size={28} className="text-brand-text-light" />
+                No hay citas programadas para hoy.
+              </div>
+            ) : (
+              sortedTodayAppointments.map(a => (
+                <div className="appt-row" key={a.id}>
+                  <span className="appt-hour">{parseTime(a.fecha_hora_inicio) || '—'}</span>
+                  <div className="appt-main">
+                    <div className="appt-name">{getPatientName(a, patients)}</div>
+                    <div className="appt-motivo">{a.motivo || 'Sin motivo'}</div>
+                  </div>
+                  <span className={`tag ${APPT_TAG[a.estado] || 'tag-info'}`}>{a.estado}</span>
+                </div>
+              ))
+            )}
+
+            <div className="panel-foot">
+              <Link to="/citas" className="btn btn-secondary btn-sm w-full flex items-center justify-center gap-1.5">
+                <Calendar size={13} /> Gestionar agenda completa
+              </Link>
+            </div>
           </div>
 
-          <div className="p-4 pt-0">
-            <Link to="/citas" className="btn btn-secondary btn-sm w-full flex items-center justify-center gap-1.5">
-              <Calendar size={14} />
-              <span>Gestionar agenda completa</span>
-            </Link>
-          </div>
         </div>
-
       </div>
     </Layout>
   );

@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import Layout from '../../components/Layout/Layout';
 import {
   Search,
@@ -9,12 +10,8 @@ import {
   AlertCircle,
   CheckCircle2,
   Power,
-  Phone,
-  MapPin,
-  Heart,
-  User,
-  ShieldAlert,
-  Calendar
+  Activity,
+  ShieldAlert
 } from 'lucide-react';
 import {
   Dialog,
@@ -25,31 +22,17 @@ import {
   DialogFooter
 } from '@/components/ui/dialog';
 import { Combobox } from '@/components/ui/combobox';
+import {
+  PatientFormFields,
+  EMPTY_PATIENT_FORM,
+  ESTADO_PATIENT_OPTIONS
+} from '@/components/forms/PatientFormFields';
 import { useAuth } from '../../context/AuthContext';
 import * as patientService from '../../services/patientService';
 
-const EMPTY_FORM = {
-  nombre: '',
-  edad: '',
-  telefono: '',
-  lugar_residencia: '',
-  estado_civil: '',
-  religion: '',
-  estado: 'Activo'
-};
-
-const ESTADO_CIVIL_OPTIONS = [
-  'Soltero/a',
-  'Casado/a',
-  'Unión Libre',
-  'Divorciado/a',
-  'Viudo/a'
-];
-
-const ESTADO_PATIENT_OPTIONS = [
-  'Activo',
-  'Seguimiento',
-  'Alta'
+const ACTIVACION_FILTER_OPTIONS = [
+  { value: 'true', label: 'Pacientes Activos' },
+  { value: 'false', label: 'Pacientes Inactivos' }
 ];
 
 const tagClass = {
@@ -59,6 +42,7 @@ const tagClass = {
 };
 
 function Pacientes() {
+  const navigate = useNavigate();
   const { user } = useAuth();
   const [patients, setPatients] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -73,7 +57,7 @@ function Pacientes() {
   const [selectedPatient, setSelectedPatient] = useState(null);
 
   // Form & submit state
-  const [form, setForm] = useState(EMPTY_FORM);
+  const [form, setForm] = useState(EMPTY_PATIENT_FORM);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
@@ -107,7 +91,7 @@ function Pacientes() {
 
   // Open Create Modal
   const handleOpenCreate = () => {
-    setForm(EMPTY_FORM);
+    setForm(EMPTY_PATIENT_FORM);
     setErrorMessage('');
     setSuccessMessage('');
     setShowCreateModal(true);
@@ -238,6 +222,7 @@ function Pacientes() {
 
   return (
     <Layout breadcrumb="Pacientes">
+      <div className="flat-page">
       {/* Header */}
       <div className="page-header">
         <div>
@@ -258,11 +243,13 @@ function Pacientes() {
             </button>
           ) : (
             <div
-              className="inline-flex items-center gap-1.5 text-xs text-amber-700 bg-amber-50 border border-amber-200 px-3 py-1.5 rounded-lg"
+              className="notice notice-warning notice-flush"
               title="Permisos insuficientes para crear pacientes"
             >
-              <ShieldAlert size={14} />
-              <span>Modo lectura para rol: {user?.rol}</span>
+              <span className="notice-body">
+                <ShieldAlert size={14} />
+                Modo lectura para rol: {user?.rol}
+              </span>
             </div>
           )}
         </div>
@@ -270,19 +257,14 @@ function Pacientes() {
 
       {/* Banner de mensajes de éxito */}
       {successMessage && (
-        <div
-          className="mb-6 p-4 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-900 text-sm flex items-center justify-between shadow-xs"
-          style={{ padding: '14px 18px' }}
-        >
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center shrink-0">
-              <CheckCircle2 size={18} className="text-emerald-600" />
-            </div>
-            <span className="font-medium">{successMessage}</span>
-          </div>
+        <div className="notice notice-success">
+          <span className="notice-body">
+            <CheckCircle2 size={16} />
+            {successMessage}
+          </span>
           <button
             type="button"
-            className="text-xs font-semibold text-emerald-700 hover:text-emerald-900 hover:underline px-2 py-1 rounded transition-colors"
+            className="btn btn-ghost btn-sm"
             onClick={() => setSuccessMessage('')}
           >
             Cerrar
@@ -307,28 +289,25 @@ function Pacientes() {
             />
           </div>
 
-          <select
-            className="form-control"
-            style={{ width: 180 }}
-            value={filterEstado}
-            onChange={(e) => setFilterEstado(e.target.value)}
-          >
-            <option value="">Todos los estados</option>
-            <option value="Activo">Activo</option>
-            <option value="Seguimiento">Seguimiento</option>
-            <option value="Alta">Alta</option>
-          </select>
+          <div style={{ width: 190 }}>
+            <Combobox
+              items={ESTADO_PATIENT_OPTIONS}
+              value={filterEstado}
+              onChange={setFilterEstado}
+              placeholder="Todos los estados"
+              icon={<Activity size={15} />}
+            />
+          </div>
 
-          <select
-            className="form-control"
-            style={{ width: 170 }}
-            value={filterActivo}
-            onChange={(e) => setFilterActivo(e.target.value)}
-          >
-            <option value="">Todos (Activación)</option>
-            <option value="true">Pacientes Activos</option>
-            <option value="false">Pacientes Inactivos</option>
-          </select>
+          <div style={{ width: 190 }}>
+            <Combobox
+              items={ACTIVACION_FILTER_OPTIONS}
+              value={filterActivo}
+              onChange={setFilterActivo}
+              placeholder="Todos (Activación)"
+              icon={<Power size={15} />}
+            />
+          </div>
         </div>
 
         <div className="toolbar-right">
@@ -368,11 +347,11 @@ function Pacientes() {
               <tr>
                 <td colSpan={9}>
                   <div className="empty-state py-8">
-                    <div className="empty-icon text-gray-400 mb-2">
-                      <UserX size={40} />
+                    <div className="empty-icon text-brand-text-light mb-2">
+                      <UserX size={36} />
                     </div>
-                    <p className="font-medium text-gray-700">No se encontraron pacientes</p>
-                    <p className="text-xs text-gray-500">
+                    <p className="font-medium text-brand-text">No se encontraron pacientes</p>
+                    <p className="text-xs text-muted">
                       Intente buscando por otro nombre, teléfono o modifique los filtros.
                     </p>
                   </div>
@@ -382,20 +361,14 @@ function Pacientes() {
               patients.map((p) => {
                 const isPatientActive = Boolean(p.activo);
                 return (
-                  <tr key={p.id} className={!isPatientActive ? 'opacity-70 bg-gray-50/50' : ''}>
+                  <tr key={p.id} className={!isPatientActive ? 'row-off' : ''}>
                     <td>
-                      <span className="text-xs font-mono text-gray-500 bg-gray-100 px-2 py-0.5 rounded">
-                        #{p.id}
-                      </span>
+                      <span className="id-chip">#{p.id}</span>
                     </td>
                     <td>
                       <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-full bg-teal-50 border border-teal-200 flex items-center justify-center font-bold text-xs text-teal-800 shrink-0">
-                          {getInitials(p.nombre)}
-                        </div>
-                        <div>
-                          <div className="font-semibold text-gray-900 text-sm">{p.nombre}</div>
-                        </div>
+                        <div className="avatar-sq">{getInitials(p.nombre)}</div>
+                        <div className="font-semibold text-brand-text text-sm">{p.nombre}</div>
                       </div>
                     </td>
                     <td className="text-muted text-sm">
@@ -416,23 +389,17 @@ function Pacientes() {
                       </span>
                     </td>
                     <td>
-                      {isPatientActive ? (
-                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800">
-                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-                          Activo
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-rose-100 text-rose-800">
-                          <span className="w-1.5 h-1.5 rounded-full bg-rose-500"></span>
-                          Inactivo
-                        </span>
-                      )}
+                      <span className="state-inline">
+                        <span className={`dot ${isPatientActive ? 'dot-on' : 'dot-off'}`}></span>
+                        {isPatientActive ? 'Activo' : 'Inactivo'}
+                      </span>
                     </td>
                     <td>
                       <div className="flex items-center justify-end gap-2">
                         <button
                           className="btn btn-secondary btn-sm flex items-center gap-1"
                           title="Ver Historia Clínica"
+                          onClick={() => navigate(`/historia-clinica?patientId=${p.id}`)}
                         >
                           <ClipboardList size={14} />
                           <span className="hidden sm:inline">Historia</span>
@@ -452,9 +419,7 @@ function Pacientes() {
                         {canDeactivatePatients && (
                           <button
                             className={`btn btn-sm flex items-center gap-1 ${
-                              isPatientActive
-                                ? 'bg-rose-50 text-rose-700 hover:bg-rose-100 border-rose-200'
-                                : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border-emerald-200'
+                              isPatientActive ? 'btn-danger' : 'btn-success'
                             }`}
                             title={isPatientActive ? 'Desactivar paciente' : 'Activar paciente'}
                             onClick={() => handleOpenDeactivate(p)}
@@ -477,140 +442,30 @@ function Pacientes() {
 
       {/* ================= MODAL CREAR PACIENTE ================= */}
       <Dialog open={showCreateModal} onOpenChange={setShowCreateModal}>
-        <DialogContent className="sm:max-w-lg p-6 bg-white border-brand-border-light shadow-2xl">
+        <DialogContent className="flat-page sm:max-w-lg rounded-none bg-brand-surface">
           <DialogHeader>
-            <DialogTitle className="text-xl font-bold text-brand-deep flex items-center gap-2">
-              <UserPlus className="text-brand-teal" size={22} />
+            <DialogTitle className="flex items-center gap-2 text-brand-text">
+              <UserPlus className="text-brand-slate" size={22} />
               Nuevo Paciente
             </DialogTitle>
-            <DialogDescription className="text-sm text-brand-text-muted">
+            <DialogDescription className="text-muted">
               Ingrese los datos del paciente para registrarlo en la plataforma.
             </DialogDescription>
           </DialogHeader>
 
           {errorMessage && (
-            <div
-              className="p-3.5 bg-rose-50 border border-rose-200 rounded-lg text-rose-800 text-sm flex items-center gap-2.5 shadow-2xs"
-              style={{ padding: '12px 16px' }}
-            >
-              <AlertCircle size={18} className="text-rose-600 shrink-0" />
-              <span className="font-medium">{errorMessage}</span>
+            <div className="notice notice-danger notice-flush">
+              <span className="notice-body">
+                <AlertCircle size={16} />
+                {errorMessage}
+              </span>
             </div>
           )}
 
           <form onSubmit={handleCreateSubmit} id="form-nuevo-paciente" className="flex flex-col gap-4 py-2">
-            <div className="grid grid-2 gap-4">
-              <div className="form-group">
-                <label className="form-label">
-                  Nombre completo <span className="req">*</span>
-                </label>
-                <div className="relative">
-                  <input
-                    name="nombre"
-                    type="text"
-                    className="form-control pl-8"
-                    placeholder="Ej. María Eugenia López"
-                    value={form.nombre}
-                    onChange={(e) => setForm((p) => ({ ...p, nombre: e.target.value }))}
-                    required
-                  />
-                  <User size={15} className="absolute left-2.5 top-3 text-gray-400" />
-                </div>
-              </div>
+            <PatientFormFields form={form} setForm={setForm} />
 
-              <div className="form-group">
-                <label className="form-label">Edad</label>
-                <div className="relative">
-                  <input
-                    name="edad"
-                    type="number"
-                    min="0"
-                    max="120"
-                    className="form-control pl-8"
-                    placeholder="Ej. 42"
-                    value={form.edad}
-                    onChange={(e) => setForm((p) => ({ ...p, edad: e.target.value }))}
-                  />
-                  <Calendar size={15} className="absolute left-2.5 top-3 text-gray-400" />
-                </div>
-              </div>
-            </div>
-
-            <div className="grid grid-2 gap-4">
-              <div className="form-group">
-                <label className="form-label">
-                  Teléfono <span className="req">*</span>
-                </label>
-                <div className="relative">
-                  <input
-                    name="telefono"
-                    type="text"
-                    className="form-control pl-8"
-                    placeholder="+503 7890-1234"
-                    value={form.telefono}
-                    onChange={(e) => setForm((p) => ({ ...p, telefono: e.target.value }))}
-                    required
-                  />
-                  <Phone size={15} className="absolute left-2.5 top-3 text-gray-400" />
-                </div>
-              </div>
-
-              <div className="form-group">
-                <label className="form-label">Lugar de residencia</label>
-                <div className="relative">
-                  <input
-                    name="lugar_residencia"
-                    type="text"
-                    className="form-control pl-8"
-                    placeholder="Colonia Escalón, San Salvador"
-                    value={form.lugar_residencia}
-                    onChange={(e) => setForm((p) => ({ ...p, lugar_residencia: e.target.value }))}
-                  />
-                  <MapPin size={15} className="absolute left-2.5 top-3 text-gray-400" />
-                </div>
-              </div>
-            </div>
-
-            <div className="grid grid-2 gap-4">
-              <div className="form-group">
-                <label className="form-label">Estado civil</label>
-                <Combobox
-                  items={ESTADO_CIVIL_OPTIONS}
-                  value={form.estado_civil}
-                  onChange={(val) => setForm((p) => ({ ...p, estado_civil: val }))}
-                  placeholder="Seleccionar estado civil…"
-                  searchPlaceholder="Buscar estado civil…"
-                />
-              </div>
-
-              <div className="form-group">
-                <label className="form-label">Religión</label>
-                <div className="relative">
-                  <input
-                    name="religion"
-                    type="text"
-                    className="form-control pl-8"
-                    placeholder="Ej. Católica"
-                    value={form.religion}
-                    onChange={(e) => setForm((p) => ({ ...p, religion: e.target.value }))}
-                  />
-                  <Heart size={15} className="absolute left-2.5 top-3 text-gray-400" />
-                </div>
-              </div>
-            </div>
-
-            <div className="form-group">
-              <label className="form-label">Estado actual del paciente</label>
-              <Combobox
-                items={ESTADO_PATIENT_OPTIONS}
-                value={form.estado}
-                onChange={(val) => setForm((p) => ({ ...p, estado: val }))}
-                placeholder="Seleccionar estado…"
-                searchPlaceholder="Buscar estado…"
-              />
-            </div>
-
-            <DialogFooter className="pt-3 flex justify-between gap-3 border-t border-gray-100">
+            <DialogFooter className="dialog-sep flex flex-row justify-between gap-3 sm:justify-between">
               <button
                 type="button"
                 className="btn btn-secondary"
@@ -634,125 +489,30 @@ function Pacientes() {
 
       {/* ================= MODAL EDITAR PACIENTE ================= */}
       <Dialog open={showEditModal} onOpenChange={setShowEditModal}>
-        <DialogContent className="sm:max-w-lg p-6 bg-white border-brand-border-light shadow-2xl">
+        <DialogContent className="flat-page sm:max-w-lg rounded-none bg-brand-surface">
           <DialogHeader>
-            <DialogTitle className="text-xl font-bold text-brand-deep flex items-center gap-2">
-              <Pencil className="text-brand-teal" size={20} />
+            <DialogTitle className="flex items-center gap-2 text-brand-text">
+              <Pencil className="text-brand-slate" size={20} />
               Editar Paciente #{selectedPatient?.id}
             </DialogTitle>
-            <DialogDescription className="text-sm text-brand-text-muted">
+            <DialogDescription className="text-muted">
               Actualice los datos del paciente registrado en el sistema.
             </DialogDescription>
           </DialogHeader>
 
           {errorMessage && (
-            <div
-              className="p-3.5 bg-rose-50 border border-rose-200 rounded-lg text-rose-800 text-sm flex items-center gap-2.5 shadow-2xs"
-              style={{ padding: '12px 16px' }}
-            >
-              <AlertCircle size={18} className="text-rose-600 shrink-0" />
-              <span className="font-medium">{errorMessage}</span>
+            <div className="notice notice-danger notice-flush">
+              <span className="notice-body">
+                <AlertCircle size={16} />
+                {errorMessage}
+              </span>
             </div>
           )}
 
           <form onSubmit={handleEditSubmit} className="flex flex-col gap-4 py-2">
-            <div className="grid grid-2 gap-4">
-              <div className="form-group">
-                <label className="form-label">
-                  Nombre completo <span className="req">*</span>
-                </label>
-                <input
-                  name="nombre"
-                  type="text"
-                  className="form-control"
-                  placeholder="Nombre completo"
-                  value={form.nombre}
-                  onChange={(e) => setForm((p) => ({ ...p, nombre: e.target.value }))}
-                  required
-                />
-              </div>
+            <PatientFormFields form={form} setForm={setForm} />
 
-              <div className="form-group">
-                <label className="form-label">Edad</label>
-                <input
-                  name="edad"
-                  type="number"
-                  min="0"
-                  max="120"
-                  className="form-control"
-                  placeholder="Años"
-                  value={form.edad}
-                  onChange={(e) => setForm((p) => ({ ...p, edad: e.target.value }))}
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-2 gap-4">
-              <div className="form-group">
-                <label className="form-label">
-                  Teléfono <span className="req">*</span>
-                </label>
-                <input
-                  name="telefono"
-                  type="text"
-                  className="form-control"
-                  placeholder="+503 7890-1234"
-                  value={form.telefono}
-                  onChange={(e) => setForm((p) => ({ ...p, telefono: e.target.value }))}
-                  required
-                />
-              </div>
-
-              <div className="form-group">
-                <label className="form-label">Lugar de residencia</label>
-                <input
-                  name="lugar_residencia"
-                  type="text"
-                  className="form-control"
-                  placeholder="Ciudad, Colonia..."
-                  value={form.lugar_residencia}
-                  onChange={(e) => setForm((p) => ({ ...p, lugar_residencia: e.target.value }))}
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-2 gap-4">
-              <div className="form-group">
-                <label className="form-label">Estado civil</label>
-                <Combobox
-                  items={ESTADO_CIVIL_OPTIONS}
-                  value={form.estado_civil}
-                  onChange={(val) => setForm((p) => ({ ...p, estado_civil: val }))}
-                  placeholder="Seleccionar estado civil…"
-                  searchPlaceholder="Buscar estado civil…"
-                />
-              </div>
-
-              <div className="form-group">
-                <label className="form-label">Religión</label>
-                <input
-                  name="religion"
-                  type="text"
-                  className="form-control"
-                  placeholder="Ej. Católica"
-                  value={form.religion}
-                  onChange={(e) => setForm((p) => ({ ...p, religion: e.target.value }))}
-                />
-              </div>
-            </div>
-
-            <div className="form-group">
-              <label className="form-label">Estado actual del paciente</label>
-              <Combobox
-                items={ESTADO_PATIENT_OPTIONS}
-                value={form.estado}
-                onChange={(val) => setForm((p) => ({ ...p, estado: val }))}
-                placeholder="Seleccionar estado…"
-                searchPlaceholder="Buscar estado…"
-              />
-            </div>
-
-            <DialogFooter className="pt-3 flex justify-between gap-3 border-t border-gray-100">
+            <DialogFooter className="dialog-sep flex flex-row justify-between gap-3 sm:justify-between">
               <button
                 type="button"
                 className="btn btn-secondary"
@@ -775,16 +535,16 @@ function Pacientes() {
 
       {/* ================= MODAL DESACTIVAR / REACTIVAR PACIENTE ================= */}
       <Dialog open={showDeactivateModal} onOpenChange={setShowDeactivateModal}>
-        <DialogContent className="sm:max-w-md p-6 bg-white border-brand-border-light shadow-2xl">
+        <DialogContent className="flat-page sm:max-w-md rounded-none bg-brand-surface">
           <DialogHeader>
-            <DialogTitle className="text-lg font-bold text-gray-900 flex items-center gap-2">
+            <DialogTitle className="flex items-center gap-2 text-brand-text">
               <Power
-                className={selectedPatient?.activo ? 'text-rose-600' : 'text-emerald-600'}
+                className={selectedPatient?.activo ? 'text-brand-slate' : 'text-brand-slate'}
                 size={20}
               />
               {selectedPatient?.activo ? 'Desactivar Paciente' : 'Activar Paciente'}
             </DialogTitle>
-            <DialogDescription className="text-sm text-gray-600 pt-2">
+            <DialogDescription className="text-muted">
               {selectedPatient?.activo ? (
                 <>
                   ¿Estás seguro de que deseas desactivar al paciente{' '}
@@ -803,16 +563,15 @@ function Pacientes() {
           </DialogHeader>
 
           {errorMessage && (
-            <div
-              className="p-3.5 bg-rose-50 border border-rose-200 rounded-lg text-rose-800 text-sm flex items-center gap-2 shadow-2xs"
-              style={{ padding: '12px 16px' }}
-            >
-              <AlertCircle size={18} className="text-rose-600 shrink-0" />
-              <span className="font-medium">{errorMessage}</span>
+            <div className="notice notice-danger notice-flush">
+              <span className="notice-body">
+                <AlertCircle size={16} />
+                {errorMessage}
+              </span>
             </div>
           )}
 
-          <DialogFooter className="pt-4 flex justify-end gap-3">
+          <DialogFooter className="dialog-sep flex flex-row justify-end gap-3">
             <button
               type="button"
               className="btn btn-secondary"
@@ -824,7 +583,7 @@ function Pacientes() {
             <button
               type="button"
               className={`btn ${
-                selectedPatient?.activo ? 'bg-rose-600 text-white hover:bg-rose-700' : 'btn-primary'
+                selectedPatient?.activo ? 'btn-danger' : 'btn-primary'
               }`}
               onClick={handleConfirmToggleActive}
               disabled={isSubmitting}
@@ -838,6 +597,7 @@ function Pacientes() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      </div>
     </Layout>
   );
 }

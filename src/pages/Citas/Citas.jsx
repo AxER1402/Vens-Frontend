@@ -1,11 +1,11 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, Fragment } from 'react';
 import Layout from '../../components/Layout/Layout';
 import {
   CalendarX,
   Eye,
   Pencil,
   Calendar as CalendarIcon,
-  Clock,
+  ClipboardList,
   UserPlus,
   CheckCircle2,
   AlertCircle,
@@ -13,14 +13,15 @@ import {
   RotateCcw,
   UserCheck,
   User,
-  Phone,
   Filter,
   RefreshCw,
-  MapPin,
-  Heart
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
 import { DatePicker } from '@/components/ui/date-picker';
+import { TimePicker } from '@/components/ui/time-picker';
 import { Combobox } from '@/components/ui/combobox';
+import { PatientFormFields, EMPTY_PATIENT_FORM } from '@/components/forms/PatientFormFields';
 import {
   Dialog,
   DialogContent,
@@ -63,23 +64,54 @@ const EMPTY_APPOINTMENT_FORM = {
   estado: 'Programada'
 };
 
-const EMPTY_PATIENT_FORM = {
-  nombre: '',
-  edad: '',
-  telefono: '',
-  lugar_residencia: '',
-  estado_civil: '',
-  religion: '',
-  estado: 'Activo'
-};
-
 const tagClass = {
   Programada: 'tag-info',
   Confirmada: 'tag-success',
-  Reagendada: 'bg-blue-100 text-blue-800 border-blue-200',
-  Completada: 'bg-purple-100 text-purple-800 border-purple-200',
+  Reagendada: 'tag-warning',
+  Completada: 'tag-primary',
   Cancelada: 'tag-danger'
 };
+
+const DOW_LABELS = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
+
+const MESES = [
+  'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+  'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
+];
+
+const MONTH_OPTIONS = MESES.map((label, i) => ({ value: String(i + 1), label }));
+
+/** Rango de años del filtro: dos atrás y dos adelante del año en curso */
+const YEAR_OPTIONS = Array.from({ length: 5 }, (_, i) => {
+  const y = String(new Date().getFullYear() - 2 + i);
+  return { value: y, label: y };
+});
+
+const toISODate = (d) => {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+};
+
+const addDays = (d, n) => {
+  const x = new Date(d);
+  x.setDate(x.getDate() + n);
+  return x;
+};
+
+/** Lunes como primer día de la semana */
+const startOfWeek = (d) => {
+  const x = new Date(d);
+  x.setDate(x.getDate() - ((x.getDay() + 6) % 7));
+  x.setHours(0, 0, 0, 0);
+  return x;
+};
+
+const isSameDay = (a, b) => toISODate(a) === toISODate(b);
+
+/** Clase de color por estado: st-programada, st-confirmada, … */
+const stateClass = (estado) => `st-${String(estado || 'Programada').toLowerCase()}`;
 
 const fmtDate = (d) => {
   if (!d || d === 'Sin Fecha') return 'Sin Fecha Asignada';
@@ -156,6 +188,10 @@ function Citas() {
   const [errorMessage, setErrorMessage] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
 
+  // Vista de agenda: 'dia' | 'semana' | 'lista'
+  const [view, setView] = useState('semana');
+  const [anchorDate, setAnchorDate] = useState(() => new Date());
+
   // Filters state
   const [filterYear, setFilterYear] = useState('');
   const [filterMonth, setFilterMonth] = useState('');
@@ -183,9 +219,20 @@ function Citas() {
   const fetchAppointments = useCallback(async () => {
     setLoading(true);
     const params = {};
-    if (filterYear) params.year = filterYear;
-    if (filterMonth) params.month = filterMonth;
-    if (filterDate) params.date = filterDate;
+
+    // El rango lo define la vista: la semana/día visible, o los filtros en modo lista
+    if (view === 'semana') {
+      const ws = startOfWeek(anchorDate);
+      params.from_date = toISODate(ws);
+      params.to_date = toISODate(addDays(ws, 6));
+    } else if (view === 'dia') {
+      params.date = toISODate(anchorDate);
+    } else {
+      if (filterYear) params.year = filterYear;
+      if (filterMonth) params.month = filterMonth;
+      if (filterDate) params.date = filterDate;
+    }
+
     if (filterEstado && filterEstado !== 'Todos') params.estado = filterEstado;
     if (filterPatientId) params.patient_id = filterPatientId;
 
@@ -196,7 +243,7 @@ function Citas() {
       setErrorMessage(res.message || 'Error al cargar el listado de citas.');
     }
     setLoading(false);
-  }, [filterYear, filterMonth, filterDate, filterEstado, filterPatientId]);
+  }, [view, anchorDate, filterYear, filterMonth, filterDate, filterEstado, filterPatientId]);
 
   // Fetch patients list
   const fetchPatients = useCallback(async (search = '') => {
@@ -231,6 +278,23 @@ function Citas() {
       label: `${p.nombre} ${p.telefono ? `— Tel: ${p.telefono}` : ''}`
     }));
   }, [patients]);
+
+  // Doctor items formatted for Combobox
+  const doctorOptions = useMemo(() => {
+    return doctors.map(d => ({
+      value: String(d.id),
+      label: `Dr. ${d.name} (${d.rol || 'Médico'})`
+    }));
+  }, [doctors]);
+
+  // Motivos sugeridos + el motivo ya guardado, para no perderlo al editar
+  const motivoOptions = useMemo(() => {
+    const motivo = appointmentForm.motivo;
+    if (motivo && !MOTIVOS_DEFAULT.includes(motivo)) {
+      return [motivo, ...MOTIVOS_DEFAULT];
+    }
+    return MOTIVOS_DEFAULT;
+  }, [appointmentForm.motivo]);
 
   // Handlers for Modals
   const handleOpenCreate = () => {
@@ -280,6 +344,29 @@ function Citas() {
     setShowDetailModal(true);
   };
 
+  /* Puentes desde el detalle: se cierra el detalle y se abre la acción,
+     para no dejar dos diálogos apilados. */
+  const handleEditFromDetail = () => {
+    if (!selectedAppointment) return;
+    const appointment = selectedAppointment;
+    setShowDetailModal(false);
+    handleOpenEdit(appointment);
+  };
+
+  const handleCancelFromDetail = () => {
+    if (!selectedAppointment) return;
+    const appointment = selectedAppointment;
+    setShowDetailModal(false);
+    handleOpenCancel(appointment);
+  };
+
+  const handleAssignPatientFromDetail = () => {
+    if (!selectedAppointment) return;
+    const appointment = selectedAppointment;
+    setShowDetailModal(false);
+    handleOpenAssignPatient(appointment);
+  };
+
   const handleOpenRegisterPatient = (prefill = '') => {
     const isPhone = /^[0-9+ \-]+$/.test(prefill.trim());
     setPatientForm({
@@ -306,6 +393,15 @@ function Citas() {
     }
     if (!appointmentForm.fecha) {
       setErrorMessage('La fecha de la cita es obligatoria.');
+      return;
+    }
+    // Los selectores de hora ya no son inputs nativos: se valida aquí
+    if (!appointmentForm.hora_inicio || !appointmentForm.hora_fin) {
+      setErrorMessage('Debe indicar la hora de inicio y la hora de fin.');
+      return;
+    }
+    if (appointmentForm.hora_fin <= appointmentForm.hora_inicio) {
+      setErrorMessage('La hora de fin debe ser posterior a la hora de inicio.');
       return;
     }
 
@@ -349,6 +445,15 @@ function Citas() {
     }
     if (!appointmentForm.fecha) {
       setErrorMessage('La fecha de la cita es obligatoria.');
+      return;
+    }
+    // Los selectores de hora ya no son inputs nativos: se valida aquí
+    if (!appointmentForm.hora_inicio || !appointmentForm.hora_fin) {
+      setErrorMessage('Debe indicar la hora de inicio y la hora de fin.');
+      return;
+    }
+    if (appointmentForm.hora_fin <= appointmentForm.hora_inicio) {
+      setErrorMessage('La hora de fin debe ser posterior a la hora de inicio.');
       return;
     }
 
@@ -577,6 +682,67 @@ function Citas() {
     return map;
   }, [appointments]);
 
+  // --------- Datos derivados de la agenda ---------
+  const weekDays = useMemo(() => {
+    const ws = startOfWeek(anchorDate);
+    return Array.from({ length: 7 }, (_, i) => addDays(ws, i));
+  }, [anchorDate]);
+
+  /** Citas indexadas por "YYYY-MM-DD|hora" para llenar cada celda de la rejilla */
+  const weekMap = useMemo(() => {
+    const map = {};
+    appointments.forEach(app => {
+      const { date, time } = parseBackendDateTime(app.fecha_hora_inicio);
+      if (!date) return;
+      const hour = Number((time || '00:00').split(':')[0]);
+      if (Number.isNaN(hour)) return;
+      const key = `${date}|${hour}`;
+      if (!map[key]) map[key] = [];
+      map[key].push(app);
+    });
+    Object.values(map).forEach(list =>
+      list.sort((a, b) =>
+        String(a.fecha_hora_inicio || '').localeCompare(String(b.fecha_hora_inicio || ''))
+      )
+    );
+    return map;
+  }, [appointments]);
+
+  /** Franja horaria visible: se ajusta a las citas, con 08:00–17:00 como mínimo */
+  const hourRange = useMemo(() => {
+    const hours = appointments
+      .map(app => Number((parseBackendDateTime(app.fecha_hora_inicio).time || '').split(':')[0]))
+      .filter(h => !Number.isNaN(h));
+    const min = Math.min(8, ...hours);
+    const max = Math.max(17, ...hours);
+    return Array.from({ length: max - min + 1 }, (_, i) => min + i);
+  }, [appointments]);
+
+  const dayAppointments = useMemo(() => {
+    const iso = toISODate(anchorDate);
+    return appointments
+      .filter(app => parseBackendDateTime(app.fecha_hora_inicio).date === iso)
+      .sort((a, b) =>
+        String(a.fecha_hora_inicio || '').localeCompare(String(b.fecha_hora_inicio || ''))
+      );
+  }, [appointments, anchorDate]);
+
+  const rangeLabel = useMemo(() => {
+    if (view === 'dia') {
+      return anchorDate.toLocaleDateString('es-GT', {
+        weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'
+      });
+    }
+    const ws = startOfWeek(anchorDate);
+    const we = addDays(ws, 6);
+    const sameMonth = ws.getMonth() === we.getMonth();
+    const startLabel = ws.toLocaleDateString('es-GT', sameMonth
+      ? { day: 'numeric' }
+      : { day: 'numeric', month: 'short' });
+    const endLabel = we.toLocaleDateString('es-GT', { day: 'numeric', month: 'short', year: 'numeric' });
+    return `${startLabel} – ${endLabel}`;
+  }, [anchorDate, view]);
+
   // Statistics calculation
   const stats = useMemo(() => {
     const total = appointments.length;
@@ -587,353 +753,471 @@ function Citas() {
     return { total, confirmadas, programadas, reagendadas, canceladas };
   }, [appointments]);
 
+  // Acciones disponibles sobre una cita (compartidas por día y lista)
+  const renderApptActions = (c) => (
+    <div className="day-actions">
+      {(c.estado === 'Programada' || c.estado === 'Reagendada') && (
+        <button
+          className="btn btn-success btn-sm flex items-center gap-1"
+          title="Confirmar asistencia del paciente"
+          onClick={() => handleConfirmAppointment(c)}
+        >
+          <CheckCircle2 size={13} />
+          <span className="hidden sm:inline">Confirmar</span>
+        </button>
+      )}
+
+      {c.estado === 'Cancelada' && (
+        <button
+          className="btn btn-secondary btn-sm flex items-center gap-1"
+          title="Reactivar cita como Programada"
+          onClick={() => handleReactivateAppointment(c)}
+        >
+          <RotateCcw size={13} />
+          <span className="hidden sm:inline">Reactivar</span>
+        </button>
+      )}
+
+      <button
+        className="btn btn-secondary btn-sm flex items-center gap-1"
+        title="Ver detalle de la cita"
+        onClick={() => handleOpenDetail(c)}
+      >
+        <Eye size={13} />
+        <span className="hidden sm:inline">Ver</span>
+      </button>
+
+      <button
+        className="btn btn-secondary btn-sm flex items-center gap-1"
+        title="Editar / reagendar cita"
+        onClick={() => handleOpenEdit(c)}
+      >
+        <Pencil size={13} />
+        <span className="hidden sm:inline">Editar</span>
+      </button>
+
+      <button
+        className="btn btn-secondary btn-sm flex items-center gap-1"
+        title="Reasignar paciente"
+        onClick={() => handleOpenAssignPatient(c)}
+      >
+        <UserCheck size={13} />
+        <span className="hidden sm:inline">Paciente</span>
+      </button>
+
+      {c.estado !== 'Cancelada' && (
+        <button
+          className="btn btn-danger btn-sm flex items-center gap-1"
+          title="Cancelar cita"
+          onClick={() => handleOpenCancel(c)}
+        >
+          <XCircle size={13} />
+          <span className="hidden sm:inline">Cancelar</span>
+        </button>
+      )}
+    </div>
+  );
+
   return (
     <Layout breadcrumb="Citas">
-      {/* Header */}
-      <div className="page-header">
-        <div>
-          <h1 className="page-title">Gestión de Citas Médicas</h1>
-          <p className="page-subtitle">
-            Agendamiento, reprogramación y seguimiento multianual de citas del sistema Vens.
-          </p>
-        </div>
-        <div className="page-actions flex items-center gap-2">
-          <button
-            id="btn-agendar-cita"
-            className="btn btn-primary flex items-center gap-2"
-            onClick={handleOpenCreate}
-          >
-            <CalendarIcon size={16} />
-            + Agendar Cita
-          </button>
-        </div>
-      </div>
-
-      {/* Banner de mensajes de éxito */}
-      {successMessage && (
-        <div className="mb-6 p-4 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-900 text-sm flex items-center justify-between shadow-xs">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center shrink-0">
-              <CheckCircle2 size={18} className="text-emerald-600" />
-            </div>
-            <span className="font-medium">{successMessage}</span>
+      <div className="flat-page">
+        {/* Header */}
+        <div className="page-header">
+          <div>
+            <h1 className="page-title">Agenda de Citas</h1>
+            <p className="page-subtitle">
+              Agendamiento, reprogramación y seguimiento multianual de citas del sistema Vens.
+            </p>
           </div>
-          <button
-            type="button"
-            className="text-xs font-semibold text-emerald-700 hover:text-emerald-900 hover:underline px-2 py-1 rounded transition-colors"
-            onClick={() => setSuccessMessage('')}
-          >
-            Cerrar
-          </button>
-        </div>
-      )}
-
-      {/* Statistics Cards */}
-      <div className="citas-summary">
-        <div className="cita-sum sum-ok">
-          <span className="cita-sum-count">{stats.confirmadas}</span>
-          <span className="cita-sum-label">Confirmadas</span>
-        </div>
-        <div className="cita-sum sum-pend">
-          <span className="cita-sum-count">{stats.programadas}</span>
-          <span className="cita-sum-label">Programadas</span>
-        </div>
-        <div className="cita-sum sum-reag">
-          <span className="cita-sum-count">{stats.reagendadas}</span>
-          <span className="cita-sum-label">Reagendadas</span>
-        </div>
-        <div className="cita-sum sum-cancel">
-          <span className="cita-sum-count">{stats.canceladas}</span>
-          <span className="cita-sum-label">Canceladas</span>
-        </div>
-        <div className="cita-sum sum-total">
-          <span className="cita-sum-count">{stats.total}</span>
-          <span className="cita-sum-label">Total Citas</span>
-        </div>
-      </div>
-
-      {/* Filters Toolbar */}
-      <div className="toolbar mb-6 flex flex-wrap gap-3 items-center justify-between bg-white p-4 border border-brand-border-light rounded-xl shadow-2xs">
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="flex items-center gap-1.5 text-xs text-brand-slate font-semibold uppercase tracking-wider pr-2 border-r border-gray-200">
-            <Filter size={15} />
-            <span>Filtros:</span>
-          </div>
-
-          {/* Fecha Exacta */}
-          <input
-            type="date"
-            className="form-control"
-            style={{ width: 160 }}
-            value={filterDate}
-            onChange={e => {
-              setFilterDate(e.target.value);
-              if (e.target.value) {
-                setFilterYear('');
-                setFilterMonth('');
-              }
-            }}
-            title="Filtrar por fecha exacta"
-          />
-
-          {/* Año */}
-          <select
-            className="form-control"
-            style={{ width: 120 }}
-            value={filterYear}
-            onChange={e => {
-              setFilterYear(e.target.value);
-              if (e.target.value) setFilterDate('');
-            }}
-          >
-            <option value="">Año (Todos)</option>
-            <option value="2024">2024</option>
-            <option value="2025">2025</option>
-            <option value="2026">2026</option>
-            <option value="2027">2027</option>
-          </select>
-
-          {/* Mes */}
-          <select
-            className="form-control"
-            style={{ width: 140 }}
-            value={filterMonth}
-            onChange={e => {
-              setFilterMonth(e.target.value);
-              if (e.target.value) setFilterDate('');
-            }}
-          >
-            <option value="">Mes (Todos)</option>
-            <option value="1">Enero</option>
-            <option value="2">Febrero</option>
-            <option value="3">Marzo</option>
-            <option value="4">Abril</option>
-            <option value="5">Mayo</option>
-            <option value="6">Junio</option>
-            <option value="7">Julio</option>
-            <option value="8">Agosto</option>
-            <option value="9">Septiembre</option>
-            <option value="10">Octubre</option>
-            <option value="11">Noviembre</option>
-            <option value="12">Diciembre</option>
-          </select>
-
-          {/* Estado */}
-          <select
-            className="form-control"
-            style={{ width: 150 }}
-            value={filterEstado}
-            onChange={e => setFilterEstado(e.target.value)}
-          >
-            <option value="">Todos los Estados</option>
-            {ESTADOS_CITA.map(st => (
-              <option key={st} value={st}>{st}</option>
-            ))}
-          </select>
-
-          {/* Paciente Filter */}
-          <select
-            className="form-control"
-            style={{ width: 180 }}
-            value={filterPatientId}
-            onChange={e => setFilterPatientId(e.target.value)}
-          >
-            <option value="">Todos los Pacientes</option>
-            {patients.map(p => (
-              <option key={p.id} value={p.id}>
-                {p.nombre} {p.telefono ? `(${p.telefono})` : ''}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div className="flex items-center gap-2">
-          {(filterDate || filterYear || filterMonth || filterEstado || filterPatientId) && (
+          <div className="page-actions">
             <button
-              className="btn btn-secondary btn-sm flex items-center gap-1.5"
-              onClick={() => {
-                setFilterDate('');
-                setFilterYear('');
-                setFilterMonth('');
-                setFilterEstado('');
-                setFilterPatientId('');
-              }}
+              id="btn-agendar-cita"
+              className="btn btn-primary flex items-center gap-2"
+              onClick={handleOpenCreate}
             >
-              <RefreshCw size={13} />
-              Limpiar
+              <CalendarIcon size={15} />
+              Agendar cita
             </button>
-          )}
-        </div>
-      </div>
-
-      {/* Appointment List by Date Group */}
-      {loading ? (
-        <div className="py-12 bg-white border border-gray-100 rounded-xl flex flex-col items-center justify-center gap-3">
-          <div className="w-8 h-8 border-3 border-brand-teal border-t-transparent rounded-full animate-spin"></div>
-          <span className="text-sm font-medium text-brand-slate">Cargando agenda de citas...</span>
-        </div>
-      ) : Object.keys(groupedAppointments).length === 0 ? (
-        <div className="empty-state py-12 bg-white border border-gray-100 rounded-xl">
-          <div className="empty-icon text-gray-300 mb-2">
-            <CalendarX size={44} />
           </div>
-          <p className="font-semibold text-gray-700">No hay citas registradas</p>
-          <p className="text-xs text-gray-500 max-w-sm text-center">
-            No se encontraron citas para los criterios seleccionados. Puede agendar una nueva cita o modificar los filtros de búsqueda.
-          </p>
         </div>
-      ) : (
-        Object.keys(groupedAppointments).sort().map(dateKey => {
-          const list = groupedAppointments[dateKey];
-          return (
-            <div key={dateKey} className="citas-group mb-6">
-              <div className="citas-group-head flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <CalendarIcon size={16} className="text-teal-700" />
-                  <span className="citas-group-date">
-                    {dateKey !== 'Sin Fecha' ? fmtDate(dateKey) : 'Sin Fecha Asignada'}
-                  </span>
+
+        {successMessage && (
+          <div className="notice notice-success">
+            <span className="notice-body">
+              <CheckCircle2 size={16} />
+              {successMessage}
+            </span>
+            <button type="button" className="btn btn-ghost btn-sm" onClick={() => setSuccessMessage('')}>
+              Cerrar
+            </button>
+          </div>
+        )}
+
+        {/* Resumen por estado */}
+        <div className="citas-summary">
+          <div className="cita-sum sum-pend">
+            <span className="cita-sum-count">{stats.programadas}</span>
+            <span className="cita-sum-label">Programadas</span>
+          </div>
+          <div className="cita-sum sum-ok">
+            <span className="cita-sum-count">{stats.confirmadas}</span>
+            <span className="cita-sum-label">Confirmadas</span>
+          </div>
+          <div className="cita-sum sum-reag">
+            <span className="cita-sum-count">{stats.reagendadas}</span>
+            <span className="cita-sum-label">Reagendadas</span>
+          </div>
+          <div className="cita-sum sum-cancel">
+            <span className="cita-sum-count">{stats.canceladas}</span>
+            <span className="cita-sum-label">Canceladas</span>
+          </div>
+          <div className="cita-sum sum-total">
+            <span className="cita-sum-count">{stats.total}</span>
+            <span className="cita-sum-label">
+              {view === 'lista' ? 'Total citas' : view === 'dia' ? 'Citas del día' : 'Citas de la semana'}
+            </span>
+          </div>
+        </div>
+
+        {/* Navegación de la agenda y selector de vista */}
+        <div className="agenda-bar">
+          <div className="agenda-nav">
+            {view !== 'lista' && (
+              <>
+                <button
+                  className="btn btn-secondary btn-sm"
+                  title={view === 'semana' ? 'Semana anterior' : 'Día anterior'}
+                  onClick={() => setAnchorDate(prev => addDays(prev, view === 'semana' ? -7 : -1))}
+                >
+                  <ChevronLeft size={15} />
+                </button>
+                <span className="agenda-range">{rangeLabel}</span>
+                <button
+                  className="btn btn-secondary btn-sm"
+                  title={view === 'semana' ? 'Semana siguiente' : 'Día siguiente'}
+                  onClick={() => setAnchorDate(prev => addDays(prev, view === 'semana' ? 7 : 1))}
+                >
+                  <ChevronRight size={15} />
+                </button>
+                <button className="btn btn-ghost btn-sm" onClick={() => setAnchorDate(new Date())}>
+                  Hoy
+                </button>
+              </>
+            )}
+            {view === 'lista' && (
+              <span className="agenda-range" style={{ textAlign: 'left' }}>
+                Listado completo con filtros
+              </span>
+            )}
+          </div>
+
+          <div className="view-switch">
+            {[
+              { id: 'dia', label: 'Día' },
+              { id: 'semana', label: 'Semana' },
+              { id: 'lista', label: 'Lista' }
+            ].map(v => (
+              <button
+                key={v.id}
+                type="button"
+                className={view === v.id ? 'on' : ''}
+                onClick={() => setView(v.id)}
+              >
+                {v.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Filtros */}
+        <div className="toolbar">
+          <div className="toolbar-left flex flex-wrap items-center gap-3">
+            <span className="flat-label flex items-center gap-1.5">
+              <Filter size={14} /> Filtros
+            </span>
+
+            {view === 'lista' && (
+              <>
+                <div style={{ width: 190 }}>
+                  <DatePicker
+                    value={filterDate}
+                    onChange={(val) => {
+                      setFilterDate(val);
+                      if (val) {
+                        setFilterYear('');
+                        setFilterMonth('');
+                      }
+                    }}
+                    placeholder="Fecha exacta"
+                  />
                 </div>
-                <span className="tag tag-info font-medium">{list.length} cita(s)</span>
-              </div>
 
-              <div className="table-wrap bg-white shadow-2xs border border-gray-100 rounded-xl overflow-hidden">
-                <table className="data-table">
-                  <thead>
-                    <tr>
-                      <th>Horario</th>
-                      <th>Paciente</th>
-                      <th>Médico</th>
-                      <th>Motivo de Consulta</th>
-                      <th>Estado</th>
-                      <th className="text-right">Acciones</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {list.map(c => {
-                      const startParsed = parseBackendDateTime(c.fecha_hora_inicio);
-                      const endParsed = parseBackendDateTime(c.fecha_hora_fin);
-                      const patientName = getPatientDisplayName(c);
-                      const doctorName = getDoctorDisplayName(c);
+                <div style={{ width: 130 }}>
+                  <Combobox
+                    items={YEAR_OPTIONS}
+                    value={filterYear}
+                    onChange={(val) => {
+                      setFilterYear(val);
+                      if (val) setFilterDate('');
+                    }}
+                    placeholder="Año (todos)"
+                  />
+                </div>
 
+                <div style={{ width: 160 }}>
+                  <Combobox
+                    items={MONTH_OPTIONS}
+                    value={filterMonth}
+                    onChange={(val) => {
+                      setFilterMonth(val);
+                      if (val) setFilterDate('');
+                    }}
+                    placeholder="Mes (todos)"
+                    searchPlaceholder="Buscar mes…"
+                  />
+                </div>
+              </>
+            )}
+
+            <div style={{ width: 175 }}>
+              <Combobox
+                items={ESTADOS_CITA}
+                value={filterEstado}
+                onChange={setFilterEstado}
+                placeholder="Todos los estados"
+              />
+            </div>
+
+            <div style={{ width: 210 }}>
+              <Combobox
+                items={patientOptions}
+                value={filterPatientId}
+                onChange={setFilterPatientId}
+                placeholder="Todos los pacientes"
+                searchPlaceholder="Buscar por nombre o teléfono…"
+                emptyText="Sin pacientes que coincidan."
+                icon={<User size={15} />}
+              />
+            </div>
+          </div>
+
+          <div className="toolbar-right">
+            {(filterDate || filterYear || filterMonth || filterEstado || filterPatientId) && (
+              <button
+                className="btn btn-secondary btn-sm flex items-center gap-1.5"
+                onClick={() => {
+                  setFilterDate('');
+                  setFilterYear('');
+                  setFilterMonth('');
+                  setFilterEstado('');
+                  setFilterPatientId('');
+                }}
+              >
+                <RefreshCw size={13} />
+                Limpiar
+              </button>
+            )}
+          </div>
+        </div>
+
+        {loading ? (
+          <div className="empty-state py-12">
+            <RefreshCw size={22} className="animate-spin text-brand-slate mb-2" />
+            <p className="text-sm text-muted">Cargando agenda de citas…</p>
+          </div>
+        ) : view === 'semana' ? (
+          /* ---------- VISTA SEMANA ---------- */
+          <>
+            <div className="week-wrap">
+              <div className="week-grid">
+                <div className="week-head" />
+                {weekDays.map(d => (
+                  <div className={`week-head${isSameDay(d, new Date()) ? ' today' : ''}`} key={toISODate(d)}>
+                    <div className="week-head-dow">{DOW_LABELS[(d.getDay() + 6) % 7]}</div>
+                    <div className="week-head-day">{d.getDate()}</div>
+                  </div>
+                ))}
+
+                {hourRange.map(h => (
+                  <Fragment key={h}>
+                    <div className="week-hour">{String(h).padStart(2, '0')}:00</div>
+                    {weekDays.map(d => {
+                      const cellKey = `${toISODate(d)}|${h}`;
+                      const cellAppointments = weekMap[cellKey] || [];
                       return (
-                        <tr key={c.id}>
-                          <td>
-                            <div className="flex items-center gap-1.5">
-                              <span className="cita-hora font-mono">
-                                {startParsed.time || '—'} - {endParsed.time || '—'}
-                              </span>
-                            </div>
-                          </td>
-                          <td>
-                            <div className="font-semibold text-brand-deep text-sm flex items-center gap-2">
-                              <span>{patientName}</span>
-                            </div>
-                          </td>
-                          <td>
-                            <span className="text-sm text-gray-700">{doctorName}</span>
-                          </td>
-                          <td>
-                            <span className="text-sm text-gray-600">{c.motivo || 'Sin motivo'}</span>
-                          </td>
-                          <td>
-                            <span className={`tag ${tagClass[c.estado] || 'tag-info'}`}>
-                              {c.estado}
-                            </span>
-                          </td>
-                          <td>
-                            <div className="flex items-center justify-end gap-1.5">
-                              {/* Confirmar Asistencia de Cita */}
-                              {(c.estado === 'Programada' || c.estado === 'Reagendada') && (
-                                <button
-                                  className="btn btn-sm bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border-emerald-200 flex items-center gap-1"
-                                  title="Confirmar Asistencia del Paciente"
-                                  onClick={() => handleConfirmAppointment(c)}
-                                >
-                                  <CheckCircle2 size={14} />
-                                  <span className="hidden sm:inline">Confirmar</span>
-                                </button>
-                              )}
-
-                              {/* Reactivar Cita Cancelada */}
-                              {c.estado === 'Cancelada' && (
-                                <button
-                                  className="btn btn-sm bg-blue-50 text-blue-700 hover:bg-blue-100 border-blue-200 flex items-center gap-1"
-                                  title="Reactivar Cita como Programada"
-                                  onClick={() => handleReactivateAppointment(c)}
-                                >
-                                  <RotateCcw size={14} />
-                                  <span className="hidden sm:inline">Reactivar</span>
-                                </button>
-                              )}
-
-                              <button
-                                className="btn btn-secondary btn-sm flex items-center gap-1"
-                                title="Ver Detalle de Cita"
-                                onClick={() => handleOpenDetail(c)}
-                              >
-                                <Eye size={14} />
-                                <span className="hidden sm:inline">Ver</span>
-                              </button>
-
-                              <button
-                                className="btn btn-secondary btn-sm flex items-center gap-1"
-                                title="Editar / Reagendar Cita"
-                                onClick={() => handleOpenEdit(c)}
-                              >
-                                <Pencil size={14} />
-                                <span className="hidden sm:inline">Editar</span>
-                              </button>
-
-                              <button
-                                className="btn btn-secondary btn-sm flex items-center gap-1"
-                                title="Reasignar Paciente"
-                                onClick={() => handleOpenAssignPatient(c)}
-                              >
-                                <UserCheck size={14} />
-                                <span className="hidden sm:inline">Paciente</span>
-                              </button>
-
-                              {c.estado !== 'Cancelada' && (
-                                <button
-                                  className="btn btn-sm bg-rose-50 text-rose-700 hover:bg-rose-100 border-rose-200 flex items-center gap-1"
-                                  title="Cancelar Cita"
-                                  onClick={() => handleOpenCancel(c)}
-                                >
-                                  <XCircle size={14} />
-                                  <span className="hidden sm:inline">Cancelar</span>
-                                </button>
-                              )}
-                            </div>
-                          </td>
-                        </tr>
+                        <div
+                          className={`week-cell${isSameDay(d, new Date()) ? ' today' : ''}`}
+                          key={cellKey}
+                        >
+                          {cellAppointments.map(c => (
+                            <button
+                              type="button"
+                              key={c.id}
+                              className={`cita-block ${stateClass(c.estado)}`}
+                              onClick={() => handleOpenDetail(c)}
+                              title={`${c.estado} — ${getPatientDisplayName(c)}`}
+                            >
+                              <div className="cita-block-time">
+                                {parseBackendDateTime(c.fecha_hora_inicio).time || '—'}
+                              </div>
+                              <div className="cita-block-name">{getPatientDisplayName(c)}</div>
+                              <div className="cita-block-motivo">{c.motivo || 'Sin motivo'}</div>
+                            </button>
+                          ))}
+                        </div>
                       );
                     })}
-                  </tbody>
-                </table>
+                  </Fragment>
+                ))}
               </div>
             </div>
-          );
-        })
-      )}
+
+            <div className="agenda-legend">
+              {ESTADOS_CITA.map(st => (
+                <span className="legend-item" key={st}>
+                  <span className={`legend-swatch ${stateClass(st)}`} />
+                  {st}
+                </span>
+              ))}
+              <span className="legend-item" style={{ marginLeft: 'auto' }}>
+                Haga clic en una cita para ver su detalle
+              </span>
+            </div>
+          </>
+        ) : view === 'dia' ? (
+          /* ---------- VISTA DÍA ---------- */
+          dayAppointments.length === 0 ? (
+            <div className="empty-state py-12">
+              <div className="empty-icon text-brand-text-light mb-2">
+                <CalendarX size={36} />
+              </div>
+              <p className="font-medium text-brand-text">Sin citas para este día</p>
+              <p className="text-xs text-muted">
+                Use las flechas para revisar otros días o agende una cita nueva.
+              </p>
+            </div>
+          ) : (
+            <div className="panel">
+              {dayAppointments.map(c => {
+                const startParsed = parseBackendDateTime(c.fecha_hora_inicio);
+                const endParsed = parseBackendDateTime(c.fecha_hora_fin);
+                return (
+                  <div className="day-row" key={c.id}>
+                    <div className={`day-time ${stateClass(c.estado)}`}>
+                      {startParsed.time || '—'}
+                    </div>
+                    <div className="day-body">
+                      <div className="day-info">
+                        <div className="day-name">{getPatientDisplayName(c)}</div>
+                        <div className="day-meta">
+                          <span>{startParsed.time || '—'} a {endParsed.time || '—'}</span>
+                          <span>{c.motivo || 'Sin motivo'}</span>
+                          <span>{getDoctorDisplayName(c)}</span>
+                        </div>
+                      </div>
+                      <span className={`tag ${tagClass[c.estado] || 'tag-info'}`}>{c.estado}</span>
+                      {renderApptActions(c)}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )
+        ) : (
+          /* ---------- VISTA LISTA ---------- */
+          Object.keys(groupedAppointments).length === 0 ? (
+            <div className="empty-state py-12">
+              <div className="empty-icon text-brand-text-light mb-2">
+                <CalendarX size={36} />
+              </div>
+              <p className="font-medium text-brand-text">No hay citas registradas</p>
+              <p className="text-xs text-muted">
+                No se encontraron citas para los criterios seleccionados. Puede agendar una nueva cita o modificar los filtros.
+              </p>
+            </div>
+          ) : (
+            Object.keys(groupedAppointments).sort().map(dateKey => {
+              const list = groupedAppointments[dateKey];
+              return (
+                <div key={dateKey} className="citas-group">
+                  <div className="citas-group-head">
+                    <span className="citas-group-date">
+                      {dateKey !== 'Sin Fecha' ? fmtDate(dateKey) : 'Sin fecha asignada'}
+                    </span>
+                    <span className="tag tag-info">{list.length} cita(s)</span>
+                  </div>
+
+                  <div className="table-wrap">
+                    <table className="data-table">
+                      <thead>
+                        <tr>
+                          <th>Horario</th>
+                          <th>Paciente</th>
+                          <th>Médico</th>
+                          <th>Motivo de consulta</th>
+                          <th>Estado</th>
+                          <th className="text-right">Acciones</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {list.map(c => {
+                          const startParsed = parseBackendDateTime(c.fecha_hora_inicio);
+                          const endParsed = parseBackendDateTime(c.fecha_hora_fin);
+                          return (
+                            <tr key={c.id}>
+                              <td>
+                                <span className="cita-hora">
+                                  {startParsed.time || '—'} – {endParsed.time || '—'}
+                                </span>
+                              </td>
+                              <td>
+                                <span className="font-semibold text-brand-text">
+                                  {getPatientDisplayName(c)}
+                                </span>
+                              </td>
+                              <td className="text-muted">{getDoctorDisplayName(c)}</td>
+                              <td className="text-muted">{c.motivo || 'Sin motivo'}</td>
+                              <td>
+                                <span className={`tag ${tagClass[c.estado] || 'tag-info'}`}>
+                                  {c.estado}
+                                </span>
+                              </td>
+                              <td>
+                                <div className="flex items-center justify-end">
+                                  {renderApptActions(c)}
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              );
+            })
+          )
+        )}
 
       {/* ================= MODAL AGENDAR CITA ================= */}
       <Dialog open={showCreateModal} onOpenChange={setShowCreateModal}>
-        <DialogContent className="sm:max-w-lg p-6 bg-white border-brand-border-light shadow-2xl">
+        <DialogContent className="flat-page sm:max-w-lg rounded-none bg-brand-surface">
           <DialogHeader>
-            <DialogTitle className="text-xl font-bold text-brand-deep flex items-center gap-2">
-              <CalendarIcon className="text-brand-teal" size={22} />
+            <DialogTitle className="flex items-center gap-2 text-brand-text">
+              <CalendarIcon className="text-brand-slate" size={22} />
               Agendar Nueva Cita
             </DialogTitle>
-            <DialogDescription className="text-sm text-brand-text-muted">
+            <DialogDescription className="text-muted">
               Complete los detalles para programar la cita médica en el sistema.
             </DialogDescription>
           </DialogHeader>
 
           {errorMessage && (
-            <div className="p-3.5 bg-rose-50 border border-rose-200 rounded-lg text-rose-800 text-sm flex items-center gap-2.5 shadow-2xs">
-              <AlertCircle size={18} className="text-rose-600 shrink-0" />
-              <span className="font-medium">{errorMessage}</span>
+            <div className="notice notice-danger notice-flush">
+              <span className="notice-body">
+                <AlertCircle size={16} />
+                {errorMessage}
+              </span>
             </div>
           )}
 
@@ -971,19 +1255,15 @@ function Citas() {
               <label className="form-label">
                 Médico Tratante <span className="req">*</span>
               </label>
-              <select
-                className="form-control"
+              <Combobox
+                items={doctorOptions}
                 value={appointmentForm.medico_id}
-                onChange={(e) => setAppointmentForm(p => ({ ...p, medico_id: e.target.value }))}
-                required
-              >
-                <option value="">-- Seleccione Médico --</option>
-                {doctors.map(doc => (
-                  <option key={doc.id} value={doc.id}>
-                    Dr. {doc.name} ({doc.rol || 'Médico'})
-                  </option>
-                ))}
-              </select>
+                onChange={(val) => setAppointmentForm(p => ({ ...p, medico_id: val }))}
+                placeholder="Seleccionar médico…"
+                searchPlaceholder="Buscar médico…"
+                emptyText="No hay médicos disponibles."
+                icon={<UserCheck size={15} />}
+              />
             </div>
 
             {/* Fecha, Hora Inicio y Hora Fin */}
@@ -1003,32 +1283,20 @@ function Citas() {
                 <label className="form-label">
                   Hora Inicio <span className="req">*</span>
                 </label>
-                <div className="relative flex items-center">
-                  <Clock size={16} className="absolute left-3 text-brand-slate pointer-events-none z-10" />
-                  <input
-                    type="time"
-                    className="form-control pl-9 bg-white cursor-pointer h-[42px]"
-                    value={appointmentForm.hora_inicio}
-                    onChange={e => setAppointmentForm(p => ({ ...p, hora_inicio: e.target.value }))}
-                    required
-                  />
-                </div>
+                <TimePicker
+                  value={appointmentForm.hora_inicio}
+                  onChange={(val) => setAppointmentForm(p => ({ ...p, hora_inicio: val }))}
+                />
               </div>
 
               <div className="form-group">
                 <label className="form-label">
                   Hora Fin <span className="req">*</span>
                 </label>
-                <div className="relative flex items-center">
-                  <Clock size={16} className="absolute left-3 text-brand-slate pointer-events-none z-10" />
-                  <input
-                    type="time"
-                    className="form-control pl-9 bg-white cursor-pointer h-[42px]"
-                    value={appointmentForm.hora_fin}
-                    onChange={e => setAppointmentForm(p => ({ ...p, hora_fin: e.target.value }))}
-                    required
-                  />
-                </div>
+                <TimePicker
+                  value={appointmentForm.hora_fin}
+                  onChange={(val) => setAppointmentForm(p => ({ ...p, hora_fin: val }))}
+                />
               </div>
             </div>
 
@@ -1036,11 +1304,12 @@ function Citas() {
             <div className="form-group">
               <label className="form-label">Motivo de consulta</label>
               <Combobox
-                items={MOTIVOS_DEFAULT}
+                items={motivoOptions}
                 value={appointmentForm.motivo}
                 onChange={(val) => setAppointmentForm(p => ({ ...p, motivo: val }))}
-                placeholder="Seleccionar o escribir motivo…"
+                placeholder="Seleccionar motivo…"
                 searchPlaceholder="Buscar motivo…"
+                icon={<ClipboardList size={15} />}
               />
             </div>
 
@@ -1056,7 +1325,7 @@ function Citas() {
               />
             </div>
 
-            <DialogFooter className="pt-3 flex justify-between gap-3 border-t border-gray-100">
+            <DialogFooter className="dialog-sep flex flex-row justify-between gap-3 sm:justify-between">
               <button
                 type="button"
                 className="btn btn-secondary"
@@ -1080,26 +1349,28 @@ function Citas() {
 
       {/* ================= MODAL EDITAR / REAGENDAR CITA ================= */}
       <Dialog open={showEditModal} onOpenChange={setShowEditModal}>
-        <DialogContent className="sm:max-w-lg p-6 bg-white border-brand-border-light shadow-2xl">
+        <DialogContent className="flat-page sm:max-w-lg rounded-none bg-brand-surface">
           <DialogHeader>
-            <DialogTitle className="text-xl font-bold text-brand-deep flex items-center gap-2">
-              <Pencil className="text-brand-teal" size={20} />
+            <DialogTitle className="flex items-center gap-2 text-brand-text">
+              <Pencil className="text-brand-slate" size={20} />
               Editar / Reagendar Cita
             </DialogTitle>
-            <DialogDescription className="text-sm text-brand-text-muted">
+            <DialogDescription className="text-muted">
               Modifique el horario, médico o estado. Si cambian las fechas, el sistema marcará automáticamente la cita como Reagendada.
             </DialogDescription>
           </DialogHeader>
 
           {errorMessage && (
-            <div className="p-3.5 bg-rose-50 border border-rose-200 rounded-lg text-rose-800 text-sm flex items-center gap-2.5 shadow-2xs">
-              <AlertCircle size={18} className="text-rose-600 shrink-0" />
-              <span className="font-medium">{errorMessage}</span>
+            <div className="notice notice-danger notice-flush">
+              <span className="notice-body">
+                <AlertCircle size={16} />
+                {errorMessage}
+              </span>
             </div>
           )}
 
           <form onSubmit={handleEditSubmit} className="flex flex-col gap-4 py-2">
-            <div className="p-3 bg-gray-50 rounded-lg border border-gray-200 text-sm text-gray-700">
+            <div className="notice notice-flush">
               <strong>Paciente:</strong> {selectedAppointment ? getPatientDisplayName(selectedAppointment) : '—'}
             </div>
 
@@ -1107,19 +1378,15 @@ function Citas() {
               <label className="form-label">
                 Médico Tratante <span className="req">*</span>
               </label>
-              <select
-                className="form-control"
+              <Combobox
+                items={doctorOptions}
                 value={appointmentForm.medico_id}
-                onChange={(e) => setAppointmentForm(p => ({ ...p, medico_id: e.target.value }))}
-                required
-              >
-                <option value="">-- Seleccione Médico --</option>
-                {doctors.map(doc => (
-                  <option key={doc.id} value={doc.id}>
-                    Dr. {doc.name} ({doc.rol || 'Médico'})
-                  </option>
-                ))}
-              </select>
+                onChange={(val) => setAppointmentForm(p => ({ ...p, medico_id: val }))}
+                placeholder="Seleccionar médico…"
+                searchPlaceholder="Buscar médico…"
+                emptyText="No hay médicos disponibles."
+                icon={<UserCheck size={15} />}
+              />
             </div>
 
             <div className="form-group">
@@ -1138,12 +1405,9 @@ function Citas() {
                 <label className="form-label">
                   Hora Inicio <span className="req">*</span>
                 </label>
-                <input
-                  type="time"
-                  className="form-control h-[42px]"
+                <TimePicker
                   value={appointmentForm.hora_inicio}
-                  onChange={e => setAppointmentForm(p => ({ ...p, hora_inicio: e.target.value }))}
-                  required
+                  onChange={(val) => setAppointmentForm(p => ({ ...p, hora_inicio: val }))}
                 />
               </div>
 
@@ -1151,36 +1415,34 @@ function Citas() {
                 <label className="form-label">
                   Hora Fin <span className="req">*</span>
                 </label>
-                <input
-                  type="time"
-                  className="form-control h-[42px]"
+                <TimePicker
                   value={appointmentForm.hora_fin}
-                  onChange={e => setAppointmentForm(p => ({ ...p, hora_fin: e.target.value }))}
-                  required
+                  onChange={(val) => setAppointmentForm(p => ({ ...p, hora_fin: val }))}
                 />
               </div>
             </div>
 
             <div className="form-group">
               <label className="form-label">Estado de Cita</label>
-              <select
-                className="form-control"
+              <Combobox
+                items={ESTADOS_CITA}
                 value={appointmentForm.estado}
-                onChange={e => setAppointmentForm(p => ({ ...p, estado: e.target.value }))}
-              >
-                {ESTADOS_CITA.map(st => (
-                  <option key={st} value={st}>{st}</option>
-                ))}
-              </select>
+                onChange={(val) => setAppointmentForm(p => ({ ...p, estado: val }))}
+                placeholder="Seleccionar estado…"
+                clearable={false}
+                icon={<CheckCircle2 size={15} />}
+              />
             </div>
 
             <div className="form-group">
               <label className="form-label">Motivo de consulta</label>
-              <input
-                type="text"
-                className="form-control"
+              <Combobox
+                items={motivoOptions}
                 value={appointmentForm.motivo}
-                onChange={e => setAppointmentForm(p => ({ ...p, motivo: e.target.value }))}
+                onChange={(val) => setAppointmentForm(p => ({ ...p, motivo: val }))}
+                placeholder="Seleccionar motivo…"
+                searchPlaceholder="Buscar motivo…"
+                icon={<ClipboardList size={15} />}
               />
             </div>
 
@@ -1189,12 +1451,13 @@ function Citas() {
               <textarea
                 className="form-control"
                 rows={3}
+                placeholder="Detalles sobre sintomatología o indicaciones previas…"
                 value={appointmentForm.notas}
                 onChange={e => setAppointmentForm(p => ({ ...p, notas: e.target.value }))}
               />
             </div>
 
-            <DialogFooter className="pt-3 flex justify-between gap-3 border-t border-gray-100">
+            <DialogFooter className="dialog-sep flex flex-row justify-between gap-3 sm:justify-between">
               <button
                 type="button"
                 className="btn btn-secondary"
@@ -1217,21 +1480,23 @@ function Citas() {
 
       {/* ================= MODAL REASIGNAR PACIENTE ================= */}
       <Dialog open={showAssignPatientModal} onOpenChange={setShowAssignPatientModal}>
-        <DialogContent className="sm:max-w-md p-6 bg-white border-brand-border-light shadow-2xl">
+        <DialogContent className="flat-page sm:max-w-md rounded-none bg-brand-surface">
           <DialogHeader>
-            <DialogTitle className="text-lg font-bold text-brand-deep flex items-center gap-2">
-              <UserCheck className="text-brand-teal" size={20} />
+            <DialogTitle className="flex items-center gap-2 text-brand-text">
+              <UserCheck className="text-brand-slate" size={20} />
               Reasignar Paciente
             </DialogTitle>
-            <DialogDescription className="text-sm text-brand-text-muted">
+            <DialogDescription className="text-muted">
               Seleccione el nuevo paciente que estará asociado a esta cita.
             </DialogDescription>
           </DialogHeader>
 
           {errorMessage && (
-            <div className="p-3 bg-rose-50 border border-rose-200 rounded-lg text-rose-800 text-sm flex items-center gap-2">
-              <AlertCircle size={16} className="text-rose-600 shrink-0" />
-              <span>{errorMessage}</span>
+            <div className="notice notice-danger notice-flush">
+              <span className="notice-body">
+                <AlertCircle size={16} />
+                {errorMessage}
+              </span>
             </div>
           )}
 
@@ -1261,7 +1526,7 @@ function Citas() {
               />
             </div>
 
-            <DialogFooter className="pt-2 flex justify-between gap-3 border-t border-gray-100">
+            <DialogFooter className="dialog-sep flex flex-row justify-between gap-3 sm:justify-between">
               <button
                 type="button"
                 className="btn btn-secondary"
@@ -1284,21 +1549,23 @@ function Citas() {
 
       {/* ================= MODAL CANCELAR CITA ================= */}
       <Dialog open={showCancelModal} onOpenChange={setShowCancelModal}>
-        <DialogContent className="sm:max-w-md p-6 bg-white border-brand-border-light shadow-2xl">
+        <DialogContent className="flat-page sm:max-w-md rounded-none bg-brand-surface">
           <DialogHeader>
-            <DialogTitle className="text-lg font-bold text-rose-700 flex items-center gap-2">
-              <XCircle className="text-rose-600" size={20} />
+            <DialogTitle className="flex items-center gap-2 text-brand-text">
+              <XCircle className="text-brand-slate" size={20} />
               Cancelar Cita
             </DialogTitle>
-            <DialogDescription className="text-sm text-gray-600 pt-1">
+            <DialogDescription className="text-muted">
               Esta acción actualizará el estado de la cita a <strong>Cancelada</strong>. Por favor especifique el motivo.
             </DialogDescription>
           </DialogHeader>
 
           {errorMessage && (
-            <div className="p-3 bg-rose-50 border border-rose-200 rounded-lg text-rose-800 text-sm flex items-center gap-2">
-              <AlertCircle size={16} className="text-rose-600 shrink-0" />
-              <span>{errorMessage}</span>
+            <div className="notice notice-danger notice-flush">
+              <span className="notice-body">
+                <AlertCircle size={16} />
+                {errorMessage}
+              </span>
             </div>
           )}
 
@@ -1317,7 +1584,7 @@ function Citas() {
               />
             </div>
 
-            <DialogFooter className="pt-2 flex justify-between gap-3 border-t border-gray-100">
+            <DialogFooter className="dialog-sep flex flex-row justify-between gap-3 sm:justify-between">
               <button
                 type="button"
                 className="btn btn-secondary"
@@ -1328,7 +1595,7 @@ function Citas() {
               </button>
               <button
                 type="submit"
-                className="btn bg-rose-600 text-white hover:bg-rose-700"
+                className="btn btn-danger"
                 disabled={isSubmitting}
               >
                 {isSubmitting ? 'Cancelando…' : 'Confirmar Cancelación'}
@@ -1340,118 +1607,30 @@ function Citas() {
 
       {/* ================= MODAL REGISTRAR PACIENTE RÁPIDO ================= */}
       <Dialog open={showRegisterPatientModal} onOpenChange={setShowRegisterPatientModal}>
-        <DialogContent className="sm:max-w-lg p-6 bg-white border-brand-border-light shadow-2xl">
+        <DialogContent className="flat-page sm:max-w-lg rounded-none bg-brand-surface">
           <DialogHeader>
-            <DialogTitle className="text-xl font-bold text-brand-deep flex items-center gap-2">
-              <UserPlus className="text-brand-teal" size={22} />
+            <DialogTitle className="flex items-center gap-2 text-brand-text">
+              <UserPlus className="text-brand-slate" size={22} />
               Registrar Nuevo Paciente
             </DialogTitle>
-            <DialogDescription className="text-sm text-brand-text-muted">
+            <DialogDescription className="text-muted">
               Registre al paciente en la base de datos para seleccionarlo inmediatamente en la cita.
             </DialogDescription>
           </DialogHeader>
 
           {errorMessage && (
-            <div className="p-3.5 bg-rose-50 border border-rose-200 rounded-lg text-rose-800 text-sm flex items-center gap-2.5">
-              <AlertCircle size={18} className="text-rose-600 shrink-0" />
-              <span className="font-medium">{errorMessage}</span>
+            <div className="notice notice-danger notice-flush">
+              <span className="notice-body">
+                <AlertCircle size={16} />
+                {errorMessage}
+              </span>
             </div>
           )}
 
           <form onSubmit={handleQuickRegisterPatient} className="flex flex-col gap-4 py-2">
-            <div className="grid grid-2 gap-4">
-              <div className="form-group">
-                <label className="form-label">
-                  Nombre completo <span className="req">*</span>
-                </label>
-                <div className="relative">
-                  <input
-                    type="text"
-                    className="form-control pl-8"
-                    placeholder="Ej. Carlos Pérez"
-                    value={patientForm.nombre}
-                    onChange={(e) => setPatientForm(p => ({ ...p, nombre: e.target.value }))}
-                    required
-                  />
-                  <User size={15} className="absolute left-2.5 top-3 text-gray-400" />
-                </div>
-              </div>
+            <PatientFormFields form={patientForm} setForm={setPatientForm} showEstado={false} />
 
-              <div className="form-group">
-                <label className="form-label">Edad</label>
-                <input
-                  type="number"
-                  min="0"
-                  max="120"
-                  className="form-control"
-                  placeholder="Ej. 38"
-                  value={patientForm.edad}
-                  onChange={(e) => setPatientForm(p => ({ ...p, edad: e.target.value }))}
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-2 gap-4">
-              <div className="form-group">
-                <label className="form-label">
-                  Teléfono <span className="req">*</span>
-                </label>
-                <div className="relative">
-                  <input
-                    type="text"
-                    className="form-control pl-8"
-                    placeholder="+503 7890-1234"
-                    value={patientForm.telefono}
-                    onChange={(e) => setPatientForm(p => ({ ...p, telefono: e.target.value }))}
-                    required
-                  />
-                  <Phone size={15} className="absolute left-2.5 top-3 text-gray-400" />
-                </div>
-              </div>
-
-              <div className="form-group">
-                <label className="form-label">Lugar de residencia</label>
-                <div className="relative">
-                  <input
-                    type="text"
-                    className="form-control pl-8"
-                    placeholder="Ciudad / Colonia"
-                    value={patientForm.lugar_residencia}
-                    onChange={(e) => setPatientForm(p => ({ ...p, lugar_residencia: e.target.value }))}
-                  />
-                  <MapPin size={15} className="absolute left-2.5 top-3 text-gray-400" />
-                </div>
-              </div>
-            </div>
-
-            <div className="grid grid-2 gap-4">
-              <div className="form-group">
-                <label className="form-label">Estado civil</label>
-                <input
-                  type="text"
-                  className="form-control"
-                  placeholder="Soltero/a, Casado/a..."
-                  value={patientForm.estado_civil}
-                  onChange={(e) => setPatientForm(p => ({ ...p, estado_civil: e.target.value }))}
-                />
-              </div>
-
-              <div className="form-group">
-                <label className="form-label">Religión</label>
-                <div className="relative">
-                  <input
-                    type="text"
-                    className="form-control pl-8"
-                    placeholder="Ej. Católica"
-                    value={patientForm.religion}
-                    onChange={(e) => setPatientForm(p => ({ ...p, religion: e.target.value }))}
-                  />
-                  <Heart size={15} className="absolute left-2.5 top-3 text-gray-400" />
-                </div>
-              </div>
-            </div>
-
-            <DialogFooter className="pt-3 flex justify-between gap-3 border-t border-gray-100">
+            <DialogFooter className="dialog-sep flex flex-row justify-between gap-3 sm:justify-between">
               <button
                 type="button"
                 className="btn btn-secondary"
@@ -1474,81 +1653,157 @@ function Citas() {
 
       {/* ================= MODAL DETALLE DE CITA ================= */}
       <Dialog open={showDetailModal} onOpenChange={setShowDetailModal}>
-        <DialogContent className="sm:max-w-md p-6 bg-white border-brand-border-light shadow-2xl">
+        <DialogContent className="flat-page sm:max-w-md rounded-none bg-brand-surface">
           <DialogHeader>
-            <DialogTitle className="text-xl font-bold text-brand-deep flex items-center gap-2">
-              <Eye className="text-brand-teal" size={20} />
-              Detalle de Cita
+            <DialogTitle className="flex items-center gap-2 text-brand-text">
+              <Eye className="text-brand-slate" size={20} />
+              Detalle de Cita {selectedAppointment ? `#${selectedAppointment.id}` : ''}
             </DialogTitle>
+            <DialogDescription className="text-muted">
+              Consulte la cita y edítela o reagéndela sin salir de la agenda.
+            </DialogDescription>
           </DialogHeader>
 
-          {selectedAppointment && (
-            <div className="flex flex-col gap-3 py-2 text-sm">
-              <div className="flex justify-between items-center pb-2 border-b border-gray-100">
-                <span className="text-gray-500 font-medium">Estado:</span>
-                <span className={`tag ${tagClass[selectedAppointment.estado] || 'tag-info'}`}>
-                  {selectedAppointment.estado}
-                </span>
-              </div>
+          {selectedAppointment && (() => {
+            const startParsed = parseBackendDateTime(selectedAppointment.fecha_hora_inicio);
+            const endParsed = parseBackendDateTime(selectedAppointment.fecha_hora_fin);
+            const isCancelled = selectedAppointment.estado === 'Cancelada';
+            const canConfirm =
+              selectedAppointment.estado === 'Programada' || selectedAppointment.estado === 'Reagendada';
 
-              <div className="flex justify-between items-center pb-2 border-b border-gray-100">
-                <span className="text-gray-500 font-medium">Paciente:</span>
-                <span className="font-semibold text-gray-900">{getPatientDisplayName(selectedAppointment)}</span>
-              </div>
+            return (
+              <div className="flex flex-col gap-3 py-2 text-sm">
+                <div className="detail-row">
+                  <span className="detail-key">Estado:</span>
+                  <span className={`tag ${tagClass[selectedAppointment.estado] || 'tag-info'}`}>
+                    {selectedAppointment.estado}
+                  </span>
+                </div>
 
-              <div className="flex justify-between items-center pb-2 border-b border-gray-100">
-                <span className="text-gray-500 font-medium">Médico:</span>
-                <span className="font-medium text-gray-800">{getDoctorDisplayName(selectedAppointment)}</span>
-              </div>
+                <div className="detail-row">
+                  <span className="detail-key">Paciente:</span>
+                  <span className="detail-val">{getPatientDisplayName(selectedAppointment)}</span>
+                </div>
 
-              <div className="flex justify-between items-center pb-2 border-b border-gray-100">
-                <span className="text-gray-500 font-medium">Inicio:</span>
-                <span className="font-mono text-gray-800">{selectedAppointment.fecha_hora_inicio}</span>
-              </div>
+                <div className="detail-row">
+                  <span className="detail-key">Médico:</span>
+                  <span className="detail-val">{getDoctorDisplayName(selectedAppointment)}</span>
+                </div>
 
-              <div className="flex justify-between items-center pb-2 border-b border-gray-100">
-                <span className="text-gray-500 font-medium">Fin:</span>
-                <span className="font-mono text-gray-800">{selectedAppointment.fecha_hora_fin}</span>
-              </div>
+                <div className="detail-row">
+                  <span className="detail-key">Fecha:</span>
+                  <span className="detail-val capitalize">{fmtDate(startParsed.date)}</span>
+                </div>
 
-              <div className="pb-2 border-b border-gray-100">
-                <span className="text-gray-500 font-medium block mb-1">Motivo de Consulta:</span>
-                <p className="text-gray-800 bg-gray-50 p-2.5 rounded-lg border border-gray-100">
-                  {selectedAppointment.motivo || 'Sin motivo registrado'}
-                </p>
-              </div>
+                <div className="detail-row">
+                  <span className="detail-key">Horario:</span>
+                  <span className="detail-val font-mono">
+                    {startParsed.time || '—'} – {endParsed.time || '—'}
+                  </span>
+                </div>
 
-              {selectedAppointment.notas && (
-                <div className="pb-2 border-b border-gray-100">
-                  <span className="text-gray-500 font-medium block mb-1">Notas:</span>
-                  <p className="text-gray-700 bg-gray-50 p-2.5 rounded-lg border border-gray-100">
-                    {selectedAppointment.notas}
+                <div className="detail-row detail-row-stacked">
+                  <span className="detail-key">Motivo de Consulta:</span>
+                  <p className="detail-block">
+                    {selectedAppointment.motivo || 'Sin motivo registrado'}
                   </p>
                 </div>
-              )}
 
-              {selectedAppointment.motivo_cancelacion && (
-                <div className="p-3 bg-rose-50 border border-rose-200 rounded-lg">
-                  <span className="text-rose-800 font-bold block mb-1">Motivo de Cancelación:</span>
-                  <p className="text-rose-700 text-xs">
-                    {selectedAppointment.motivo_cancelacion}
-                  </p>
+                {selectedAppointment.notas && (
+                  <div className="detail-row detail-row-stacked">
+                    <span className="detail-key">Notas:</span>
+                    <p className="detail-block">
+                      {selectedAppointment.notas}
+                    </p>
+                  </div>
+                )}
+
+                {selectedAppointment.motivo_cancelacion && (
+                  <div className="notice notice-danger notice-flush" style={{ display: 'block' }}>
+                    <span className="detail-key">Motivo de Cancelación:</span>
+                    <p className="text-xs">
+                      {selectedAppointment.motivo_cancelacion}
+                    </p>
+                  </div>
+                )}
+
+                {/* Acciones rápidas sobre la cita mostrada */}
+                <div className="detail-actions">
+                  {canConfirm && (
+                    <button
+                      type="button"
+                      className="btn btn-success btn-sm flex items-center gap-1.5"
+                      onClick={() => {
+                        handleConfirmAppointment(selectedAppointment);
+                        setShowDetailModal(false);
+                      }}
+                      disabled={isSubmitting}
+                    >
+                      <CheckCircle2 size={14} />
+                      Confirmar
+                    </button>
+                  )}
+
+                  {isCancelled && (
+                    <button
+                      type="button"
+                      className="btn btn-secondary btn-sm flex items-center gap-1.5"
+                      onClick={() => {
+                        handleReactivateAppointment(selectedAppointment);
+                        setShowDetailModal(false);
+                      }}
+                      disabled={isSubmitting}
+                    >
+                      <RotateCcw size={14} />
+                      Reactivar
+                    </button>
+                  )}
+
+                  <button
+                    type="button"
+                    className="btn btn-secondary btn-sm flex items-center gap-1.5"
+                    onClick={handleAssignPatientFromDetail}
+                  >
+                    <UserCheck size={14} />
+                    Reasignar paciente
+                  </button>
+
+                  {!isCancelled && (
+                    <button
+                      type="button"
+                      className="btn btn-danger btn-sm flex items-center gap-1.5"
+                      onClick={handleCancelFromDetail}
+                    >
+                      <XCircle size={14} />
+                      Cancelar cita
+                    </button>
+                  )}
                 </div>
-              )}
-            </div>
-          )}
+              </div>
+            );
+          })()}
 
-          <DialogFooter className="pt-2 border-t border-gray-100">
+          <DialogFooter className="dialog-sep flex flex-row justify-between gap-3 sm:justify-between">
             <button
               type="button"
-              className="btn btn-secondary w-full"
+              className="btn btn-secondary"
               onClick={() => setShowDetailModal(false)}
             >
               Cerrar
             </button>
+            <button
+              type="button"
+              className="btn btn-primary flex items-center gap-2"
+              onClick={handleEditFromDetail}
+              disabled={!selectedAppointment}
+            >
+              <Pencil size={14} />
+              Editar / Reagendar
+            </button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      </div>
     </Layout>
   );
 }
