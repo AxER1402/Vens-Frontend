@@ -1,12 +1,13 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import Layout from '../../components/Layout/Layout';
 import {
   User, Folder, MessageSquare, Search, Stethoscope, CheckCircle, Pill, Clock,
-  Save, Activity, PenTool, Check, AlertCircle, Plus, RefreshCw
+  Save, Activity, PenTool, Check, AlertCircle, Plus, RefreshCw, Lock, FileText
 } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import MapeoVenosoCanvas from '../../components/MapeoVenosoCanvas/MapeoVenosoCanvas';
 import * as patientService from '../../services/patientService';
+import * as clinicalHistoryService from '../../services/clinicalHistoryService';
 import {
   Dialog,
   DialogContent,
@@ -31,6 +32,22 @@ const tagClass = {
   Activo: 'tag-success',
   Seguimiento: 'tag-warning',
   Alta: 'tag-info'
+};
+
+/* Fecha de consulta (YYYY-MM-DD) en formato legible, sin desfase de zona horaria */
+const formatearFecha = (fecha) => {
+  if (!fecha) return 'Sin fecha';
+  const [anio, mes, dia] = String(fecha).slice(0, 10).split('-');
+  if (!anio || !mes || !dia) return String(fecha);
+  return new Date(Number(anio), Number(mes) - 1, Number(dia))
+    .toLocaleDateString('es-CR', { day: '2-digit', month: 'short', year: 'numeric' });
+};
+
+/* Resumen corto de una consulta para el listado del expediente */
+const resumirConsulta = (historia) => {
+  const ceap = historia.selecciones?.ceap_diagnostico || [];
+  if (ceap.length > 0) return ceap.join(', ');
+  return historia.consulta_por || 'Sin diagnóstico registrado';
 };
 
 /* Bloque de sección: título en versalitas separado por una línea, sin tarjeta */
@@ -126,9 +143,35 @@ function HistoriaClinica() {
   const [active, setActive] = useState('interrogatorio');
   const [saved, setSaved] = useState(false);
   const [saveMessage, setSaveMessage] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  // Consultas del expediente: un paciente acumula una historia por visita
+  const [historias, setHistorias] = useState([]);
+  const [loadingHistorias, setLoadingHistorias] = useState(false);
+  const [historiasError, setHistoriasError] = useState('');
+  const [avisoConsulta, setAvisoConsulta] = useState('');
+
+  // Consulta abierta en el formulario. `historiaId` en null significa que aún no
+  // se ha persistido, así que el siguiente guardado la registra en lugar de
+  // actualizarla. Una consulta ya finalizada se abre bloqueada.
+  const [historiaId, setHistoriaId] = useState(null);
+  const [estadoHistoria, setEstadoHistoria] = useState(null);
+  const [soloLectura, setSoloLectura] = useState(false);
+
+  // PNG del mapeo venoso: `mapeoImagen` es el trazo nuevo pendiente de subir y
+  // `mapeoGuardadoUrl` el que ya está almacenado en el backend.
+  const [mapeoImagen, setMapeoImagen] = useState(null);
+  const [mapeoGuardadoUrl, setMapeoGuardadoUrl] = useState(null);
 
   // Read patientId query param
   const urlPatientId = searchParams.get('patientId') || searchParams.get('id');
+
+  /**
+   * Consulta pedida por la URL (?historiaId=). Se guarda en una referencia y se
+   * consume una sola vez: así el enlace se puede compartir sin que reabrir la
+   * misma consulta pise lo que el médico esté editando después.
+   */
+  const historiaSolicitadaRef = useRef(searchParams.get('historiaId'));
 
   // Fetch patients list safely without infinite loops
   useEffect(() => {
@@ -180,10 +223,18 @@ function HistoriaClinica() {
 
   const handleSelectPatient = (id) => {
     setSelectedPatientId(id);
+
+    // Al cambiar de expediente nunca se debe arrastrar la consulta del paciente
+    // anterior. El efecto que carga las consultas decide cuál abrir.
+    setHistorias([]);
+    setHistoriasError('');
+    historiaSolicitadaRef.current = null;
+
     if (id) {
       setSearchParams({ patientId: id });
     } else {
       setSearchParams({});
+      limpiarConsulta();
     }
   };
 
@@ -198,51 +249,151 @@ function HistoriaClinica() {
     setIsModalOpen(false);
   };
 
-  const [form, setForm] = useState({
-    consultaPor: '',
-    zonasPierna: [],
-    sintomas: [],
-    sintomasAumentan: [],
-    sintomasDisminuyen: [],
-    disminuyenOtros: '',
-    familiarVarices: '',
-    alergias: '',
-    cirugias: '',
-    gestas: '', abortos: '', partos: '', cesareas: '', hijosVivos: '', hijosMuertos: '',
-    ultimaMenstruacion: '', hormonas: '',
-    enfermedades: [], enfermedadesOtros: '',
-    ta: '', fc: '', fr: '', temp: '', peso: '', ubicacion: '',
-    ceapC: '', ceapE: '', ceapA: [], ceapP: '',
-    txZonas: [],
-    escleroConcentracion: '', escleroForma: '', escleroVolumen: '',
-    indicaciones: [], indicacionesOtros: '',
-    evolucion: '', observaciones: [], estado: '', notas: '',
-    dopDerProfundo: 'Eje venoso profundo permeable y compresible con flujo cíclico espontáneo.',
-    dopDerSafInt: 'Suficiente.', dopDerSafIntDiam: '',
-    dopDerSafExt: 'Permeable, suficiente.', dopDerSafExtDiam: '',
-    dopDerPerf: 'No se observan perforantes insuficientes.',
-    dopDerTrom: 'No se observan signos de trombosis en los vasos evaluados.',
-    dopIzqProfundo: 'Eje venoso profundo permeable y compresible con flujo cíclico espontáneo.',
-    dopIzqSafInt: 'Suficiente.', dopIzqSafIntDiam: '',
-    dopIzqSafExt: 'Permeable, suficiente.', dopIzqSafExtDiam: '',
-    dopIzqPerf: 'No se observan perforantes insuficientes.',
-    dopIzqTrom: 'No se observan signos de trombosis en los vasos evaluados.',
-    dopConclusion: 'Sistema venoso evaluado permeable sin datos de insuficiencia ni trombosis.'
-  });
+  const [form, setForm] = useState(clinicalHistoryService.createEmptyForm);
 
-  const ch = (e) => { const { name, value } = e.target; setForm(p => ({ ...p, [name]: value })); };
+  // Cualquier edición deja la historia como "sin guardar" y limpia el aviso previo
+  const marcarModificado = () => {
+    setSaved(false);
+    setSaveMessage('');
+  };
+
+  const ch = (e) => {
+    const { name, value } = e.target;
+    setForm(p => ({ ...p, [name]: value }));
+    marcarModificado();
+  };
   const toggleArr = (key, val) => {
     setForm(p => ({
       ...p,
       [key]: p[key].includes(val) ? p[key].filter(x => x !== val) : [...p[key], val]
     }));
+    marcarModificado();
+  };
+
+  /* ── Consultas del expediente ─────────────────────────────────────────────
+   * Cada historia clínica es una consulta fechada. Al entrar al expediente se
+   * reanuda el borrador pendiente si existe; si todas están finalizadas se
+   * prepara una consulta nueva con los antecedentes ya conocidos del paciente.
+   */
+
+  /** Dejar el formulario sin ninguna consulta cargada (expediente desvinculado). */
+  const limpiarConsulta = () => {
+    setForm(clinicalHistoryService.createEmptyForm());
+    setHistoriaId(null);
+    setEstadoHistoria(null);
+    setSoloLectura(false);
+    setMapeoImagen(null);
+    setMapeoGuardadoUrl(null);
+    setAvisoConsulta('');
+    setSaved(false);
+    setSaveMessage('');
+  };
+
+  /** Cargar una consulta existente. Las finalizadas se abren bloqueadas. */
+  const abrirConsulta = (historia, patientId = selectedPatientId) => {
+    setForm(clinicalHistoryService.mapClinicalHistoryToForm(historia));
+    setHistoriaId(historia.id);
+    setEstadoHistoria(historia.estado_registro);
+    setSoloLectura(historia.estado_registro === 'Finalizada');
+    setMapeoImagen(null);
+    setMapeoGuardadoUrl(historia.mapeo_venoso_url || null);
+    setAvisoConsulta(
+      historia.estado_registro === 'Finalizada'
+        ? `Consulta del ${formatearFecha(historia.fecha_consulta)} finalizada. Ábrala en modo edición para corregirla.`
+        : `Retomando el borrador del ${formatearFecha(historia.fecha_consulta)}.`
+    );
+    setSaved(historia.estado_registro === 'Finalizada');
+    setSaveMessage('');
+    setActive('interrogatorio');
+
+    if (patientId) {
+      setSearchParams({ patientId: String(patientId), historiaId: String(historia.id) });
+    }
+  };
+
+  /** Empezar una consulta nueva heredando los antecedentes de la más reciente. */
+  const iniciarConsultaNueva = (previa = null, patientId = selectedPatientId) => {
+    setForm(clinicalHistoryService.buildFormForNewConsulta(previa));
+    setHistoriaId(null);
+    setEstadoHistoria(null);
+    setSoloLectura(false);
+    setMapeoImagen(null);
+    setMapeoGuardadoUrl(null);
+    setAvisoConsulta(
+      previa
+        ? `Consulta nueva. Se copiaron los antecedentes de la consulta del ${formatearFecha(previa.fecha_consulta)}; verifíquelos antes de guardar.`
+        : 'Primera consulta de este expediente.'
+    );
+    setSaved(false);
+    setSaveMessage('');
+    setActive('interrogatorio');
+
+    if (patientId) {
+      setSearchParams({ patientId: String(patientId) });
+    }
+  };
+
+  // Cargar las consultas del expediente al seleccionar un paciente
+  useEffect(() => {
+    if (!selectedPatientId) return;
+
+    let isMounted = true;
+
+    const loadHistorias = async () => {
+      setLoadingHistorias(true);
+      setHistoriasError('');
+
+      const res = await clinicalHistoryService.getClinicalHistoriesByPatient(selectedPatientId);
+      if (!isMounted) return;
+
+      if (!res.success) {
+        setHistorias([]);
+        setHistoriasError(res.message || 'No se pudo cargar el historial de consultas.');
+        setLoadingHistorias(false);
+        return;
+      }
+
+      // El backend las devuelve de la más reciente a la más antigua
+      const lista = res.data;
+      setHistorias(lista);
+
+      // La consulta pedida por la URL manda; si no, se reanuda el borrador
+      const solicitadaId = historiaSolicitadaRef.current;
+      historiaSolicitadaRef.current = null;
+
+      const solicitada = solicitadaId
+        ? lista.find(h => String(h.id) === String(solicitadaId))
+        : null;
+      const borrador = lista.find(h => h.estado_registro === 'Borrador');
+
+      if (solicitada) {
+        abrirConsulta(solicitada, selectedPatientId);
+      } else if (borrador) {
+        abrirConsulta(borrador, selectedPatientId);
+      } else {
+        iniciarConsultaNueva(lista[0] || null, selectedPatientId);
+      }
+
+      setLoadingHistorias(false);
+    };
+
+    loadHistorias();
+    return () => { isMounted = false; };
+    // Las funciones de apertura solo dependen del paciente, que ya está en la lista
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedPatientId]);
+
+  /** Releer las consultas tras guardar, para que el listado quede al día. */
+  const refrescarHistorias = async () => {
+    const res = await clinicalHistoryService.getClinicalHistoriesByPatient(selectedPatientId);
+    if (res.success) setHistorias(res.data);
   };
 
   const isFilled = (id) => {
     if (id === 'interrogatorio') return !!form.consultaPor;
     if (id === 'antecedentes') return true;
     if (id === 'examen') return !!form.ta;
-    if (id === 'diagnostico') return !!form.ceapC;
+    if (id === 'diagnostico') return form.ceapDiagnostico.length > 0;
     if (id === 'tratamiento') return form.txZonas.length > 0;
     if (id === 'evolucion') return !!form.estado;
     if (id === 'doppler') return true;
@@ -255,19 +406,71 @@ function HistoriaClinica() {
     document.getElementById(`sec-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
 
-  const handleSave = (e) => {
-    e.preventDefault();
+  /**
+   * Persistir la historia clínica. La primera vez se registra (POST) y a partir
+   * de ahí se actualiza la misma historia (PUT), tanto en borrador como al
+   * finalizarla. El mapeo venoso viaja aparte por ser un archivo.
+   */
+  const guardarHistoria = async (estadoRegistro) => {
     if (!selectedPatientId) {
+      setSaved(false);
       setSaveMessage('Seleccione un paciente antes de guardar la historia clínica.');
-      setTimeout(() => setSaveMessage(''), 3000);
       return;
     }
-    setSaved(true);
-    setSaveMessage('Historia clínica guardada exitosamente.');
-    setTimeout(() => {
+
+    setSaving(true);
+    setSaveMessage('');
+
+    const res = historiaId
+      ? await clinicalHistoryService.updateClinicalHistory(historiaId, form, selectedPatientId, estadoRegistro)
+      : await clinicalHistoryService.createClinicalHistory(form, selectedPatientId, estadoRegistro);
+
+    if (!res.success) {
+      // Se muestran los mensajes de validación reales que devuelve el backend
+      const detalle = res.errors ? Object.values(res.errors).flat().slice(0, 3).join(' ') : '';
       setSaved(false);
-      setSaveMessage('');
-    }, 3000);
+      setSaveMessage([res.message, detalle].filter(Boolean).join(' '));
+      setSaving(false);
+      return;
+    }
+
+    const id = res.data?.id || historiaId;
+    setHistoriaId(id);
+    setEstadoHistoria(res.data?.estado_registro || estadoRegistro);
+
+    let mensaje = res.message;
+
+    if (mapeoImagen && id) {
+      const mapeoRes = await clinicalHistoryService.saveVenousMap(id, mapeoImagen);
+      if (mapeoRes.success) {
+        setMapeoImagen(null);
+        setMapeoGuardadoUrl(mapeoRes.data?.mapeo_venoso_url || null);
+      } else {
+        mensaje = `${res.message} El mapeo venoso no pudo guardarse: ${mapeoRes.message}`;
+      }
+    }
+
+    // Al finalizar, la consulta queda cerrada: para corregirla hay que
+    // reabrirla explícitamente en modo edición.
+    if (estadoRegistro === 'Finalizada') {
+      setSoloLectura(true);
+      setAvisoConsulta(`Consulta del ${formatearFecha(res.data?.fecha_consulta)} finalizada.`);
+    }
+
+    if (id) {
+      setSearchParams({ patientId: String(selectedPatientId), historiaId: String(id) });
+    }
+
+    await refrescarHistorias();
+
+    setSaved(true);
+    setSaveMessage(mensaje);
+    setSaving(false);
+  };
+
+  const handleSave = (e) => {
+    e.preventDefault();
+    guardarHistoria('Finalizada');
   };
 
   const showGineco = patient?.genero === 'Femenino' || patient?.sexo === 'Femenino'
@@ -446,6 +649,73 @@ function HistoriaClinica() {
                   )}
                 </div>
               </div>
+
+              {/* Consultas del expediente */}
+              {patient && (
+                <div className="hc-consultas">
+                  <div className="hc-consultas-head">
+                    <FileText size={14} />
+                    <span className="hc-consultas-title">Consultas del expediente</span>
+                    <span className="hc-consultas-count">
+                      {loadingHistorias ? 'Cargando…' : `${historias.length} registrada${historias.length === 1 ? '' : 's'}`}
+                    </span>
+                    <button
+                      type="button"
+                      className="btn btn-secondary btn-sm"
+                      disabled={loadingHistorias}
+                      onClick={() => iniciarConsultaNueva(historias[0] || null)}
+                    >
+                      <Plus size={14} /> Nueva consulta
+                    </button>
+                  </div>
+
+                  {historiasError ? (
+                    <div className="hc-notice"><AlertCircle size={14} /> {historiasError}</div>
+                  ) : (
+                    <div className="hc-consultas-list">
+                      {/* La consulta en curso aún no existe en el backend */}
+                      {!historiaId && (
+                        <div className="hc-consulta on">
+                          <span className="hc-consulta-fecha">Hoy</span>
+                          <span className="hc-consulta-resumen">Consulta nueva sin guardar</span>
+                          <span className="tag tag-info">En curso</span>
+                        </div>
+                      )}
+
+                      {historias.map((h) => {
+                        const esActual = String(h.id) === String(historiaId);
+                        return (
+                          <button
+                            type="button"
+                            key={h.id}
+                            className={`hc-consulta${esActual ? ' on' : ''}`}
+                            onClick={() => abrirConsulta(h)}
+                          >
+                            <span className="hc-consulta-fecha">{formatearFecha(h.fecha_consulta)}</span>
+                            <span className="hc-consulta-resumen">{resumirConsulta(h)}</span>
+                            <span className={`tag ${h.estado_registro === 'Borrador' ? 'tag-warning' : 'tag-success'}`}>
+                              {h.estado_registro}
+                            </span>
+                          </button>
+                        );
+                      })}
+
+                      {!loadingHistorias && historias.length === 0 && (
+                        <div className="hc-empty">Este expediente todavía no tiene consultas registradas.</div>
+                      )}
+                    </div>
+                  )}
+
+                  {avisoConsulta && (
+                    <div className="hc-consultas-aviso">
+                      {soloLectura ? <Lock size={13} /> : <AlertCircle size={13} />} {avisoConsulta}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Secciones clínicas: se bloquean cuando la consulta está finalizada */}
+              <fieldset className="hc-fieldset" disabled={soloLectura}>
 
               {/* 1. Interrogatorio */}
               <Section id="interrogatorio" icon={<MessageSquare size={14} />} title="Interrogatorio y Síntomas">
@@ -626,7 +896,7 @@ function HistoriaClinica() {
 
                 <Field label="Ubicación de la patología vascular">
                   <div className="hc-chips">
-                    {['MID', 'MII', 'BIALTERAL'].map(o => (
+                    {['MID', 'MII', 'BILATERAL'].map(o => (
                       <ChipRadio key={o} name="ubicacion" value={o} current={form.ubicacion} onChange={ch} grow />
                     ))}
                   </div>
@@ -636,55 +906,16 @@ function HistoriaClinica() {
               {/* 4. Diagnóstico CEAP */}
               <Section id="diagnostico" icon={<CheckCircle size={14} />} title="Diagnóstico (Clasificación CEAP)">
                 <div className="hc-grid-2">
-                  <div className="hc-stack">
-                    <Field label={<><span className="hc-ceap">C</span> Clínica</>}>
-                      <div className="hc-opts">
-                        {['C0 - Sin signos visibles/palpables', 'C1 - Telangiectasias o venas reticulares', 'C2 - Venas varicosas', 'C3 - Edema', 'C4 - Cambios tróficos (pigmentación, eccema)', 'C5 - Úlcera venosa cicatrizada', 'C6 - Úlcera venosa activa'].map(o => (
-                          <OptRadio
-                            key={o}
-                            name="ceapC"
-                            value={o.substring(0, 2)}
-                            label={o}
-                            current={form.ceapC}
-                            onChange={ch}
-                          />
-                        ))}
-                      </div>
-                    </Field>
-
-                    <Field label={<><span className="hc-ceap">E</span> Etiología</>}>
-                      <div className="hc-chips">
-                        {['Primaria', 'Secundaria', 'Congénita'].map(o => (
-                          <ChipRadio key={o} name="ceapE" value={o} current={form.ceapE} onChange={ch} grow />
-                        ))}
-                      </div>
-                    </Field>
+                  <div className="hc-opts">
+                    {['Primaria', 'Secundaria', 'Superficial', 'Profunda'].map(o => (
+                      <OptCheck key={o} value={o} list={form.ceapDiagnostico} onToggle={v => toggleArr('ceapDiagnostico', v)} />
+                    ))}
                   </div>
 
-                  <div className="hc-stack">
-                    <Field label={<><span className="hc-ceap">A</span> Anatomía</>}>
-                      <div className="hc-opts">
-                        {['Superficial', 'Profunda', 'Perforantes', 'Mixta'].map(o => (
-                          <OptCheck key={o} value={o} list={form.ceapA} onToggle={v => toggleArr('ceapA', v)} />
-                        ))}
-                      </div>
-                    </Field>
-
-                    <Field label={<><span className="hc-ceap">P</span> Fisiopatología</>}>
-                      <div className="hc-chips">
-                        {['Reflujo', 'Obstrucción', 'Ambos'].map(o => (
-                          <ChipRadio
-                            key={o}
-                            name="ceapP"
-                            value={o === 'Ambos' ? 'Reflujo + Obstrucción' : o}
-                            label={o}
-                            current={form.ceapP}
-                            onChange={ch}
-                            grow
-                          />
-                        ))}
-                      </div>
-                    </Field>
+                  <div className="hc-opts">
+                    {['Perforantes', 'Mixtas', 'Reflujo', 'Obstrucción'].map(o => (
+                      <OptCheck key={o} value={o} list={form.ceapDiagnostico} onToggle={v => toggleArr('ceapDiagnostico', v)} />
+                    ))}
                   </div>
                 </div>
               </Section>
@@ -735,7 +966,7 @@ function HistoriaClinica() {
                   </div>
                 </div>
 
-                <Field label="Indicaciones post-tratamiento">
+                <Field label="Indicaciones">
                   <div className="hc-opts">
                     {['Venotónico: Perivasc 950/50', 'AINEs', 'Crema', 'Medias Compresivas', 'No se prescribe tratamiento adicional'].map(o => (
                       <OptCheck key={o} value={o} list={form.indicaciones} onToggle={v => toggleArr('indicaciones', v)} />
@@ -778,7 +1009,7 @@ function HistoriaClinica() {
                   </Field>
                 </div>
 
-                <Field label="Observaciones tras escleroterapia">
+                <Field label="Observaciones">
                   <div className="hc-chips">
                     {['Buena respuesta', 'Pigmentación', 'Inflamación', 'Flebitis superficial', 'Sin complicaciones', 'Matting', 'Nódulo esclerosado', 'Úlcera esclerosante', 'Eritema leve', 'Dolor', 'Recanalización'].map(o => (
                       <ChipCheck key={o} value={o} list={form.observaciones} onToggle={v => toggleArr('observaciones', v)} />
@@ -816,26 +1047,66 @@ function HistoriaClinica() {
 
               {/* 8. Mapeo venoso */}
               <Section id="mapeo" icon={<PenTool size={14} />} title="Mapeo Venoso Superficial">
-                <MapeoVenosoCanvas />
+                <MapeoVenosoCanvas
+                  key={historiaId ?? 'nueva'}
+                  onImageChange={setMapeoImagen}
+                  mapeoGuardadoUrl={mapeoGuardadoUrl}
+                  soloLectura={soloLectura}
+                />
               </Section>
+
+              </fieldset>
 
               {/* Barra de guardado */}
               <div className="hc-save-bar">
                 <div className={`hc-save-info${saved ? ' saved' : ''}`}>
                   {saved ? (
-                    <><Check size={14} /> Historia guardada correctamente</>
+                    <><Check size={14} /> {saveMessage || 'Historia guardada correctamente'}</>
                   ) : saveMessage ? (
                     <><AlertCircle size={14} /> {saveMessage}</>
+                  ) : soloLectura ? (
+                    <><Lock size={14} /> Consulta finalizada en modo lectura</>
                   ) : (
-                    <><Clock size={14} /> Última modificación: ahora</>
+                    <><Clock size={14} /> {historiaId ? `Editando la consulta #${historiaId}` : 'Consulta nueva sin guardar'}</>
                   )}
                 </div>
                 <div className="hc-save-actions">
-                  <button type="button" className="btn btn-ghost">Vista previa</button>
-                  <button type="button" className="btn btn-secondary">Guardar borrador</button>
-                  <button id="btn-guardar-historia" type="submit" className="btn btn-primary">
-                    <Save size={14} /> Guardar historia clínica
-                  </button>
+                  {soloLectura ? (
+                    <button
+                      type="button"
+                      className="btn btn-primary"
+                      onClick={() => {
+                        setSoloLectura(false);
+                        setSaved(false);
+                        setAvisoConsulta('Modo edición: los cambios se guardarán sobre esta consulta ya finalizada.');
+                      }}
+                    >
+                      <PenTool size={14} /> Editar consulta
+                    </button>
+                  ) : (
+                    <>
+                      <button type="button" className="btn btn-ghost">Vista previa</button>
+                      {/* Una consulta ya finalizada no puede volver a borrador */}
+                      {estadoHistoria !== 'Finalizada' && (
+                        <button
+                          type="button"
+                          className="btn btn-secondary"
+                          disabled={saving || !selectedPatientId}
+                          onClick={() => guardarHistoria('Borrador')}
+                        >
+                          Guardar borrador
+                        </button>
+                      )}
+                      <button
+                        id="btn-guardar-historia"
+                        type="submit"
+                        className="btn btn-primary"
+                        disabled={saving || !selectedPatientId}
+                      >
+                        <Save size={14} /> {saving ? 'Guardando…' : `${estadoHistoria === 'Finalizada' ? 'Actualizar' : 'Finalizar'} historia clínica`}
+                      </button>
+                    </>
+                  )}
                 </div>
               </div>
 

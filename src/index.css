@@ -1817,6 +1817,108 @@ select.form-control {
   color: var(--brand-text-light);
 }
 
+/* Consultas del expediente: un registro por visita */
+.hc-consultas {
+  background: var(--hc-panel);
+  border: 1px solid var(--hc-line);
+  margin-bottom: 20px;
+}
+
+.hc-consultas-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 20px;
+  background: var(--brand-surface-deep);
+  border-bottom: 1px solid var(--hc-line);
+  color: var(--brand-slate);
+}
+
+.hc-consultas-title {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--brand-text);
+}
+
+.hc-consultas-count {
+  flex: 1;
+  font-size: 11px;
+  color: var(--brand-text-light);
+}
+
+.hc-consultas-list {
+  max-height: 190px;
+  overflow-y: auto;
+}
+
+.hc-consulta {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  padding: 10px 20px;
+  background: none;
+  border: 0;
+  border-bottom: 1px solid var(--hc-line);
+  border-left: 2px solid transparent;
+  text-align: left;
+  cursor: pointer;
+  font-family: var(--font-sans);
+  transition: all var(--t-fast);
+}
+
+.hc-consulta:hover {
+  background: var(--brand-surface-alt);
+}
+
+.hc-consulta.on {
+  background: var(--brand-surface-deep);
+  border-left-color: var(--brand-slate);
+  cursor: default;
+}
+
+.hc-consulta-fecha {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--brand-text);
+  white-space: nowrap;
+}
+
+.hc-consulta-resumen {
+  flex: 1;
+  min-width: 0;
+  font-size: 12px;
+  color: var(--brand-text-light);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hc-consultas-aviso {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  font-size: 12px;
+  color: var(--brand-text-light);
+  border-top: 1px solid var(--hc-line);
+}
+
+/* Contenedor de las secciones clínicas: solo aporta el bloqueo en modo lectura */
+.hc-fieldset {
+  border: 0;
+  padding: 0;
+  margin: 0;
+  min-width: 0;
+}
+
+.hc-fieldset:disabled {
+  opacity: 0.75;
+}
+
 /* Secciones: paneles planos, sin esquinas redondeadas ni sombra */
 .hc-section {
   background: var(--hc-panel);

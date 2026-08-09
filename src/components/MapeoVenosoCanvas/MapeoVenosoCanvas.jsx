@@ -1,7 +1,16 @@
 import { useRef, useState, useEffect } from 'react';
 import { Eraser, Pencil, Undo, Download } from 'lucide-react';
 
-export default function MapeoVenosoCanvas() {
+/**
+ * @param {Object} props
+ * @param {(dataUrl: string) => void} [props.onImageChange] - Notifica el PNG del
+ *   mapeo cada vez que el usuario dibuja o limpia, para poder persistirlo.
+ * @param {string|null} [props.mapeoGuardadoUrl] - Mapeo ya almacenado para esta
+ *   consulta, servido desde /storage del backend.
+ * @param {boolean} [props.soloLectura] - Consulta finalizada: el mapeo guardado
+ *   se muestra como imagen y no se permite dibujar.
+ */
+export default function MapeoVenosoCanvas({ onImageChange, mapeoGuardadoUrl = null, soloLectura = false }) {
   const canvasRef = useRef(null);
   const contextRef = useRef(null);
   const [isDrawing, setIsDrawing] = useState(false);
@@ -11,6 +20,9 @@ export default function MapeoVenosoCanvas() {
 
   useEffect(() => {
     const canvas = canvasRef.current;
+    // En modo lectura no se monta el canvas: solo se muestra el mapeo guardado
+    if (!canvas) return;
+
     // Set display size
     canvas.style.width = '100%';
     canvas.style.height = '600px';
@@ -91,12 +103,17 @@ export default function MapeoVenosoCanvas() {
   };
 
   const finishDrawing = () => {
+    // Sin trazo en curso no hay nada que cerrar (onMouseLeave se dispara siempre)
+    if (!isDrawing) return;
+
     contextRef.current.closePath();
     setIsDrawing(false);
-    
+
     // Save state for undo (simple implementation)
     const canvas = canvasRef.current;
-    setHistory([...history, canvas.toDataURL()]);
+    const dataUrl = canvas.toDataURL('image/png');
+    setHistory([...history, dataUrl]);
+    onImageChange?.(dataUrl);
   };
 
   const draw = ({ nativeEvent }) => {
@@ -109,6 +126,7 @@ export default function MapeoVenosoCanvas() {
   const clearCanvas = () => {
     drawBackground();
     setHistory([]);
+    onImageChange?.(canvasRef.current.toDataURL('image/png'));
   };
 
   const downloadCanvas = () => {
@@ -119,10 +137,37 @@ export default function MapeoVenosoCanvas() {
     a.click();
   };
 
+  // Consulta finalizada: se muestra el mapeo tal como quedó archivado
+  if (soloLectura) {
+    return (
+      <div style={{ border: '1px solid var(--brand-border)', borderRadius: '12px', overflow: 'hidden' }}>
+        {mapeoGuardadoUrl ? (
+          <img
+            src={mapeoGuardadoUrl}
+            alt="Mapeo venoso registrado en esta consulta"
+            style={{ display: 'block', width: '100%' }}
+          />
+        ) : (
+          <div style={{ padding: '48px 16px', textAlign: 'center', fontSize: '12px', color: 'var(--brand-text-muted)' }}>
+            En esta consulta no se registró un mapeo venoso.
+          </div>
+        )}
+      </div>
+    );
+  }
+
   return (
     <div style={{ border: '1px solid var(--brand-border)', borderRadius: '12px', overflow: 'hidden' }}>
+      {mapeoGuardadoUrl && (
+        <div style={{ padding: '10px 16px', background: 'var(--brand-surface-alt)', borderBottom: '1px solid var(--brand-border)', fontSize: '12px', color: 'var(--brand-text-muted)', display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+          <span>Esta consulta ya tiene un mapeo guardado. Si dibuja uno nuevo, lo reemplazará.</span>
+          <a href={mapeoGuardadoUrl} target="_blank" rel="noreferrer" className="btn btn-sm btn-ghost">
+            Ver el mapeo guardado
+          </a>
+        </div>
+      )}
       <div style={{ padding: '12px 16px', background: 'var(--brand-surface-alt)', borderBottom: '1px solid var(--brand-border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        
+
         <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
           <button type="button" className={`btn btn-sm ${color === '#8A2B49' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setColor('#8A2B49')} title="Várices (Rojo)"><Pencil size={14}/> Várices</button>
           <button type="button" className={`btn btn-sm ${color === '#0C4550' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setColor('#0C4550')} title="Venas Profundas (Azul)"><Pencil size={14}/> Profundas</button>
