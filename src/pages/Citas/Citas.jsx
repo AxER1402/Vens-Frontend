@@ -16,7 +16,8 @@ import {
   Filter,
   RefreshCw,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Plus
 } from 'lucide-react';
 import { DatePicker } from '@/components/ui/date-picker';
 import { TimePicker } from '@/components/ui/time-picker';
@@ -109,6 +110,12 @@ const startOfWeek = (d) => {
 };
 
 const isSameDay = (a, b) => toISODate(a) === toISODate(b);
+
+/** 8 -> "08:00" */
+const hourLabel = (h) => `${String(h).padStart(2, '0')}:00`;
+
+/** Duración por defecto de la cita creada desde la agenda: 30 minutos */
+const slotEndTime = (h) => (h >= 23 ? '23:59' : `${String(h).padStart(2, '0')}:30`);
 
 /** Clase de color por estado: st-programada, st-confirmada, … */
 const stateClass = (estado) => `st-${String(estado || 'Programada').toLowerCase()}`;
@@ -301,6 +308,19 @@ function Citas() {
     setAppointmentForm({
       ...EMPTY_APPOINTMENT_FORM,
       medico_id: doctors.length > 0 ? String(doctors[0].id) : ''
+    });
+    setErrorMessage('');
+    setShowCreateModal(true);
+  };
+
+  /** Clic sobre una casilla de la agenda: abre "Agendar cita" con día y hora ya cargados */
+  const handleOpenCreateSlot = (date, hour) => {
+    setAppointmentForm({
+      ...EMPTY_APPOINTMENT_FORM,
+      medico_id: doctors.length > 0 ? String(doctors[0].id) : '',
+      fecha: toISODate(date),
+      hora_inicio: hourLabel(hour),
+      hora_fin: slotEndTime(hour)
     });
     setErrorMessage('');
     setShowCreateModal(true);
@@ -718,15 +738,6 @@ function Citas() {
     return Array.from({ length: max - min + 1 }, (_, i) => min + i);
   }, [appointments]);
 
-  const dayAppointments = useMemo(() => {
-    const iso = toISODate(anchorDate);
-    return appointments
-      .filter(app => parseBackendDateTime(app.fecha_hora_inicio).date === iso)
-      .sort((a, b) =>
-        String(a.fecha_hora_inicio || '').localeCompare(String(b.fecha_hora_inicio || ''))
-      );
-  }, [appointments, anchorDate]);
-
   const rangeLabel = useMemo(() => {
     if (view === 'dia') {
       return anchorDate.toLocaleDateString('es-GT', {
@@ -1064,6 +1075,19 @@ function Citas() {
                               <div className="cita-block-motivo">{c.motivo || 'Sin motivo'}</div>
                             </button>
                           ))}
+
+                          {/* Espacio libre de la casilla: agenda en ese día y hora */}
+                          <button
+                            type="button"
+                            className="week-cell-add"
+                            onClick={() => handleOpenCreateSlot(d, h)}
+                            title={`Agendar cita el ${d.toLocaleDateString('es-GT', {
+                              weekday: 'long', day: 'numeric', month: 'long'
+                            })} a las ${hourLabel(h)}`}
+                            aria-label={`Agendar cita el ${toISODate(d)} a las ${hourLabel(h)}`}
+                          >
+                            <Plus size={14} />
+                          </button>
                         </div>
                       );
                     })}
@@ -1080,49 +1104,61 @@ function Citas() {
                 </span>
               ))}
               <span className="legend-item" style={{ marginLeft: 'auto' }}>
-                Haga clic en una cita para ver su detalle
+                Haga clic en una cita para ver su detalle, o en una casilla libre para agendar
               </span>
             </div>
           </>
         ) : view === 'dia' ? (
           /* ---------- VISTA DÍA ---------- */
-          dayAppointments.length === 0 ? (
-            <div className="empty-state py-12">
-              <div className="empty-icon text-brand-text-light mb-2">
-                <CalendarX size={36} />
-              </div>
-              <p className="font-medium text-brand-text">Sin citas para este día</p>
-              <p className="text-xs text-muted">
-                Use las flechas para revisar otros días o agende una cita nueva.
-              </p>
-            </div>
-          ) : (
+          <>
             <div className="panel">
-              {dayAppointments.map(c => {
-                const startParsed = parseBackendDateTime(c.fecha_hora_inicio);
-                const endParsed = parseBackendDateTime(c.fecha_hora_fin);
+              {hourRange.map(h => {
+                const slotAppointments = weekMap[`${toISODate(anchorDate)}|${h}`] || [];
                 return (
-                  <div className="day-row" key={c.id}>
-                    <div className={`day-time ${stateClass(c.estado)}`}>
-                      {startParsed.time || '—'}
-                    </div>
-                    <div className="day-body">
-                      <div className="day-info">
-                        <div className="day-name">{getPatientDisplayName(c)}</div>
-                        <div className="day-meta">
-                          <span>{startParsed.time || '—'} a {endParsed.time || '—'}</span>
-                          <span>{c.motivo || 'Sin motivo'}</span>
-                          <span>{getDoctorDisplayName(c)}</span>
-                        </div>
-                      </div>
-                      <span className={`tag ${tagClass[c.estado] || 'tag-info'}`}>{c.estado}</span>
-                      {renderApptActions(c)}
+                  <div className="day-slot" key={h}>
+                    <div className="day-slot-hour">{hourLabel(h)}</div>
+                    <div className="day-slot-body">
+                      {slotAppointments.map(c => {
+                        const startParsed = parseBackendDateTime(c.fecha_hora_inicio);
+                        const endParsed = parseBackendDateTime(c.fecha_hora_fin);
+                        return (
+                          <div className={`day-appt ${stateClass(c.estado)}`} key={c.id}>
+                            <div className="day-info">
+                              <div className="day-name">{getPatientDisplayName(c)}</div>
+                              <div className="day-meta">
+                                <span>{startParsed.time || '—'} a {endParsed.time || '—'}</span>
+                                <span>{c.motivo || 'Sin motivo'}</span>
+                                <span>{getDoctorDisplayName(c)}</span>
+                              </div>
+                            </div>
+                            <span className={`tag ${tagClass[c.estado] || 'tag-info'}`}>{c.estado}</span>
+                            {renderApptActions(c)}
+                          </div>
+                        );
+                      })}
+
+                      {/* Franja libre: agenda en este día y hora */}
+                      <button
+                        type="button"
+                        className="day-slot-add"
+                        onClick={() => handleOpenCreateSlot(anchorDate, h)}
+                        title={`Agendar cita a las ${hourLabel(h)}`}
+                      >
+                        <Plus size={13} />
+                        <span>Agendar a las {hourLabel(h)}</span>
+                      </button>
                     </div>
                   </div>
                 );
               })}
             </div>
-          )
+
+            <div className="agenda-legend">
+              <span className="legend-item">
+                Haga clic en una franja horaria para agendar una cita a esa hora.
+              </span>
+            </div>
+          </>
         ) : (
           /* ---------- VISTA LISTA ---------- */
           Object.keys(groupedAppointments).length === 0 ? (
