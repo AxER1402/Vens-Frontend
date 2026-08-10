@@ -1035,13 +1035,24 @@ function HistoriaClinica() {
                   <p className="hc-field-hint">
                     El informe Ecodöppler se llena en un formulario independiente para su mejor administración.
                   </p>
+                  {/* El expediente y la consulta viajan en la URL: el reporte se abre
+                      ya vinculado y al volver se retoma esta misma consulta. */}
                   <button
                     type="button"
                     className="btn btn-secondary"
-                    onClick={() => navigate('/reporte-doppler')}
+                    disabled={!selectedPatientId}
+                    onClick={() => navigate(`/reporte-doppler?${new URLSearchParams({
+                      patientId: String(selectedPatientId),
+                      ...(historiaId ? { historiaId: String(historiaId) } : {})
+                    })}`)}
                   >
                     <Activity size={14} /> Ir a reporte Doppler
                   </button>
+                  {!selectedPatientId && (
+                    <span className="hc-notice">
+                      <AlertCircle size={14} /> Seleccione un paciente para abrir su reporte Ecodöppler.
+                    </span>
+                  )}
                 </div>
               </Section>
 
