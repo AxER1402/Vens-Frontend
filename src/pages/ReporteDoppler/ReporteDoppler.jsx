@@ -2,10 +2,12 @@ import { useState, useEffect } from 'react';
 import Layout from '../../components/Layout/Layout';
 import {
   Activity, ArrowLeft, Save, Check, Clock, ClipboardList, FileCheck, AlertCircle,
-  User, RefreshCw
+  User, RefreshCw, Lock, PenTool
 } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useAuth } from '../../context/AuthContext';
 import * as patientService from '../../services/patientService';
+import * as dopplerReportService from '../../services/dopplerReportService';
 
 const tagClass = {
   Activo: 'tag-success',
@@ -19,13 +21,13 @@ const LADOS = [
   { id: 'izq', label: 'Miembro Inferior Izquierdo', abrev: 'MII' },
 ];
 
-/* Vasos del sistema superficial: cada uno se informa con su diámetro en mm */
-const VASOS = [
-  { key: 'cayadoInt', label: 'Cayado safena interna' },
-  { key: 'troncoInt', label: 'Tronco safena interna' },
-  { key: 'cayadoExt', label: 'Cayado safena externa' },
-  { key: 'troncoExt', label: 'Tronco safena externa' },
-];
+/* Los vasos los define el servicio; aquí solo viven sus etiquetas */
+const ETIQUETAS_VASO = {
+  cayadoInt: 'Cayado safena interna',
+  troncoInt: 'Tronco safena interna',
+  cayadoExt: 'Cayado safena externa',
+  troncoExt: 'Tronco safena externa',
+};
 
 const SECTIONS = [
   { id: 'estudio', icon: <ClipboardList size={14} />, label: 'Datos del estudio' },
@@ -34,32 +36,16 @@ const SECTIONS = [
   { id: 'conclusion', icon: <FileCheck size={14} />, label: 'Conclusión' },
 ];
 
-const TEXTO_PROFUNDO = 'Eje venoso profundo permeable y compresible en toda su extensión con flujo cíclico espontáneo sin insuficiencia ni reflujo.';
-const TEXTO_PERFORANTES = 'No se observan perforantes insuficientes.';
-const TEXTO_TROMBOSIS = 'No se observan signos de trombosis en los vasos evaluados.';
+const hoy = () => new Date().toISOString().split('T')[0];
 
-/* Hallazgos por defecto de un miembro, con las claves prefijadas por lado
-   (derProfundo, izqCayadoInt…) para que un solo `ch` actualice el formulario. */
-const camposLado = (lado) => ({
-  [`${lado}Profundo`]: TEXTO_PROFUNDO,
-  [`${lado}CayadoInt`]: 'Suficiente.',
-  [`${lado}CayadoIntDiam`]: '',
-  [`${lado}TroncoInt`]: 'Permeable, suficiente.',
-  [`${lado}TroncoIntDiam`]: '',
-  [`${lado}CayadoExt`]: 'Suficiente.',
-  [`${lado}CayadoExtDiam`]: '',
-  [`${lado}TroncoExt`]: 'Permeable, suficiente.',
-  [`${lado}TroncoExtDiam`]: '',
-  [`${lado}Perforantes`]: TEXTO_PERFORANTES,
-  [`${lado}Trombosis`]: TEXTO_TROMBOSIS,
-});
-
-const crearFormularioVacio = () => ({
-  fecha: new Date().toISOString().split('T')[0],
-  ...camposLado('der'),
-  ...camposLado('izq'),
-  conclusion: 'Sistema venoso evaluado permeable sin datos de insuficiencia ni trombosis.',
-});
+/* Fecha (YYYY-MM-DD) en formato legible, sin desfase de zona horaria */
+const formatearFecha = (fecha) => {
+  if (!fecha) return 'Sin fecha';
+  const [anio, mes, dia] = String(fecha).slice(0, 10).split('-');
+  if (!anio || !mes || !dia) return String(fecha);
+  return new Date(Number(anio), Number(mes) - 1, Number(dia))
+    .toLocaleDateString('es-CR', { day: '2-digit', month: 'short', year: 'numeric' });
+};
 
 /* Bloque de sección: mismo panel plano que la historia clínica */
 function Section({ id, icon, title, children }) {
@@ -86,7 +72,7 @@ function InputField({ label, small, children }) {
 
 /* Fila de un vaso: hallazgo + diámetro medido */
 function Vaso({ lado, campo, label, form, onChange }) {
-  const nombre = `${lado}${campo.charAt(0).toUpperCase()}${campo.slice(1)}`;
+  const nombre = dopplerReportService.campoForm(lado, campo);
   const nombreDiam = `${nombre}Diam`;
 
   return (
@@ -99,6 +85,7 @@ function Vaso({ lado, campo, label, form, onChange }) {
           <input
             name={nombreDiam}
             className="form-control"
+            inputMode="decimal"
             placeholder="Ej: 4.1"
             value={form[nombreDiam]}
             onChange={onChange}
@@ -113,10 +100,13 @@ function Vaso({ lado, campo, label, form, onChange }) {
 function ReporteDoppler() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const [form, setForm] = useState(crearFormularioVacio);
+  const { user } = useAuth();
+
+  const [form, setForm] = useState(dopplerReportService.createEmptyForm);
   const [active, setActive] = useState('estudio');
   const [saved, setSaved] = useState(false);
   const [saveMessage, setSaveMessage] = useState('');
+  const [saving, setSaving] = useState(false);
 
   /* El expediente llega desde la historia clínica: el estudio pertenece al
      paciente y a la consulta que ya estaban abiertos, sin volver a elegirlos. */
@@ -126,6 +116,18 @@ function ReporteDoppler() {
   const [patient, setPatient] = useState(null);
   const [loadingPatient, setLoadingPatient] = useState(!!patientId);
   const [patientError, setPatientError] = useState('');
+
+  /* Reporte cargado. `reporteId` en null significa que aún no existe en el
+     backend, así que el siguiente guardado lo registra en lugar de editarlo.
+     Un estudio ya finalizado se abre bloqueado. */
+  const [reporteId, setReporteId] = useState(null);
+  const [estadoReporte, setEstadoReporte] = useState(null);
+  const [soloLectura, setSoloLectura] = useState(false);
+  const [loadingReporte, setLoadingReporte] = useState(!!historiaId);
+  const [avisoReporte, setAvisoReporte] = useState('');
+
+  // Registrar y editar está restringido a Administrador y Médico (igual que el API)
+  const canEdit = ['administrador', 'medico'].includes(user?.rol);
 
   useEffect(() => {
     if (!patientId) {
@@ -155,6 +157,51 @@ function ReporteDoppler() {
     return () => { isMounted = false; };
   }, [patientId]);
 
+  // Retomar el estudio ya adjunto a la consulta, si existe
+  useEffect(() => {
+    if (!historiaId) {
+      setLoadingReporte(false);
+      setAvisoReporte('');
+      return;
+    }
+
+    let isMounted = true;
+    const loadReporte = async () => {
+      setLoadingReporte(true);
+      const res = await dopplerReportService.getDopplerReportsByClinicalHistory(historiaId);
+      if (!isMounted) return;
+
+      if (!res.success) {
+        setAvisoReporte(res.message);
+        setLoadingReporte(false);
+        return;
+      }
+
+      // El backend los devuelve del más reciente al más antiguo
+      const reporte = res.data[0];
+
+      if (reporte) {
+        setForm(dopplerReportService.mapDopplerReportToForm(reporte));
+        setReporteId(reporte.id);
+        setEstadoReporte(reporte.estado_registro);
+        setSoloLectura(reporte.estado_registro === 'Finalizada');
+        setSaved(reporte.estado_registro === 'Finalizada');
+        setAvisoReporte(
+          reporte.estado_registro === 'Finalizada'
+            ? `Estudio del ${formatearFecha(reporte.fecha_estudio)} finalizado. Ábralo en modo edición para corregirlo.`
+            : `Retomando el borrador del ${formatearFecha(reporte.fecha_estudio)}.`
+        );
+      } else {
+        setAvisoReporte('Esta consulta todavía no tiene un estudio de Ecodöppler.');
+      }
+
+      setLoadingReporte(false);
+    };
+
+    loadReporte();
+    return () => { isMounted = false; };
+  }, [historiaId]);
+
   /** Regresar a la misma consulta del expediente, no a una pantalla en blanco. */
   const volverAHistoria = () => {
     if (!patientId) {
@@ -179,7 +226,9 @@ function ReporteDoppler() {
     if (id === 'estudio') return !!patient;
     if (id === 'conclusion') return !!form.conclusion.trim();
     // Un miembro cuenta como informado cuando ya se midió algún diámetro
-    return VASOS.some(v => form[`${id}${v.key.charAt(0).toUpperCase()}${v.key.slice(1)}Diam`]);
+    return dopplerReportService.VASOS.some(
+      vaso => form[`${dopplerReportService.campoForm(id, vaso)}Diam`]
+    );
   };
 
   const scrollTo = (id) => {
@@ -187,17 +236,53 @@ function ReporteDoppler() {
     document.getElementById(`sec-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
 
-  const handleSave = (e) => {
-    e.preventDefault();
-    if (!patient) {
+  /**
+   * Persistir el estudio. La primera vez se registra (POST) y a partir de ahí se
+   * actualiza el mismo reporte (PUT), tanto en borrador como al finalizarlo.
+   */
+  const guardarReporte = async (estadoRegistro) => {
+    if (!patientId) {
       setSaved(false);
       setSaveMessage('Abra el reporte desde la historia clínica de un paciente para poder guardarlo.');
       return;
     }
-    // El endpoint del Ecodöppler aún no existe: el reporte solo queda en pantalla
+
+    setSaving(true);
+    setSaveMessage('');
+
+    const res = reporteId
+      ? await dopplerReportService.updateDopplerReport(reporteId, form, patientId, historiaId, estadoRegistro)
+      : await dopplerReportService.createDopplerReport(form, patientId, historiaId, estadoRegistro);
+
+    if (!res.success) {
+      // Se muestran los mensajes de validación reales que devuelve el backend
+      const detalle = res.errors ? Object.values(res.errors).flat().slice(0, 3).join(' ') : '';
+      setSaved(false);
+      setSaveMessage([res.message, detalle].filter(Boolean).join(' '));
+      setSaving(false);
+      return;
+    }
+
+    setReporteId(res.data?.id || reporteId);
+    setEstadoReporte(res.data?.estado_registro || estadoRegistro);
+
+    // Al finalizar, el estudio queda cerrado: para corregirlo hay que reabrirlo
+    if (estadoRegistro === 'Finalizada') {
+      setSoloLectura(true);
+      setAvisoReporte(`Estudio del ${formatearFecha(res.data?.fecha_estudio || form.fecha)} finalizado.`);
+    }
+
     setSaved(true);
-    setSaveMessage(`Reporte de ${patient.nombre} completo. Falta conectar el guardado con el backend.`);
+    setSaveMessage(res.message);
+    setSaving(false);
   };
+
+  const handleSave = (e) => {
+    e.preventDefault();
+    guardarReporte('Finalizada');
+  };
+
+  const bloqueado = soloLectura || !canEdit || loadingReporte;
 
   return (
     <Layout breadcrumb="Reporte Ecodöppler">
@@ -211,7 +296,7 @@ function ReporteDoppler() {
             <p className="page-subtitle">Registro ecográfico de miembros inferiores</p>
           </div>
           <span className={`tag ${saved ? 'tag-success' : 'tag-info'}`}>
-            {saved ? 'Guardado' : 'Sin guardar'}
+            {saved ? (estadoReporte === 'Borrador' ? 'Borrador guardado' : 'Guardado') : 'Sin guardar'}
           </span>
         </div>
 
@@ -279,115 +364,165 @@ function ReporteDoppler() {
                 </div>
               </div>
 
-              {/* Datos del estudio */}
-              <Section id="estudio" icon={<ClipboardList size={14} />} title="Datos del Estudio">
-                <div className="hc-grid-2">
-                  <InputField label="Fecha del estudio">
-                    <input name="fecha" type="date" className="form-control" value={form.fecha} onChange={ch} />
-                  </InputField>
-                  <div className="hc-field">
-                    <span className="hc-field-label">Consulta asociada</span>
-                    <p className="hc-field-hint">
-                      {historiaId
-                        ? `Consulta #${historiaId} del expediente EXP-${patientId}.`
-                        : 'Consulta nueva: el estudio se adjuntará al guardar la historia clínica.'}
-                    </p>
-                  </div>
-                </div>
-              </Section>
+              <fieldset className="hc-fieldset" disabled={bloqueado}>
 
-              {/* Un panel por miembro inferior */}
-              {LADOS.map(lado => (
-                <Section
-                  key={lado.id}
-                  id={lado.id}
-                  icon={<Activity size={14} />}
-                  title={`${lado.label} (${lado.abrev})`}
-                >
-                  <InputField label="Eje venoso profundo">
-                    <textarea
-                      name={`${lado.id}Profundo`}
-                      className="form-control"
-                      rows={2}
-                      value={form[`${lado.id}Profundo`]}
-                      onChange={ch}
-                    />
-                  </InputField>
-
-                  <div>
-                    <div className="hc-subhead">Sistema venoso superficial</div>
-                    <div className="dop-vasos">
-                      {VASOS.map(v => (
-                        <Vaso
-                          key={v.key}
-                          lado={lado.id}
-                          campo={v.key}
-                          label={v.label}
-                          form={form}
-                          onChange={ch}
-                        />
-                      ))}
-                    </div>
-                  </div>
-
-                  <div>
-                    <div className="hc-subhead">Perforantes y trombosis</div>
-                    <div className="hc-grid-2">
-                      <InputField label="Perforantes" small>
-                        <input
-                          name={`${lado.id}Perforantes`}
-                          className="form-control"
-                          value={form[`${lado.id}Perforantes`]}
-                          onChange={ch}
-                        />
-                      </InputField>
-                      <InputField label="Trombosis" small>
-                        <input
-                          name={`${lado.id}Trombosis`}
-                          className="form-control"
-                          value={form[`${lado.id}Trombosis`]}
-                          onChange={ch}
-                        />
-                      </InputField>
+                {/* Datos del estudio */}
+                <Section id="estudio" icon={<ClipboardList size={14} />} title="Datos del Estudio">
+                  <div className="hc-grid-2">
+                    <InputField label="Fecha del estudio">
+                      {/* El API no acepta estudios con fecha futura */}
+                      <input
+                        name="fecha"
+                        type="date"
+                        className="form-control"
+                        max={hoy()}
+                        value={form.fecha}
+                        onChange={ch}
+                      />
+                    </InputField>
+                    <div className="hc-field">
+                      <span className="hc-field-label">Consulta asociada</span>
+                      <p className="hc-field-hint">
+                        {historiaId
+                          ? `Consulta #${historiaId} del expediente EXP-${patientId}.`
+                          : 'Sin consulta asociada: el estudio se guarda en el expediente del paciente.'}
+                      </p>
                     </div>
                   </div>
                 </Section>
-              ))}
 
-              {/* Conclusión */}
-              <Section id="conclusion" icon={<FileCheck size={14} />} title="Conclusión">
-                <InputField label="Interpretación del estudio">
-                  <textarea
-                    name="conclusion"
-                    className="form-control"
-                    rows={3}
-                    value={form.conclusion}
-                    onChange={ch}
-                  />
-                </InputField>
-                <p className="hc-field-hint">
-                  Esta conclusión es la que se adjunta a la consulta del expediente.
-                </p>
-              </Section>
+                {/* Un panel por miembro inferior */}
+                {LADOS.map(lado => (
+                  <Section
+                    key={lado.id}
+                    id={lado.id}
+                    icon={<Activity size={14} />}
+                    title={`${lado.label} (${lado.abrev})`}
+                  >
+                    <InputField label="Eje venoso profundo">
+                      <textarea
+                        name={`${lado.id}Profundo`}
+                        className="form-control"
+                        rows={2}
+                        value={form[`${lado.id}Profundo`]}
+                        onChange={ch}
+                      />
+                    </InputField>
+
+                    <div>
+                      <div className="hc-subhead">Sistema venoso superficial</div>
+                      <div className="dop-vasos">
+                        {dopplerReportService.VASOS.map(vaso => (
+                          <Vaso
+                            key={vaso}
+                            lado={lado.id}
+                            campo={vaso}
+                            label={ETIQUETAS_VASO[vaso]}
+                            form={form}
+                            onChange={ch}
+                          />
+                        ))}
+                      </div>
+                    </div>
+
+                    <div>
+                      <div className="hc-subhead">Perforantes y trombosis</div>
+                      <div className="hc-grid-2">
+                        <InputField label="Perforantes" small>
+                          <input
+                            name={`${lado.id}Perforantes`}
+                            className="form-control"
+                            value={form[`${lado.id}Perforantes`]}
+                            onChange={ch}
+                          />
+                        </InputField>
+                        <InputField label="Trombosis" small>
+                          <input
+                            name={`${lado.id}Trombosis`}
+                            className="form-control"
+                            value={form[`${lado.id}Trombosis`]}
+                            onChange={ch}
+                          />
+                        </InputField>
+                      </div>
+                    </div>
+                  </Section>
+                ))}
+
+                {/* Conclusión */}
+                <Section id="conclusion" icon={<FileCheck size={14} />} title="Conclusión">
+                  <InputField label="Interpretación del estudio">
+                    <textarea
+                      name="conclusion"
+                      className="form-control"
+                      rows={3}
+                      value={form.conclusion}
+                      onChange={ch}
+                    />
+                  </InputField>
+                  <p className="hc-field-hint">
+                    La conclusión es obligatoria para finalizar el estudio: es lo que se
+                    adjunta a la consulta del expediente.
+                  </p>
+                </Section>
+
+              </fieldset>
 
               {/* Barra de guardado */}
               <div className="hc-save-bar">
                 <div className={`hc-save-info${saved ? ' saved' : ''}`}>
                   {saved ? (
-                    <><Check size={14} /> {saveMessage}</>
+                    <><Check size={14} /> {saveMessage || avisoReporte}</>
                   ) : saveMessage ? (
                     <><AlertCircle size={14} /> {saveMessage}</>
+                  ) : loadingReporte ? (
+                    <><RefreshCw size={14} className="animate-spin" /> Buscando el estudio de esta consulta…</>
+                  ) : !canEdit ? (
+                    <><Lock size={14} /> Solo Administrador o Médico pueden registrar el estudio</>
+                  ) : soloLectura ? (
+                    <><Lock size={14} /> {avisoReporte || 'Estudio finalizado en modo lectura'}</>
                   ) : (
-                    <><Clock size={14} /> Reporte sin guardar</>
+                    <><Clock size={14} /> {avisoReporte || (reporteId ? `Editando el estudio #${reporteId}` : 'Estudio nuevo sin guardar')}</>
                   )}
                 </div>
                 <div className="hc-save-actions">
-                  <button type="button" className="btn btn-ghost" onClick={volverAHistoria}>
-                    Cancelar
-                  </button>
-                  <button type="submit" className="btn btn-primary" disabled={!patient}>
-                    <Save size={14} /> Guardar reporte
-                  </button>
+                  {soloLectura && canEdit ? (
+                    <button
+                      type="button"
+                      className="btn btn-primary"
+                      onClick={() => {
+                        setSoloLectura(false);
+                        setSaved(false);
+                        setAvisoReporte('Modo edición: los cambios se guardarán sobre este estudio ya finalizado.');
+                      }}
+                    >
+                      <PenTool size={14} /> Editar estudio
+                    </button>
+                  ) : (
+                    <>
+                      <button type="button" className="btn btn-ghost" onClick={volverAHistoria}>
+                        Cancelar
+                      </button>
+                      {/* Un estudio ya finalizado no puede volver a borrador */}
+                      {estadoReporte !== 'Finalizada' && (
+                        <button
+                          type="button"
+                          className="btn btn-secondary"
+                          disabled={saving || bloqueado || !patientId}
+                          onClick={() => guardarReporte('Borrador')}
+                        >
+                          Guardar borrador
+                        </button>
+                      )}
+                      <button
+                        type="submit"
+                        className="btn btn-primary"
+                        disabled={saving || bloqueado || !patientId}
+                      >
+                        <Save size={14} /> {saving ? 'Guardando…' : `${estadoReporte === 'Finalizada' ? 'Actualizar' : 'Finalizar'} estudio`}
+                      </button>
+                    </>
+                  )}
                 </div>
               </div>
 

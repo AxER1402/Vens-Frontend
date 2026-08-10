@@ -8,6 +8,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import MapeoVenosoCanvas from '../../components/MapeoVenosoCanvas/MapeoVenosoCanvas';
 import * as patientService from '../../services/patientService';
 import * as clinicalHistoryService from '../../services/clinicalHistoryService';
+import * as dopplerReportService from '../../services/dopplerReportService';
 import {
   Dialog,
   DialogContent,
@@ -157,6 +158,11 @@ function HistoriaClinica() {
   const [historiaId, setHistoriaId] = useState(null);
   const [estadoHistoria, setEstadoHistoria] = useState(null);
   const [soloLectura, setSoloLectura] = useState(false);
+
+  // Estudio de Ecodöppler adjunto a la consulta abierta. Solo se consulta para
+  // saber si ya existe: así el expediente ofrece verlo en lugar de llenarlo.
+  const [reporteDoppler, setReporteDoppler] = useState(null);
+  const [loadingDoppler, setLoadingDoppler] = useState(false);
 
   // PNG del mapeo venoso: `mapeoImagen` es el trazo nuevo pendiente de subir y
   // `mapeoGuardadoUrl` el que ya está almacenado en el backend.
@@ -382,6 +388,30 @@ function HistoriaClinica() {
     // Las funciones de apertura solo dependen del paciente, que ya está en la lista
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedPatientId]);
+
+  // Buscar el estudio de Ecodöppler de la consulta abierta. Una consulta que
+  // todavía no se ha guardado no puede tener estudio adjunto.
+  useEffect(() => {
+    if (!historiaId) {
+      setReporteDoppler(null);
+      setLoadingDoppler(false);
+      return;
+    }
+
+    let isMounted = true;
+    const loadReporteDoppler = async () => {
+      setLoadingDoppler(true);
+      const res = await dopplerReportService.getDopplerReportsByClinicalHistory(historiaId);
+      if (!isMounted) return;
+
+      // El backend los devuelve del más reciente al más antiguo
+      setReporteDoppler(res.success ? (res.data[0] || null) : null);
+      setLoadingDoppler(false);
+    };
+
+    loadReporteDoppler();
+    return () => { isMounted = false; };
+  }, [historiaId]);
 
   /** Releer las consultas tras guardar, para que el listado quede al día. */
   const refrescarHistorias = async () => {
@@ -1035,18 +1065,35 @@ function HistoriaClinica() {
                   <p className="hc-field-hint">
                     El informe Ecodöppler se llena en un formulario independiente para su mejor administración.
                   </p>
+
+                  {/* Estado del estudio: un reporte finalizado se abre en modo
+                      lectura, así que consultarlo no obliga a editarlo. */}
+                  {loadingDoppler ? (
+                    <span className="hc-field-hint">Buscando el estudio de esta consulta…</span>
+                  ) : reporteDoppler ? (
+                    <span className="hc-patient-meta">
+                      <span>Estudio del {formatearFecha(reporteDoppler.fecha_estudio)}</span>
+                      <span className={`tag ${reporteDoppler.estado_registro === 'Borrador' ? 'tag-warning' : 'tag-success'}`}>
+                        {reporteDoppler.estado_registro}
+                      </span>
+                    </span>
+                  ) : historiaId ? (
+                    <span className="hc-field-hint">Esta consulta todavía no tiene un estudio registrado.</span>
+                  ) : null}
+
                   {/* El expediente y la consulta viajan en la URL: el reporte se abre
                       ya vinculado y al volver se retoma esta misma consulta. */}
                   <button
                     type="button"
-                    className="btn btn-secondary"
+                    className={`btn ${reporteDoppler ? 'btn-primary' : 'btn-secondary'}`}
                     disabled={!selectedPatientId}
                     onClick={() => navigate(`/reporte-doppler?${new URLSearchParams({
                       patientId: String(selectedPatientId),
                       ...(historiaId ? { historiaId: String(historiaId) } : {})
                     })}`)}
                   >
-                    <Activity size={14} /> Ir a reporte Doppler
+                    {reporteDoppler ? <FileText size={14} /> : <Activity size={14} />}
+                    {reporteDoppler ? 'Ver reporte Ecodöppler' : 'Registrar reporte Ecodöppler'}
                   </button>
                   {!selectedPatientId && (
                     <span className="hc-notice">
