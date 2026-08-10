@@ -380,12 +380,27 @@ export const updateClinicalHistory = async (id, form, patientId, estadoRegistro 
 };
 
 /**
- * Guardar el mapeo venoso dibujado en el canvas (PNG en formato data URL)
+ * Guardar el mapeo venoso de una consulta.
+ *
+ * Viajan dos representaciones del mismo mapeo y cada una tiene su papel:
+ *   - `imagen`: el PNG rasterizado, que es lo que se imprime y lo que se
+ *     muestra cuando la consulta ya está finalizada;
+ *   - `datos`: el documento vectorial ({ version, plantilla, objetos }), que es
+ *     lo que permite reabrir el mapeo y seguir editándolo en la consulta
+ *     siguiente en vez de volver a dibujarlo desde cero.
+ *
+ * `datos` es opcional: omitirlo deja el comportamiento anterior, que solo
+ * archivaba la imagen.
+ *
+ * @param {number|string} id - historia clínica
+ * @param {string} imagenDataUrl - `data:image/png;base64,…`
+ * @param {Object} [datos] - documento vectorial del mapeo
  */
-export const saveVenousMap = async (id, imagenDataUrl) => {
+export const saveVenousMap = async (id, imagenDataUrl, datos = null) => {
   try {
     const response = await api.post(`/clinical-histories/${id}/venous-map`, {
       imagen: imagenDataUrl,
+      ...(datos ? { datos } : {}),
     });
     return {
       success: true,
@@ -401,6 +416,20 @@ export const saveVenousMap = async (id, imagenDataUrl) => {
     };
   }
 };
+
+/**
+ * Extraer de una historia clínica lo relativo a su mapeo venoso.
+ *
+ * Se queda a propósito en datos crudos: interpretar el documento vectorial es
+ * tarea del editor (leerDocumento), no del servicio.
+ *
+ * @returns {{datos: Object|null, url: string|null, actualizado: string|null}}
+ */
+export const mapClinicalHistoryToMapeo = (historia) => ({
+  datos: historia?.mapeo_venoso_datos || null,
+  url: historia?.mapeo_venoso_url || null,
+  actualizado: historia?.mapeo_venoso_updated_at || null,
+});
 
 /**
  * Desactivar una historia clínica (DELETE lógico, requiere Admin o Medico)

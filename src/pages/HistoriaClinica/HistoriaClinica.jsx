@@ -5,7 +5,6 @@ import {
   Save, Activity, PenTool, Check, AlertCircle, Plus, RefreshCw, Lock, FileText
 } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import MapeoVenosoCanvas from '../../components/MapeoVenosoCanvas/MapeoVenosoCanvas';
 import * as patientService from '../../services/patientService';
 import * as clinicalHistoryService from '../../services/clinicalHistoryService';
 import * as dopplerReportService from '../../services/dopplerReportService';
@@ -164,10 +163,9 @@ function HistoriaClinica() {
   const [reporteDoppler, setReporteDoppler] = useState(null);
   const [loadingDoppler, setLoadingDoppler] = useState(false);
 
-  // PNG del mapeo venoso: `mapeoImagen` es el trazo nuevo pendiente de subir y
-  // `mapeoGuardadoUrl` el que ya está almacenado en el backend.
-  const [mapeoImagen, setMapeoImagen] = useState(null);
-  const [mapeoGuardadoUrl, setMapeoGuardadoUrl] = useState(null);
+  // Mapeo venoso de la consulta abierta. Igual que con el Ecodöppler, aquí solo
+  // se consulta si ya existe: dibujarlo es tarea del taller de /mapeo-venoso.
+  const [mapeoInfo, setMapeoInfo] = useState(null);
 
   // Read patientId query param
   const urlPatientId = searchParams.get('patientId') || searchParams.get('id');
@@ -288,8 +286,7 @@ function HistoriaClinica() {
     setHistoriaId(null);
     setEstadoHistoria(null);
     setSoloLectura(false);
-    setMapeoImagen(null);
-    setMapeoGuardadoUrl(null);
+    setMapeoInfo(null);
     setAvisoConsulta('');
     setSaved(false);
     setSaveMessage('');
@@ -301,8 +298,7 @@ function HistoriaClinica() {
     setHistoriaId(historia.id);
     setEstadoHistoria(historia.estado_registro);
     setSoloLectura(historia.estado_registro === 'Finalizada');
-    setMapeoImagen(null);
-    setMapeoGuardadoUrl(historia.mapeo_venoso_url || null);
+    setMapeoInfo(clinicalHistoryService.mapClinicalHistoryToMapeo(historia));
     setAvisoConsulta(
       historia.estado_registro === 'Finalizada'
         ? `Consulta del ${formatearFecha(historia.fecha_consulta)} finalizada. Ábrala en modo edición para corregirla.`
@@ -419,6 +415,11 @@ function HistoriaClinica() {
     if (res.success) setHistorias(res.data);
   };
 
+  /* Mapeo venoso de la consulta: puede venir como documento vectorial (el
+     editor actual) o solo como imagen, en consultas anteriores a ese editor. */
+  const elementosMapeo = mapeoInfo?.datos?.objetos?.length || 0;
+  const tieneMapeo = !!(mapeoInfo?.url || elementosMapeo > 0);
+
   const isFilled = (id) => {
     if (id === 'interrogatorio') return !!form.consultaPor;
     if (id === 'antecedentes') return true;
@@ -426,8 +427,8 @@ function HistoriaClinica() {
     if (id === 'diagnostico') return form.ceapDiagnostico.length > 0;
     if (id === 'tratamiento') return form.txZonas.length > 0;
     if (id === 'evolucion') return !!form.estado;
-    if (id === 'doppler') return true;
-    if (id === 'mapeo') return true;
+    if (id === 'doppler') return !!reporteDoppler;
+    if (id === 'mapeo') return tieneMapeo;
     return false;
   };
 
@@ -468,17 +469,11 @@ function HistoriaClinica() {
     setHistoriaId(id);
     setEstadoHistoria(res.data?.estado_registro || estadoRegistro);
 
-    let mensaje = res.message;
+    const mensaje = res.message;
 
-    if (mapeoImagen && id) {
-      const mapeoRes = await clinicalHistoryService.saveVenousMap(id, mapeoImagen);
-      if (mapeoRes.success) {
-        setMapeoImagen(null);
-        setMapeoGuardadoUrl(mapeoRes.data?.mapeo_venoso_url || null);
-      } else {
-        mensaje = `${res.message} El mapeo venoso no pudo guardarse: ${mapeoRes.message}`;
-      }
-    }
+    // El mapeo venoso ya no viaja con la historia: se guarda desde su propio
+    // taller, que es donde el médico lo dibuja.
+    if (res.data) setMapeoInfo(clinicalHistoryService.mapClinicalHistoryToMapeo(res.data));
 
     // Al finalizar, la consulta queda cerrada: para corregirla hay que
     // reabrirla explícitamente en modo edición.
@@ -1059,6 +1054,13 @@ function HistoriaClinica() {
                 </InputField>
               </Section>
 
+              </fieldset>
+
+              {/* Las dos secciones siguientes no son campos del formulario sino
+                  accesos a sus propios módulos, así que quedan fuera del
+                  fieldset: en una consulta finalizada el estudio y el mapeo
+                  deben poder consultarse, no solo editarse. */}
+
               {/* 7. Informe Doppler */}
               <Section id="doppler" icon={<Activity size={14} />} title="Ecodöppler Venoso Miembros Inferiores">
                 <div className="hc-placeholder">
@@ -1105,15 +1107,52 @@ function HistoriaClinica() {
 
               {/* 8. Mapeo venoso */}
               <Section id="mapeo" icon={<PenTool size={14} />} title="Mapeo Venoso Superficial">
-                <MapeoVenosoCanvas
-                  key={historiaId ?? 'nueva'}
-                  onImageChange={setMapeoImagen}
-                  mapeoGuardadoUrl={mapeoGuardadoUrl}
-                  soloLectura={soloLectura}
-                />
-              </Section>
+                <div className="hc-placeholder">
+                  <p className="hc-field-hint">
+                    El mapeo se dibuja en un taller aparte, sobre la plantilla de las seis vistas
+                    de miembro inferior y con opción de pantalla completa.
+                  </p>
 
-              </fieldset>
+                  {/* Estado del mapeo: si ya existe, se ofrece verlo en lugar de dibujarlo */}
+                  {tieneMapeo ? (
+                    <span className="hc-patient-meta">
+                      <span>Mapeo del {formatearFecha(mapeoInfo.actualizado)}</span>
+                      <span className="tag tag-success">
+                        {elementosMapeo > 0
+                          ? `${elementosMapeo} elemento${elementosMapeo === 1 ? '' : 's'}`
+                          : 'Imagen archivada'}
+                      </span>
+                    </span>
+                  ) : historiaId ? (
+                    <span className="hc-field-hint">Esta consulta todavía no tiene un mapeo registrado.</span>
+                  ) : null}
+
+                  {/* El expediente y la consulta viajan en la URL, igual que en el Ecodöppler */}
+                  <button
+                    type="button"
+                    className={`btn ${tieneMapeo ? 'btn-primary' : 'btn-secondary'}`}
+                    disabled={!selectedPatientId}
+                    onClick={() => navigate(`/mapeo-venoso?${new URLSearchParams({
+                      patientId: String(selectedPatientId),
+                      ...(historiaId ? { historiaId: String(historiaId) } : {})
+                    })}`)}
+                  >
+                    <PenTool size={14} />
+                    {tieneMapeo ? 'Ver mapeo venoso' : 'Registrar mapeo venoso'}
+                  </button>
+
+                  {!selectedPatientId && (
+                    <span className="hc-notice">
+                      <AlertCircle size={14} /> Seleccione un paciente para abrir su mapeo venoso.
+                    </span>
+                  )}
+                  {selectedPatientId && !historiaId && (
+                    <span className="hc-notice">
+                      <AlertCircle size={14} /> Guarde primero la consulta: el mapeo se archiva dentro de ella.
+                    </span>
+                  )}
+                </div>
+              </Section>
 
               {/* Barra de guardado */}
               <div className="hc-save-bar">

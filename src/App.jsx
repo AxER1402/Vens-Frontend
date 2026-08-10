@@ -11,6 +11,7 @@ import HistoriaClinica  from './pages/HistoriaClinica/HistoriaClinica';
 import Reportes        from './pages/Reportes/Reportes';
 import Facturacion     from './pages/Facturacion/Facturacion';
 import ReporteDoppler  from './pages/ReporteDoppler/ReporteDoppler';
+import MapeoVenoso     from './pages/MapeoVenoso/MapeoVenoso';
 import Usuarios        from './pages/Usuarios/Usuarios';
 
 import { TooltipProvider } from '@/components/ui/tooltip';
@@ -32,6 +33,7 @@ function App() {
             <Route path="/reportes"          element={<ProtectedRoute><Reportes /></ProtectedRoute>} />
             <Route path="/facturacion"       element={<ProtectedRoute><Facturacion /></ProtectedRoute>} />
             <Route path="/reporte-doppler"   element={<ProtectedRoute><ReporteDoppler /></ProtectedRoute>} />
+            <Route path="/mapeo-venoso"      element={<ProtectedRoute><MapeoVenoso /></ProtectedRoute>} />
             <Route path="/usuarios"          element={<AdminRoute><Usuarios /></AdminRoute>} />
 
             <Route path="*"                  element={<Navigate to="/dashboard" replace />} />
