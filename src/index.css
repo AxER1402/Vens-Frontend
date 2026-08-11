@@ -1848,53 +1848,207 @@ select.form-control {
   color: var(--brand-text-light);
 }
 
-.hc-consultas-list {
-  max-height: 190px;
-  overflow-y: auto;
+/* Línea de tiempo horizontal: una esfera por visita, de la más antigua a la
+   más reciente. Pulsar una esfera abre esa consulta en el formulario. */
+.hc-timeline-wrap {
+  position: relative;
 }
 
-.hc-consulta {
+/* Degradados laterales: insinúan que la línea sigue más allá del borde */
+.hc-timeline-wrap::before,
+.hc-timeline-wrap::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 24px;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.hc-timeline-wrap::before {
+  left: 0;
+  background: linear-gradient(to right, var(--hc-panel), transparent);
+}
+
+.hc-timeline-wrap::after {
+  right: 0;
+  background: linear-gradient(to left, var(--hc-panel), transparent);
+}
+
+.hc-timeline {
+  position: relative;
   display: flex;
+  align-items: flex-start;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 18px 20px 16px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--brand-border) transparent;
+}
+
+.hc-timeline::-webkit-scrollbar {
+  height: 6px;
+}
+
+.hc-timeline::-webkit-scrollbar-thumb {
+  background: var(--brand-border);
+}
+
+.hc-timeline::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.hc-tl-node {
+  flex: 0 0 auto;
+  width: 132px;
+  display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 14px;
-  width: 100%;
-  padding: 10px 20px;
+  gap: 8px;
+  padding: 0;
   background: none;
   border: 0;
-  border-bottom: 1px solid var(--hc-line);
-  border-left: 2px solid transparent;
-  text-align: left;
-  cursor: pointer;
+  text-align: center;
   font-family: var(--font-sans);
-  transition: all var(--t-fast);
+  color: inherit;
+  cursor: pointer;
 }
 
-.hc-consulta:hover {
-  background: var(--brand-surface-alt);
-}
-
-.hc-consulta.on {
-  background: var(--brand-surface-deep);
-  border-left-color: var(--brand-slate);
+.hc-tl-node.on,
+.hc-tl-node.new {
   cursor: default;
 }
 
-.hc-consulta-fecha {
+.hc-tl-node:focus-visible {
+  outline: 2px solid var(--brand-slate);
+  outline-offset: 2px;
+}
+
+.hc-tl-fecha {
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 11px;
   font-weight: 500;
-  color: var(--brand-text);
+  color: var(--brand-text-light);
   white-space: nowrap;
+  transition: color var(--t-fast);
 }
 
-.hc-consulta-resumen {
-  flex: 1;
-  min-width: 0;
-  font-size: 12px;
+.hc-tl-node.on .hc-tl-fecha {
+  color: var(--brand-text);
+  font-weight: 600;
+}
+
+/* Carril: el tramo de línea que cruza el nodo, con la esfera centrada encima */
+.hc-tl-rail {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 18px;
+}
+
+.hc-tl-rail::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: var(--brand-border);
+}
+
+/* Los extremos de la línea nacen y mueren en la primera y la última esfera */
+.hc-tl-node:first-child .hc-tl-rail::before {
+  left: 50%;
+}
+
+.hc-tl-node:last-child .hc-tl-rail::before {
+  right: 50%;
+}
+
+.hc-tl-dot {
+  position: relative;
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  background: var(--brand-slate);
+  border: 2px solid var(--brand-slate);
+  /* El halo del color del panel tapa la línea por debajo de la esfera */
+  box-shadow: 0 0 0 4px var(--hc-panel);
+  transition: all var(--t-fast);
+}
+
+.hc-tl-node.draft .hc-tl-dot {
+  background: var(--brand-surface);
+  border-color: var(--color-warning);
+}
+
+.hc-tl-node.new .hc-tl-dot {
+  background: var(--brand-surface);
+  border-style: dashed;
+  border-color: var(--color-info);
+}
+
+.hc-tl-node:hover .hc-tl-dot {
+  transform: scale(1.3);
+}
+
+.hc-tl-node.on .hc-tl-dot {
+  width: 17px;
+  height: 17px;
+  background: var(--brand-deep);
+  border-color: var(--brand-deep);
+  box-shadow: 0 0 0 4px var(--hc-panel), 0 0 0 6px rgba(36, 55, 87, 0.20);
+}
+
+.hc-tl-node.on.draft .hc-tl-dot {
+  background: var(--color-warning);
+  border-color: var(--color-warning);
+  box-shadow: 0 0 0 4px var(--hc-panel), 0 0 0 6px var(--color-warning-bg);
+}
+
+.hc-tl-node.on.new .hc-tl-dot {
+  background: var(--brand-surface);
+  border-color: var(--color-info);
+  box-shadow: 0 0 0 4px var(--hc-panel), 0 0 0 6px var(--color-info-bg);
+}
+
+.hc-tl-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 10px 8px 12px;
+  background: transparent;
+  border: 1px solid transparent;
+  transition: all var(--t-fast);
+}
+
+.hc-tl-node:hover .hc-tl-card {
+  background: var(--brand-surface-alt);
+  border-color: var(--hc-line);
+}
+
+.hc-tl-node.on .hc-tl-card {
+  background: var(--brand-surface-deep);
+  border-color: var(--brand-border);
+}
+
+.hc-tl-num {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
   color: var(--brand-text-light);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+}
+
+@media (max-width: 640px) {
+  .hc-tl-node {
+    width: 116px;
+  }
 }
 
 .hc-consultas-aviso {

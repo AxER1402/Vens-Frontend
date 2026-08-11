@@ -43,13 +43,6 @@ const formatearFecha = (fecha) => {
     .toLocaleDateString('es-CR', { day: '2-digit', month: 'short', year: 'numeric' });
 };
 
-/* Resumen corto de una consulta para el listado del expediente */
-const resumirConsulta = (historia) => {
-  const ceap = historia.selecciones?.ceap_diagnostico || [];
-  if (ceap.length > 0) return ceap.join(', ');
-  return historia.consulta_por || 'Sin diagnóstico registrado';
-};
-
 /* Bloque de sección: título en versalitas separado por una línea, sin tarjeta */
 function Section({ id, icon, title, children }) {
   return (
@@ -319,8 +312,7 @@ function HistoriaClinica() {
     setHistoriaId(null);
     setEstadoHistoria(null);
     setSoloLectura(false);
-    setMapeoImagen(null);
-    setMapeoGuardadoUrl(null);
+    setMapeoInfo(null);
     setAvisoConsulta(
       previa
         ? `Consulta nueva. Se copiaron los antecedentes de la consulta del ${formatearFecha(previa.fecha_consulta)}; verifíquelos antes de guardar.`
@@ -414,6 +406,34 @@ function HistoriaClinica() {
     const res = await clinicalHistoryService.getClinicalHistoriesByPatient(selectedPatientId);
     if (res.success) setHistorias(res.data);
   };
+
+  /* ── Línea de tiempo de consultas ─────────────────────────────────────────
+   * El backend devuelve las consultas de la más reciente a la más antigua; la
+   * línea de tiempo se lee al revés, de la primera visita a la última.
+   */
+  const historiasCronologicas = useMemo(() => {
+    return [...historias].sort((a, b) => {
+      const fa = String(a.fecha_consulta || '');
+      const fb = String(b.fecha_consulta || '');
+      if (fa !== fb) return fa.localeCompare(fb);
+      return Number(a.id) - Number(b.id);
+    });
+  }, [historias]);
+
+  const timelineRef = useRef(null);
+
+  // Centrar la consulta abierta: con muchas visitas la esfera activa puede
+  // quedar fuera de la parte visible de la línea.
+  useEffect(() => {
+    const carril = timelineRef.current;
+    const nodo = carril?.querySelector('.hc-tl-node.on');
+    if (!carril || !nodo) return;
+
+    carril.scrollTo({
+      left: nodo.offsetLeft - (carril.clientWidth - nodo.clientWidth) / 2,
+      behavior: 'smooth'
+    });
+  }, [historiaId, historiasCronologicas]);
 
   /* Mapeo venoso de la consulta: puede venir como documento vectorial (el
      editor actual) o solo como imagen, en consultas anteriores a ese editor. */
@@ -696,38 +716,53 @@ function HistoriaClinica() {
 
                   {historiasError ? (
                     <div className="hc-notice"><AlertCircle size={14} /> {historiasError}</div>
+                  ) : loadingHistorias ? (
+                    <div className="hc-empty flex items-center justify-center gap-2">
+                      <RefreshCw size={14} className="animate-spin" /> Cargando consultas…
+                    </div>
+                  ) : historiasCronologicas.length === 0 && historiaId ? (
+                    <div className="hc-empty">Este expediente todavía no tiene consultas registradas.</div>
                   ) : (
-                    <div className="hc-consultas-list">
-                      {/* La consulta en curso aún no existe en el backend */}
-                      {!historiaId && (
-                        <div className="hc-consulta on">
-                          <span className="hc-consulta-fecha">Hoy</span>
-                          <span className="hc-consulta-resumen">Consulta nueva sin guardar</span>
-                          <span className="tag tag-info">En curso</span>
-                        </div>
-                      )}
+                    /* Línea de tiempo: la visita más antigua a la izquierda y la
+                       consulta en curso al final. Pulsar una esfera abre esa consulta. */
+                    <div className="hc-timeline-wrap">
+                      <div className="hc-timeline" ref={timelineRef}>
+                        {historiasCronologicas.map((h, i) => {
+                          const esActual = String(h.id) === String(historiaId);
+                          const esBorrador = h.estado_registro === 'Borrador';
+                          return (
+                            <button
+                              type="button"
+                              key={h.id}
+                              className={`hc-tl-node${esActual ? ' on' : ''}${esBorrador ? ' draft' : ''}`}
+                              aria-current={esActual ? 'true' : undefined}
+                              title={`Consulta ${i + 1} · ${formatearFecha(h.fecha_consulta)}`}
+                              onClick={() => abrirConsulta(h)}
+                            >
+                              <span className="hc-tl-fecha">{formatearFecha(h.fecha_consulta)}</span>
+                              <span className="hc-tl-rail"><span className="hc-tl-dot" /></span>
+                              <span className="hc-tl-card">
+                                <span className="hc-tl-num">Consulta {i + 1}</span>
+                                <span className={`tag ${esBorrador ? 'tag-warning' : 'tag-success'}`}>
+                                  {h.estado_registro}
+                                </span>
+                              </span>
+                            </button>
+                          );
+                        })}
 
-                      {historias.map((h) => {
-                        const esActual = String(h.id) === String(historiaId);
-                        return (
-                          <button
-                            type="button"
-                            key={h.id}
-                            className={`hc-consulta${esActual ? ' on' : ''}`}
-                            onClick={() => abrirConsulta(h)}
-                          >
-                            <span className="hc-consulta-fecha">{formatearFecha(h.fecha_consulta)}</span>
-                            <span className="hc-consulta-resumen">{resumirConsulta(h)}</span>
-                            <span className={`tag ${h.estado_registro === 'Borrador' ? 'tag-warning' : 'tag-success'}`}>
-                              {h.estado_registro}
+                        {/* La consulta en curso aún no existe en el backend */}
+                        {!historiaId && (
+                          <div className="hc-tl-node on new">
+                            <span className="hc-tl-fecha">Hoy</span>
+                            <span className="hc-tl-rail"><span className="hc-tl-dot" /></span>
+                            <span className="hc-tl-card">
+                              <span className="hc-tl-num">Consulta {historiasCronologicas.length + 1}</span>
+                              <span className="tag tag-info">En curso</span>
                             </span>
-                          </button>
-                        );
-                      })}
-
-                      {!loadingHistorias && historias.length === 0 && (
-                        <div className="hc-empty">Este expediente todavía no tiene consultas registradas.</div>
-                      )}
+                          </div>
+                        )}
+                      </div>
                     </div>
                   )}
 
