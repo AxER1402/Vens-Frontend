@@ -17,7 +17,11 @@ import {
   RefreshCw,
   ChevronLeft,
   ChevronRight,
-  Plus
+  Plus,
+  Ban,
+  CalendarOff,
+  Lock,
+  Trash2
 } from 'lucide-react';
 import { DatePicker } from '@/components/ui/date-picker';
 import { TimePicker } from '@/components/ui/time-picker';
@@ -33,6 +37,7 @@ import {
 } from '@/components/ui/dialog';
 import { useAuth } from '../../context/AuthContext';
 import * as appointmentService from '../../services/appointmentService';
+import * as blockedDayService from '../../services/blockedDayService';
 import * as patientService from '../../services/patientService';
 import * as userService from '../../services/userService';
 
@@ -53,6 +58,16 @@ const ESTADOS_CITA = [
   'Completada',
   'Cancelada'
 ];
+
+/** Motivos por los que la clínica cierra la agenda un día completo */
+const TIPOS_BLOQUEO = ['Feriado', 'Vacaciones', 'Cierre', 'Otro'];
+
+const EMPTY_BLOCKED_FORM = {
+  fecha_inicio: '',
+  fecha_fin: '',
+  motivo: '',
+  tipo: 'Feriado'
+};
 
 const EMPTY_APPOINTMENT_FORM = {
   patient_id: '',
@@ -120,6 +135,36 @@ const slotEndTime = (h) => (h >= 23 ? '23:59' : `${String(h).padStart(2, '0')}:3
 /** Clase de color por estado: st-programada, st-confirmada, … */
 const stateClass = (estado) => `st-${String(estado || 'Programada').toLowerCase()}`;
 
+/** Solo "YYYY-MM-DD", venga como fecha suelta o como fecha y hora */
+const onlyDate = (value) => String(value || '').slice(0, 10);
+
+/** Bloqueo que cubre la fecha ISO indicada, o null si el día está habilitado */
+const findBlockedDay = (blockedDays, iso) => {
+  if (!iso) return null;
+  return blockedDays.find(b => {
+    const inicio = onlyDate(b.fecha_inicio);
+    const fin = onlyDate(b.fecha_fin) || inicio;
+    return iso >= inicio && iso <= fin;
+  }) || null;
+};
+
+/** Una hora queda ocupada cuando ya tiene una cita que no fue cancelada */
+const isSlotTaken = (list) => list.some(c => c.estado !== 'Cancelada');
+
+/** Fecha corta para listados: "15 sep 2026" */
+const fmtShortDate = (iso) => {
+  const d = new Date(`${onlyDate(iso)}T00:00:00`);
+  if (isNaN(d.getTime())) return iso;
+  return d.toLocaleDateString('es-GT', { day: 'numeric', month: 'short', year: 'numeric' });
+};
+
+/** Rango de un bloqueo: un día suelto se muestra sin repetir la fecha */
+const blockedRangeLabel = (b) => {
+  const inicio = onlyDate(b.fecha_inicio);
+  const fin = onlyDate(b.fecha_fin) || inicio;
+  return inicio === fin ? fmtShortDate(inicio) : `${fmtShortDate(inicio)} – ${fmtShortDate(fin)}`;
+};
+
 const fmtDate = (d) => {
   if (!d || d === 'Sin Fecha') return 'Sin Fecha Asignada';
   try {
@@ -185,10 +230,15 @@ const parseBackendDateTime = (dateTimeStr) => {
 function Citas() {
   const { user } = useAuth();
 
+  // Solo administradores y médicos pueden cerrar días de la agenda
+  const rol = String(user?.rol || '').toLowerCase();
+  const canManageBlocked = rol === 'administrador' || rol === 'medico';
+
   // Primary data state
   const [appointments, setAppointments] = useState([]);
   const [patients, setPatients] = useState([]);
   const [doctors, setDoctors] = useState([]);
+  const [blockedDays, setBlockedDays] = useState([]);
   const [loading, setLoading] = useState(true);
 
   // Messages state
@@ -213,6 +263,13 @@ function Citas() {
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [showRegisterPatientModal, setShowRegisterPatientModal] = useState(false);
+  const [showBlockedModal, setShowBlockedModal] = useState(false);
+
+  // Gestión de días bloqueados (feriados, vacaciones y cierres)
+  const [blockedForm, setBlockedForm] = useState(EMPTY_BLOCKED_FORM);
+  const [editingBlockedId, setEditingBlockedId] = useState(null);
+  const [confirmDeleteBlockedId, setConfirmDeleteBlockedId] = useState(null);
+  const [blockedNotice, setBlockedNotice] = useState(null);
 
   // Forms and selected item state
   const [selectedAppointment, setSelectedAppointment] = useState(null);
@@ -269,6 +326,14 @@ function Citas() {
     }
   }, []);
 
+  // Fetch blocked days list (feriados, vacaciones y cierres de la clínica)
+  const fetchBlockedDays = useCallback(async () => {
+    const res = await blockedDayService.getBlockedDays();
+    if (res.success && res.data) {
+      setBlockedDays(res.data);
+    }
+  }, []);
+
   useEffect(() => {
     fetchAppointments();
   }, [fetchAppointments]);
@@ -276,7 +341,8 @@ function Citas() {
   useEffect(() => {
     fetchPatients();
     fetchDoctors();
-  }, [fetchPatients, fetchDoctors]);
+    fetchBlockedDays();
+  }, [fetchPatients, fetchDoctors, fetchBlockedDays]);
 
   // Patient items formatted for Combobox
   const patientOptions = useMemo(() => {
@@ -398,6 +464,97 @@ function Citas() {
     setShowRegisterPatientModal(true);
   };
 
+  /* ---------- Días bloqueados: feriados, vacaciones y cierres ---------- */
+
+  const handleOpenBlockedModal = () => {
+    setBlockedForm(EMPTY_BLOCKED_FORM);
+    setEditingBlockedId(null);
+    setConfirmDeleteBlockedId(null);
+    setBlockedNotice(null);
+    setShowBlockedModal(true);
+  };
+
+  const handleEditBlocked = (blocked) => {
+    const inicio = onlyDate(blocked.fecha_inicio);
+    setEditingBlockedId(blocked.id);
+    setBlockedForm({
+      fecha_inicio: inicio,
+      fecha_fin: onlyDate(blocked.fecha_fin) || inicio,
+      motivo: blocked.motivo || '',
+      tipo: blocked.tipo || 'Feriado'
+    });
+    setConfirmDeleteBlockedId(null);
+    setBlockedNotice(null);
+  };
+
+  const handleCancelEditBlocked = () => {
+    setEditingBlockedId(null);
+    setBlockedForm(EMPTY_BLOCKED_FORM);
+    setBlockedNotice(null);
+  };
+
+  const handleBlockedSubmit = async (e) => {
+    e.preventDefault();
+    setBlockedNotice(null);
+
+    if (!blockedForm.fecha_inicio) {
+      setBlockedNotice({ type: 'danger', text: 'Debe indicar la fecha de inicio del bloqueo.' });
+      return;
+    }
+    if (!blockedForm.motivo.trim()) {
+      setBlockedNotice({ type: 'danger', text: 'Debe indicar el motivo (ej. Día de la Independencia).' });
+      return;
+    }
+
+    // Un día suelto se guarda con la misma fecha de inicio y de fin
+    const fechaFin = blockedForm.fecha_fin || blockedForm.fecha_inicio;
+    if (fechaFin < blockedForm.fecha_inicio) {
+      setBlockedNotice({ type: 'danger', text: 'La fecha de fin no puede ser anterior a la fecha de inicio.' });
+      return;
+    }
+
+    setIsSubmitting(true);
+    const payload = { ...blockedForm, fecha_fin: fechaFin };
+    const res = editingBlockedId
+      ? await blockedDayService.updateBlockedDay(editingBlockedId, payload)
+      : await blockedDayService.createBlockedDay(payload);
+
+    if (res.success) {
+      /* Las citas ya agendadas no se tocan: se avisa para que la clínica
+         decida si las reagenda o las cancela. */
+      const aviso = res.citasAfectadas > 0
+        ? ` Atención: hay ${res.citasAfectadas} cita(s) ya agendada(s) en esas fechas que debe reagendar o cancelar.`
+        : '';
+      setBlockedNotice({ type: 'success', text: `${res.message}${aviso}` });
+      setBlockedForm(EMPTY_BLOCKED_FORM);
+      setEditingBlockedId(null);
+      await fetchBlockedDays();
+    } else {
+      const firstErr = res.errors ? Object.values(res.errors)[0]?.[0] : null;
+      setBlockedNotice({ type: 'danger', text: firstErr || res.message });
+    }
+    setIsSubmitting(false);
+  };
+
+  const handleDeleteBlocked = async (blocked) => {
+    setBlockedNotice(null);
+    setIsSubmitting(true);
+
+    const res = await blockedDayService.deleteBlockedDay(blocked.id);
+    if (res.success) {
+      setBlockedNotice({ type: 'success', text: res.message });
+      if (editingBlockedId === blocked.id) {
+        setEditingBlockedId(null);
+        setBlockedForm(EMPTY_BLOCKED_FORM);
+      }
+      await fetchBlockedDays();
+    } else {
+      setBlockedNotice({ type: 'danger', text: res.message });
+    }
+    setConfirmDeleteBlockedId(null);
+    setIsSubmitting(false);
+  };
+
   // Submit Create Appointment
   const handleCreateSubmit = async (e) => {
     e.preventDefault();
@@ -422,6 +579,15 @@ function Citas() {
     }
     if (appointmentForm.hora_fin <= appointmentForm.hora_inicio) {
       setErrorMessage('La hora de fin debe ser posterior a la hora de inicio.');
+      return;
+    }
+
+    // La agenda está cerrada en feriados, vacaciones y cierres registrados
+    const bloqueo = findBlockedDay(blockedDays, appointmentForm.fecha);
+    if (bloqueo) {
+      setErrorMessage(
+        `No se puede agendar el ${fmtShortDate(appointmentForm.fecha)}: la agenda está bloqueada (${bloqueo.tipo} — ${bloqueo.motivo}).`
+      );
       return;
     }
 
@@ -487,6 +653,18 @@ function Citas() {
       appointmentForm.fecha !== origStart.date ||
       appointmentForm.hora_inicio !== origStart.time ||
       appointmentForm.hora_fin !== origEnd.time;
+
+    /* Solo se valida el bloqueo al mover la cita de fecha: una cita que ya existía
+       en un día luego bloqueado se puede seguir editando o cancelar. */
+    if (appointmentForm.fecha !== origStart.date) {
+      const bloqueo = findBlockedDay(blockedDays, appointmentForm.fecha);
+      if (bloqueo) {
+        setErrorMessage(
+          `No se puede reagendar al ${fmtShortDate(appointmentForm.fecha)}: la agenda está bloqueada (${bloqueo.tipo} — ${bloqueo.motivo}).`
+        );
+        return;
+      }
+    }
 
     // Si cambió la fecha/hora, el estado pasa automáticamente a 'Reagendada'
     const finalEstado = isDateTimeChanged ? 'Reagendada' : (appointmentForm.estado || 'Reagendada');
@@ -728,6 +906,27 @@ function Citas() {
     return map;
   }, [appointments]);
 
+  /** Bloqueo vigente para cada día de la semana visible, indexado por fecha ISO */
+  const weekBlocked = useMemo(() => {
+    const map = {};
+    weekDays.forEach(d => {
+      map[toISODate(d)] = findBlockedDay(blockedDays, toISODate(d));
+    });
+    return map;
+  }, [weekDays, blockedDays]);
+
+  /** Bloqueo del día mostrado en la vista de día */
+  const dayBlocked = useMemo(
+    () => findBlockedDay(blockedDays, toISODate(anchorDate)),
+    [blockedDays, anchorDate]
+  );
+
+  /** Bloqueo de la fecha elegida en el formulario de agendar */
+  const createBlocked = useMemo(
+    () => findBlockedDay(blockedDays, appointmentForm.fecha),
+    [blockedDays, appointmentForm.fecha]
+  );
+
   /** Franja horaria visible: se ajusta a las citas, con 08:00–17:00 como mínimo */
   const hourRange = useMemo(() => {
     const hours = appointments
@@ -841,6 +1040,20 @@ function Citas() {
             </p>
           </div>
           <div className="page-actions">
+            {canManageBlocked && (
+              <button
+                id="btn-dias-bloqueados"
+                className="btn btn-secondary flex items-center gap-2"
+                title="Registrar feriados, vacaciones o cierres de la clínica"
+                onClick={handleOpenBlockedModal}
+              >
+                <CalendarOff size={15} />
+                Días bloqueados
+                {blockedDays.length > 0 && (
+                  <span className="tag tag-warning">{blockedDays.length}</span>
+                )}
+              </button>
+            )}
             <button
               id="btn-agendar-cita"
               className="btn btn-primary flex items-center gap-2"
@@ -1042,12 +1255,24 @@ function Citas() {
             <div className="week-wrap">
               <div className="week-grid">
                 <div className="week-head" />
-                {weekDays.map(d => (
-                  <div className={`week-head${isSameDay(d, new Date()) ? ' today' : ''}`} key={toISODate(d)}>
-                    <div className="week-head-dow">{DOW_LABELS[(d.getDay() + 6) % 7]}</div>
-                    <div className="week-head-day">{d.getDate()}</div>
-                  </div>
-                ))}
+                {weekDays.map(d => {
+                  const bloqueo = weekBlocked[toISODate(d)];
+                  return (
+                    <div
+                      className={`week-head${isSameDay(d, new Date()) ? ' today' : ''}${bloqueo ? ' blocked' : ''}`}
+                      key={toISODate(d)}
+                    >
+                      <div className="week-head-dow">{DOW_LABELS[(d.getDay() + 6) % 7]}</div>
+                      <div className="week-head-day">{d.getDate()}</div>
+                      {bloqueo && (
+                        <div className="week-head-blocked" title={`${bloqueo.tipo} — ${bloqueo.motivo}`}>
+                          <Ban size={10} />
+                          <span>{bloqueo.motivo}</span>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
 
                 {hourRange.map(h => (
                   <Fragment key={h}>
@@ -1055,9 +1280,11 @@ function Citas() {
                     {weekDays.map(d => {
                       const cellKey = `${toISODate(d)}|${h}`;
                       const cellAppointments = weekMap[cellKey] || [];
+                      const bloqueo = weekBlocked[toISODate(d)];
+                      const ocupada = isSlotTaken(cellAppointments);
                       return (
                         <div
-                          className={`week-cell${isSameDay(d, new Date()) ? ' today' : ''}`}
+                          className={`week-cell${isSameDay(d, new Date()) ? ' today' : ''}${bloqueo ? ' blocked' : ''}`}
                           key={cellKey}
                         >
                           {cellAppointments.map(c => (
@@ -1076,18 +1303,20 @@ function Citas() {
                             </button>
                           ))}
 
-                          {/* Espacio libre de la casilla: agenda en ese día y hora */}
-                          <button
-                            type="button"
-                            className="week-cell-add"
-                            onClick={() => handleOpenCreateSlot(d, h)}
-                            title={`Agendar cita el ${d.toLocaleDateString('es-GT', {
-                              weekday: 'long', day: 'numeric', month: 'long'
-                            })} a las ${hourLabel(h)}`}
-                            aria-label={`Agendar cita el ${toISODate(d)} a las ${hourLabel(h)}`}
-                          >
-                            <Plus size={14} />
-                          </button>
+                          {/* El "+" solo aparece si la hora está libre y el día habilitado */}
+                          {!bloqueo && !ocupada && (
+                            <button
+                              type="button"
+                              className="week-cell-add"
+                              onClick={() => handleOpenCreateSlot(d, h)}
+                              title={`Agendar cita el ${d.toLocaleDateString('es-GT', {
+                                weekday: 'long', day: 'numeric', month: 'long'
+                              })} a las ${hourLabel(h)}`}
+                              aria-label={`Agendar cita el ${toISODate(d)} a las ${hourLabel(h)}`}
+                            >
+                              <Plus size={14} />
+                            </button>
+                          )}
                         </div>
                       );
                     })}
@@ -1103,17 +1332,31 @@ function Citas() {
                   {st}
                 </span>
               ))}
+              <span className="legend-item">
+                <span className="legend-swatch legend-swatch-blocked" />
+                Día bloqueado
+              </span>
               <span className="legend-item" style={{ marginLeft: 'auto' }}>
-                Haga clic en una cita para ver su detalle, o en una casilla libre para agendar
+                Solo las horas libres muestran el botón para agendar
               </span>
             </div>
           </>
         ) : view === 'dia' ? (
           /* ---------- VISTA DÍA ---------- */
           <>
+            {dayBlocked && (
+              <div className="notice notice-danger">
+                <span className="notice-body">
+                  <CalendarOff size={16} />
+                  Agenda cerrada este día — {dayBlocked.tipo}: {dayBlocked.motivo}. No se pueden agendar citas nuevas.
+                </span>
+              </div>
+            )}
+
             <div className="panel">
               {hourRange.map(h => {
                 const slotAppointments = weekMap[`${toISODate(anchorDate)}|${h}`] || [];
+                const ocupada = isSlotTaken(slotAppointments);
                 return (
                   <div className="day-slot" key={h}>
                     <div className="day-slot-hour">{hourLabel(h)}</div>
@@ -1137,16 +1380,28 @@ function Citas() {
                         );
                       })}
 
-                      {/* Franja libre: agenda en este día y hora */}
-                      <button
-                        type="button"
-                        className="day-slot-add"
-                        onClick={() => handleOpenCreateSlot(anchorDate, h)}
-                        title={`Agendar cita a las ${hourLabel(h)}`}
-                      >
-                        <Plus size={13} />
-                        <span>Agendar a las {hourLabel(h)}</span>
-                      </button>
+                      {/* Una hora ocupada o un día bloqueado ya no ofrecen agendar */}
+                      {ocupada ? (
+                        <div className="day-slot-full">
+                          <Lock size={12} />
+                          <span>Hora ocupada — no se pueden agendar más pacientes a las {hourLabel(h)}</span>
+                        </div>
+                      ) : dayBlocked ? (
+                        <div className="day-slot-full">
+                          <Ban size={12} />
+                          <span>Agenda bloqueada — {dayBlocked.motivo}</span>
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          className="day-slot-add"
+                          onClick={() => handleOpenCreateSlot(anchorDate, h)}
+                          title={`Agendar cita a las ${hourLabel(h)}`}
+                        >
+                          <Plus size={13} />
+                          <span>Agendar a las {hourLabel(h)}</span>
+                        </button>
+                      )}
                     </div>
                   </div>
                 );
@@ -1312,6 +1567,12 @@ function Citas() {
                 onChange={(val) => setAppointmentForm(p => ({ ...p, fecha: val }))}
                 placeholder="Seleccionar fecha…"
               />
+              {createBlocked && (
+                <span className="form-hint form-hint-danger flex items-center gap-1.5">
+                  <Ban size={13} />
+                  Agenda bloqueada ese día — {createBlocked.tipo}: {createBlocked.motivo}
+                </span>
+              )}
             </div>
 
             <div className="grid grid-2 gap-4">
@@ -1374,7 +1635,7 @@ function Citas() {
                 id="btn-guardar-cita"
                 type="submit"
                 className="btn btn-primary"
-                disabled={isSubmitting}
+                disabled={isSubmitting || !!createBlocked}
               >
                 {isSubmitting ? 'Agendando…' : 'Confirmar Cita'}
               </button>
@@ -1687,6 +1948,190 @@ function Citas() {
         </DialogContent>
       </Dialog>
 
+      {/* ================= MODAL DÍAS BLOQUEADOS ================= */}
+      <Dialog open={showBlockedModal} onOpenChange={setShowBlockedModal}>
+        <DialogContent className="flat-page sm:max-w-2xl rounded-none bg-brand-surface">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-brand-text">
+              <CalendarOff className="text-brand-slate" size={22} />
+              Días Bloqueados de la Agenda
+            </DialogTitle>
+            <DialogDescription className="text-muted">
+              Registre feriados, vacaciones o cierres. En esas fechas la agenda no permitirá agendar citas nuevas.
+            </DialogDescription>
+          </DialogHeader>
+
+          {blockedNotice && (
+            <div className={`notice notice-${blockedNotice.type} notice-flush`}>
+              <span className="notice-body">
+                {blockedNotice.type === 'success'
+                  ? <CheckCircle2 size={16} />
+                  : <AlertCircle size={16} />}
+                {blockedNotice.text}
+              </span>
+            </div>
+          )}
+
+          <form onSubmit={handleBlockedSubmit} className="flex flex-col gap-4 py-2">
+            <div className="grid grid-2 gap-4">
+              <div className="form-group">
+                <label className="form-label">
+                  Desde <span className="req">*</span>
+                </label>
+                <DatePicker
+                  value={blockedForm.fecha_inicio}
+                  onChange={(val) => setBlockedForm(p => ({
+                    ...p,
+                    fecha_inicio: val,
+                    // Un día suelto: la fecha de fin acompaña a la de inicio
+                    fecha_fin: !p.fecha_fin || p.fecha_fin < val ? val : p.fecha_fin
+                  }))}
+                  placeholder="Fecha de inicio…"
+                />
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Hasta</label>
+                <DatePicker
+                  value={blockedForm.fecha_fin}
+                  onChange={(val) => setBlockedForm(p => ({ ...p, fecha_fin: val }))}
+                  placeholder="Igual que la fecha de inicio"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-2 gap-4">
+              <div className="form-group">
+                <label className="form-label">Tipo de bloqueo</label>
+                <Combobox
+                  items={TIPOS_BLOQUEO}
+                  value={blockedForm.tipo}
+                  onChange={(val) => setBlockedForm(p => ({ ...p, tipo: val || 'Feriado' }))}
+                  placeholder="Seleccionar tipo…"
+                  clearable={false}
+                  icon={<Ban size={15} />}
+                />
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">
+                  Motivo <span className="req">*</span>
+                </label>
+                <input
+                  type="text"
+                  className="form-control"
+                  placeholder="Ej. Día de la Independencia"
+                  maxLength={255}
+                  value={blockedForm.motivo}
+                  onChange={e => setBlockedForm(p => ({ ...p, motivo: e.target.value }))}
+                />
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <button type="submit" className="btn btn-primary flex items-center gap-2" disabled={isSubmitting}>
+                <Plus size={14} />
+                {isSubmitting
+                  ? 'Guardando…'
+                  : editingBlockedId ? 'Guardar cambios' : 'Bloquear estas fechas'}
+              </button>
+              {editingBlockedId && (
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-sm"
+                  onClick={handleCancelEditBlocked}
+                  disabled={isSubmitting}
+                >
+                  Cancelar edición
+                </button>
+              )}
+            </div>
+          </form>
+
+          {/* Listado de bloqueos vigentes */}
+          <div className="blocked-list">
+            {blockedDays.length === 0 ? (
+              <div className="empty-state py-8">
+                <div className="empty-icon text-brand-text-light mb-2">
+                  <CalendarOff size={30} />
+                </div>
+                <p className="font-medium text-brand-text">No hay días bloqueados</p>
+                <p className="text-xs text-muted">
+                  Registre los feriados o las vacaciones para que no se puedan agendar citas en esas fechas.
+                </p>
+              </div>
+            ) : (
+              blockedDays.map(b => (
+                <div className={`blocked-row${editingBlockedId === b.id ? ' is-editing' : ''}`} key={b.id}>
+                  <div className="blocked-info">
+                    <div className="blocked-motivo">
+                      <span className="tag tag-warning">{b.tipo}</span>
+                      {b.motivo}
+                    </div>
+                    <div className="blocked-range">{blockedRangeLabel(b)}</div>
+                  </div>
+
+                  {confirmDeleteBlockedId === b.id ? (
+                    <div className="day-actions">
+                      <span className="text-xs text-muted">¿Habilitar estas fechas?</span>
+                      <button
+                        type="button"
+                        className="btn btn-danger btn-sm"
+                        onClick={() => handleDeleteBlocked(b)}
+                        disabled={isSubmitting}
+                      >
+                        Sí, eliminar
+                      </button>
+                      <button
+                        type="button"
+                        className="btn btn-secondary btn-sm"
+                        onClick={() => setConfirmDeleteBlockedId(null)}
+                        disabled={isSubmitting}
+                      >
+                        No
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="day-actions">
+                      <button
+                        type="button"
+                        className="btn btn-secondary btn-sm flex items-center gap-1"
+                        title="Editar este bloqueo"
+                        onClick={() => handleEditBlocked(b)}
+                        disabled={isSubmitting}
+                      >
+                        <Pencil size={13} />
+                        <span className="hidden sm:inline">Editar</span>
+                      </button>
+                      <button
+                        type="button"
+                        className="btn btn-danger btn-sm flex items-center gap-1"
+                        title="Eliminar el bloqueo y habilitar estas fechas"
+                        onClick={() => setConfirmDeleteBlockedId(b.id)}
+                        disabled={isSubmitting}
+                      >
+                        <Trash2 size={13} />
+                        <span className="hidden sm:inline">Eliminar</span>
+                      </button>
+                    </div>
+                  )}
+                </div>
+              ))
+            )}
+          </div>
+
+          <DialogFooter className="dialog-sep flex flex-row justify-end gap-3">
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={() => setShowBlockedModal(false)}
+            >
+              Cerrar
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* ================= MODAL DETALLE DE CITA ================= */}
       <Dialog open={showDetailModal} onOpenChange={setShowDetailModal}>
         <DialogContent className="flat-page sm:max-w-md rounded-none bg-brand-surface">
@@ -1754,10 +2199,24 @@ function Citas() {
                   </div>
                 )}
 
-                {selectedAppointment.motivo_cancelacion && (
+                {/* Mientras la cita sigue cancelada, el motivo es la razón vigente */}
+                {selectedAppointment.motivo_cancelacion && isCancelled && (
                   <div className="notice notice-danger notice-flush" style={{ display: 'block' }}>
                     <span className="detail-key">Motivo de Cancelación:</span>
                     <p className="text-xs">
+                      {selectedAppointment.motivo_cancelacion}
+                    </p>
+                  </div>
+                )}
+
+                {/* Si ya fue reactivada, el motivo queda como historial, no como alerta */}
+                {selectedAppointment.motivo_cancelacion && !isCancelled && (
+                  <div className="detail-row detail-row-stacked">
+                    <span className="detail-key">
+                      <RotateCcw size={12} className="inline mr-1" />
+                      Cancelación previa (cita reactivada):
+                    </span>
+                    <p className="detail-block text-muted">
                       {selectedAppointment.motivo_cancelacion}
                     </p>
                   </div>

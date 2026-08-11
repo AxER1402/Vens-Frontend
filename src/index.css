@@ -3411,6 +3411,131 @@ body.mv-expandido .page-content {
   outline: none;
 }
 
+/* Franja sin espacio disponible: hora ya ocupada o día bloqueado */
+.day-slot-full {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 11px 16px;
+  min-height: 42px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--brand-text-light);
+}
+
+.day-slot-full svg {
+  flex-shrink: 0;
+}
+
+/* ── Días bloqueados: feriados, vacaciones y cierres ───────────────────────── */
+
+/* Rayado diagonal: marca visualmente que el día no admite citas */
+.week-cell.blocked {
+  background-image: repeating-linear-gradient(
+    45deg,
+    transparent,
+    transparent 5px,
+    rgba(180, 60, 50, 0.10) 5px,
+    rgba(180, 60, 50, 0.10) 10px
+  );
+}
+
+.week-head.blocked {
+  background: var(--color-danger-bg);
+}
+
+.week-head-blocked {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  margin-top: 3px;
+  font-size: 9px;
+  font-weight: 600;
+  line-height: 1.2;
+  color: var(--color-danger);
+  overflow: hidden;
+}
+
+.week-head-blocked span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.week-head-blocked svg {
+  flex-shrink: 0;
+}
+
+.legend-swatch-blocked {
+  background: var(--color-danger-bg);
+  background-image: repeating-linear-gradient(
+    45deg,
+    transparent,
+    transparent 2px,
+    var(--color-danger) 2px,
+    var(--color-danger) 4px
+  );
+}
+
+/* Listado de bloqueos dentro del modal de gestión */
+.blocked-list {
+  border: 1px solid var(--hc-line);
+  background: var(--hc-panel);
+  max-height: 260px;
+  overflow-y: auto;
+}
+
+.blocked-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 10px 14px;
+  border-left: 3px solid var(--color-danger);
+}
+
+.blocked-row + .blocked-row {
+  border-top: 1px solid var(--hc-line);
+}
+
+.blocked-row.is-editing {
+  background: var(--brand-surface-deep);
+}
+
+.blocked-info {
+  flex: 1;
+  min-width: 180px;
+}
+
+.blocked-motivo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--brand-text);
+}
+
+.blocked-range {
+  font-size: 11px;
+  color: var(--brand-text-light);
+  margin-top: 3px;
+}
+
+/* Ayuda breve debajo de un campo del formulario */
+.form-hint {
+  display: block;
+  margin-top: 5px;
+  font-size: 11px;
+  color: var(--brand-text-light);
+}
+
+.form-hint-danger {
+  color: var(--color-danger);
+}
+
 .day-info {
   flex: 1;
   min-width: 200px;
