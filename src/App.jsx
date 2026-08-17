@@ -4,6 +4,8 @@ import { ProtectedRoute } from './components/ProtectedRoute';
 import { AdminRoute } from './components/AdminRoute';
 
 import Login           from './pages/Login/Login';
+import RecuperarPassword    from './pages/Login/RecuperarPassword';
+import RestablecerPassword  from './pages/Login/RestablecerPassword';
 import Dashboard       from './pages/Dashboard/Dashboard';
 import Pacientes       from './pages/Pacientes/Pacientes';
 import Citas           from './pages/Citas/Citas';
@@ -24,6 +26,10 @@ function App() {
           <Routes>
             <Route path="/"                  element={<Navigate to="/dashboard" replace />} />
             <Route path="/login"             element={<Login />} />
+
+            {/* Recuperación de contraseña (públicas) */}
+            <Route path="/recuperar-contrasena"   element={<RecuperarPassword />} />
+            <Route path="/restablecer-contrasena" element={<RestablecerPassword />} />
 
             {/* Protected Application Routes */}
             <Route path="/dashboard"         element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
