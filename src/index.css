@@ -1210,22 +1210,6 @@ select.form-control {
   justify-content: space-between;
 }
 
-.login-remember {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 13px;
-  font-weight: 400;
-  color: var(--brand-text-muted);
-  cursor: pointer;
-}
-
-.login-remember input {
-  accent-color: var(--brand-deep);
-  width: 15px;
-  height: 15px;
-}
-
 .login-forgot {
   font-size: 13px;
   color: var(--brand-slate);

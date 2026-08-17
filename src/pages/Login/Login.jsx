@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Stethoscope, Users, Calendar, Clipboard, BarChart3, Mail, Lock, Eye, EyeOff, ShieldAlert, ArrowRight, AlertCircle } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
@@ -7,14 +7,14 @@ function Login() {
   const navigate = useNavigate();
   const { loginUser } = useAuth();
 
-  const [form, setForm] = useState({ email: '', password: '', remember: false });
+  const [form, setForm] = useState({ email: '', password: '' });
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
 
   const handleChange = (e) => {
-    const { name, value, type, checked } = e.target;
-    setForm(prev => ({ ...prev, [name]: type === 'checkbox' ? checked : value }));
+    const { name, value } = e.target;
+    setForm(prev => ({ ...prev, [name]: value }));
     if (errorMsg) setErrorMsg('');
   };
 
@@ -121,11 +121,10 @@ function Login() {
               </div>
             </div>
 
-            <div className="login-opts">
-              <label className="login-remember">
-                <input type="checkbox" name="remember" checked={form.remember} onChange={handleChange} />
-                Recordarme
-              </label>
+            <div className="login-opts" style={{ justifyContent: 'flex-end' }}>
+              <Link to="/recuperar-contrasena" className="login-forgot">
+                ¿Olvidó su contraseña?
+              </Link>
             </div>
 
             <button id="btn-login" type="submit" className="btn-login" disabled={loading}>
