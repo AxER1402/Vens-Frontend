@@ -2280,6 +2280,63 @@ select.form-control {
   border-color: var(--color-danger);
 }
 
+/* Apunte corto en línea, sin caja: 'C: ____', 'Venotónico ____' */
+.hc-inline-input {
+  padding: 2px 0;
+  border: 0;
+  border-bottom: 1px solid var(--hc-line);
+  border-radius: 0;
+  background: transparent;
+  font: inherit;
+  font-weight: 500;
+  color: var(--brand-text);
+  outline: none;
+}
+
+.hc-inline-input::placeholder {
+  color: var(--brand-text-light);
+  opacity: 0.6;
+  font-weight: 400;
+}
+
+.hc-inline-input:focus {
+  border-bottom-color: var(--brand-slate);
+}
+
+.hc-inline-input:disabled {
+  color: var(--brand-text-muted);
+  cursor: default;
+}
+
+/* Clase clínica C del CEAP: 'C: ____' */
+.hc-ceap-c {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 20px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--brand-slate);
+  cursor: text;
+}
+
+.hc-ceap-c .hc-inline-input {
+  width: 84px;
+}
+
+/* Indicación: la casilla dice el tipo de tratamiento y el campo de al lado, cuál */
+.hc-indicacion {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.hc-indicacion .hc-inline-input {
+  flex: 1;
+  max-width: 280px;
+  font-size: 13px;
+}
+
 /* Insignia C / E / A / P del CEAP */
 .hc-ceap {
   display: inline-flex;

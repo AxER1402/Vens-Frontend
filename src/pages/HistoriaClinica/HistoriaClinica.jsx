@@ -8,6 +8,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import * as patientService from '../../services/patientService';
 import * as clinicalHistoryService from '../../services/clinicalHistoryService';
 import * as dopplerReportService from '../../services/dopplerReportService';
+import { Combobox } from '@/components/ui/combobox';
 import {
   Dialog,
   DialogContent,
@@ -26,6 +27,17 @@ const SECTIONS = [
   { id: 'evolucion', icon: <Clock size={14} />, label: 'Evolución y Observaciones' },
   { id: 'doppler', icon: <Activity size={14} />, label: 'Informe Doppler' },
   { id: 'mapeo', icon: <PenTool size={14} />, label: 'Mapeo Venoso' },
+];
+
+/* Indicaciones del plan de tratamiento. La casilla dice el tipo de tratamiento y
+   `detalle` habilita al lado un campo para anotar cuál se recetó; la última no lo
+   lleva porque justamente no receta nada. */
+const INDICACIONES = [
+  { value: 'Venotónico', detalle: 'Ej: Perivasc 950/50' },
+  { value: 'AINEs', detalle: 'Ej: Ibuprofeno 400 mg' },
+  { value: 'Crema', detalle: 'Ej: Heparinoide tópico' },
+  { value: 'Medias Compresivas', detalle: 'Ej: 20–30 mmHg, hasta la rodilla' },
+  { value: 'No se prescribe tratamiento adicional' },
 ];
 
 const tagClass = {
@@ -254,9 +266,38 @@ function HistoriaClinica() {
     setSaveMessage('');
   };
 
-  const ch = (e) => {
-    const { name, value } = e.target;
+  const setValor = (name, value) => {
     setForm(p => ({ ...p, [name]: value }));
+    marcarModificado();
+  };
+
+  const ch = (e) => setValor(e.target.name, e.target.value);
+
+  /* Al desmarcar una indicación se borra lo que se había recetado en ella:
+     conservar la receta de un tratamiento que ya no está indicado solo
+     ensucia el expediente. */
+  const toggleIndicacion = (indicacion) => {
+    setForm(p => {
+      const marcada = p.indicaciones.includes(indicacion);
+      const detalle = { ...p.indicacionesDetalle };
+      if (marcada) delete detalle[indicacion];
+
+      return {
+        ...p,
+        indicaciones: marcada
+          ? p.indicaciones.filter(x => x !== indicacion)
+          : [...p.indicaciones, indicacion],
+        indicacionesDetalle: detalle,
+      };
+    });
+    marcarModificado();
+  };
+
+  const setDetalleIndicacion = (indicacion, valor) => {
+    setForm(p => ({
+      ...p,
+      indicacionesDetalle: { ...p.indicacionesDetalle, [indicacion]: valor },
+    }));
     marcarModificado();
   };
   const toggleArr = (key, val) => {
@@ -954,6 +995,28 @@ function HistoriaClinica() {
                   ))}
                 </div>
 
+                <div>
+                  <div className="hc-subhead">Perimetría de la extremidad</div>
+                  <div className="hc-vitals">
+                    {[
+                      { name: 'tobillo', label: 'Tobillo' },
+                      { name: 'pantorrilla', label: 'Pantorrilla' },
+                    ].map(m => (
+                      <InputField key={m.name} label={m.label} small>
+                        <span className="vital-wrap">
+                          <input
+                            name={m.name}
+                            className="form-control"
+                            value={form[m.name]}
+                            onChange={ch}
+                          />
+                          <span className="vital-unit">cm</span>
+                        </span>
+                      </InputField>
+                    ))}
+                  </div>
+                </div>
+
                 <Field label="Ubicación de la patología vascular">
                   <div className="hc-chips">
                     {['MID', 'MII', 'BILATERAL'].map(o => (
@@ -965,6 +1028,17 @@ function HistoriaClinica() {
 
               {/* 4. Diagnóstico CEAP */}
               <Section id="diagnostico" icon={<CheckCircle size={14} />} title="Diagnóstico (Clasificación CEAP)">
+                <label className="hc-ceap-c">
+                  C:
+                  <input
+                    name="ceapC"
+                    className="hc-inline-input"
+                    maxLength={10}
+                    value={form.ceapC}
+                    onChange={ch}
+                  />
+                </label>
+
                 <div className="hc-grid-2">
                   <div className="hc-opts">
                     {['Primaria', 'Secundaria', 'Superficial', 'Profunda'].map(o => (
@@ -1002,18 +1076,14 @@ function HistoriaClinica() {
                         onChange={ch}
                       />
                     </InputField>
-                    <InputField label="Forma" small>
-                      <select
-                        name="escleroForma"
-                        className="form-control"
+                    <Field label="Forma" small>
+                      <Combobox
+                        items={['Líquida', 'Espuma']}
                         value={form.escleroForma}
-                        onChange={ch}
-                      >
-                        <option value="">Seleccionar…</option>
-                        <option>Líquida</option>
-                        <option>Espuma</option>
-                      </select>
-                    </InputField>
+                        onChange={(val) => setValor('escleroForma', val)}
+                        placeholder="Seleccionar…"
+                      />
+                    </Field>
                     <InputField label="Volumen total (ml)" small>
                       <input
                         name="escleroVolumen"
@@ -1028,8 +1098,19 @@ function HistoriaClinica() {
 
                 <Field label="Indicaciones">
                   <div className="hc-opts">
-                    {['Venotónico: Perivasc 950/50', 'AINEs', 'Crema', 'Medias Compresivas', 'No se prescribe tratamiento adicional'].map(o => (
-                      <OptCheck key={o} value={o} list={form.indicaciones} onToggle={v => toggleArr('indicaciones', v)} />
+                    {INDICACIONES.map(({ value, detalle }) => (
+                      <div key={value} className="hc-indicacion">
+                        <OptCheck value={value} list={form.indicaciones} onToggle={toggleIndicacion} />
+                        {detalle && form.indicaciones.includes(value) && (
+                          <input
+                            className="hc-inline-input"
+                            placeholder={detalle}
+                            maxLength={255}
+                            value={form.indicacionesDetalle[value] || ''}
+                            onChange={e => setDetalleIndicacion(value, e.target.value)}
+                          />
+                        )}
+                      </div>
                     ))}
                   </div>
                   <input
