@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Stethoscope, Mail, AlertCircle, CheckCircle2, ShieldAlert } from 'lucide-react';
+import logo from '../../assets/isotipo.png';
+import { Mail, AlertCircle, CheckCircle2, ShieldAlert } from 'lucide-react';
 import { forgotPassword } from '../../services/authService';
 
 function RecuperarPassword() {
@@ -38,10 +39,11 @@ function RecuperarPassword() {
       {/* ── Left panel — Deep blue ── */}
       <div className="login-panel">
         <div className="login-panel-content">
-          <div className="login-panel-logo"><Stethoscope size={30} /></div>
-          <h1 className="login-panel-headline">
-            Clínica de<br />Flebología
-          </h1>
+          <img
+            className="login-panel-logo"
+            src={logo}
+            alt="Doctora Yojana Mendoza — Flebología"
+          />
           <p className="login-panel-desc">
             Le enviaremos un enlace seguro a su correo institucional para que pueda crear una contraseña nueva.
           </p>

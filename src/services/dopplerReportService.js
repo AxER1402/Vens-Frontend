@@ -3,36 +3,44 @@ import api from './api';
 /**
  * Reporte de Ecodöppler venoso de miembros inferiores.
  *
- * El formulario trabaja en camelCase (derCayadoIntDiam) y el API en snake_case
- * (der_cayado_int_diam). La conversión vive aquí para que la pantalla no tenga
- * que conocer el nombre de las columnas.
+ * El formulario trabaja en camelCase (derSegmentos) y el API en snake_case
+ * (der_segmentos). La conversión vive aquí para que la pantalla no tenga que
+ * conocer el nombre de las columnas.
  */
 
 /** Lados que informa un estudio: der = MID, izq = MII */
 export const LADOS = ['der', 'izq'];
 
-/** Vasos del sistema superficial; cada uno lleva además su diámetro en mm */
-export const VASOS = ['cayadoInt', 'troncoInt', 'cayadoExt', 'troncoExt'];
+/**
+ * Segmentos del sistema venoso superficial que informa cada miembro. Los tres
+ * primeros llevan siempre el mismo nombre; los dos últimos los nombra el médico
+ * según lo que haya evaluado de más. La lista viaja completa y ordenada porque
+ * es la posición, y no el nombre, lo que identifica a cada segmento.
+ */
+export const SEGMENTOS_FIJOS = ['SFJ', 'GSV Muslo', 'GSV Pierna'];
+export const TOTAL_SEGMENTOS = 5;
+
+/** Medidas de cada segmento, en el orden en que se informan en pantalla. */
+export const MEDIDAS_SEGMENTO = [
+  { campo: 'diametroMax', api: 'diametro_max', label: 'Ø Max.', unidad: 'mm' },
+  { campo: 'velocidad', api: 'velocidad', label: 'Velocidad', unidad: 'cm/s' },
+  { campo: 'duracion', api: 'duracion', label: 'Duración', unidad: 's' },
+  { campo: 'observaciones', api: 'observaciones', label: 'Observaciones', texto: true },
+  { campo: 'diametro', api: 'diametro', label: 'Diámetro', unidad: 'mm' },
+];
 
 /** Campos de texto de un lado, en el orden en que se informan */
-const CAMPOS_TEXTO = ['profundo', ...VASOS, 'perforantes', 'trombosis'];
-
-/** Diámetros medidos: son los únicos campos numéricos del estudio */
-const CAMPOS_DIAMETRO = VASOS.map(vaso => `${vaso}Diam`);
-
-const TEXTO_PROFUNDO = 'Eje venoso profundo permeable y compresible en toda su extensión con flujo cíclico espontáneo sin insuficiencia ni reflujo.';
-const TEXTO_PERFORANTES = 'No se observan perforantes insuficientes.';
-const TEXTO_TROMBOSIS = 'No se observan signos de trombosis en los vasos evaluados.';
+const CAMPOS_TEXTO = ['profundo', 'perforantes', 'trombosis'];
 
 /* ── Conversión de nombres ──────────────────────────────────────────────── */
 
-/** cayadoIntDiam -> cayado_int_diam */
+/** diametroMax -> diametro_max */
 const aSnake = (campo) => campo.replace(/([A-Z])/g, '_$1').toLowerCase();
 
-/** ('der', 'cayadoInt') -> derCayadoInt */
+/** ('der', 'segmentos') -> derSegmentos */
 export const campoForm = (lado, campo) => `${lado}${campo.charAt(0).toUpperCase()}${campo.slice(1)}`;
 
-/** ('der', 'cayadoInt') -> der_cayado_int */
+/** ('der', 'segmentos') -> der_segmentos */
 const campoApi = (lado, campo) => `${lado}_${aSnake(campo)}`;
 
 /* ── Conversión de valores ──────────────────────────────────────────────── */
@@ -57,7 +65,7 @@ const aNumero = (valor) => {
 };
 
 /** El API devuelve los decimales como '4.10'; el formulario muestra '4.1'. */
-const aTextoDiametro = (valor) => {
+const aTextoNumero = (valor) => {
   if (valor === null || valor === undefined || valor === '') return '';
 
   const numero = Number(valor);
@@ -66,16 +74,31 @@ const aTextoDiametro = (valor) => {
 
 /* ── Formulario ─────────────────────────────────────────────────────────── */
 
-/** Hallazgos por defecto de un miembro: lo normal, que es lo más frecuente. */
+/** Un segmento en blanco; los tres fijos arrancan con su nombre ya puesto. */
+const segmentoVacio = (nombre = '') => ({
+  nombre,
+  ...Object.fromEntries(MEDIDAS_SEGMENTO.map(medida => [medida.campo, ''])),
+});
+
+/** Las cinco posiciones que informa un miembro. */
+export const segmentosIniciales = () => [
+  ...SEGMENTOS_FIJOS.map(nombre => segmentoVacio(nombre)),
+  ...Array.from(
+    { length: TOTAL_SEGMENTOS - SEGMENTOS_FIJOS.length },
+    () => segmentoVacio()
+  ),
+];
+
+/**
+ * Campos de un miembro. El estudio arranca en blanco a propósito: los hallazgos
+ * se escriben mientras se hace la ecografía, y un texto prellenado se termina
+ * guardando sin leer.
+ */
 const camposLado = (lado) => ({
-  [campoForm(lado, 'profundo')]: TEXTO_PROFUNDO,
-  [campoForm(lado, 'cayadoInt')]: 'Suficiente.',
-  [campoForm(lado, 'troncoInt')]: 'Permeable, suficiente.',
-  [campoForm(lado, 'cayadoExt')]: 'Suficiente.',
-  [campoForm(lado, 'troncoExt')]: 'Permeable, suficiente.',
-  [campoForm(lado, 'perforantes')]: TEXTO_PERFORANTES,
-  [campoForm(lado, 'trombosis')]: TEXTO_TROMBOSIS,
-  ...Object.fromEntries(CAMPOS_DIAMETRO.map(campo => [campoForm(lado, campo), ''])),
+  [campoForm(lado, 'profundo')]: '',
+  [campoForm(lado, 'perforantes')]: '',
+  [campoForm(lado, 'trombosis')]: '',
+  [campoForm(lado, 'segmentos')]: segmentosIniciales(),
 });
 
 /** Estado inicial del formulario de Ecodöppler. */
@@ -83,8 +106,42 @@ export const createEmptyForm = () => ({
   fecha: new Date().toISOString().split('T')[0],
   ...camposLado('der'),
   ...camposLado('izq'),
-  conclusion: 'Sistema venoso evaluado permeable sin datos de insuficiencia ni trombosis.',
+  conclusion: '',
 });
+
+/** Los segmentos del formulario, con los nombres de columna del API. */
+const segmentosApi = (segmentos) => {
+  const lista = Array.isArray(segmentos) ? segmentos : segmentosIniciales();
+
+  return lista.map(segmento => ({
+    nombre: aTexto(segmento.nombre),
+    ...Object.fromEntries(MEDIDAS_SEGMENTO.map(medida => [
+      medida.api,
+      medida.texto ? aTexto(segmento[medida.campo]) : aNumero(segmento[medida.campo]),
+    ])),
+  }));
+};
+
+/** Los segmentos guardados, de vuelta al formulario. */
+const segmentosForm = (guardados) => {
+  const base = segmentosIniciales();
+
+  if (!Array.isArray(guardados)) return base;
+
+  return base.map((vacio, indice) => {
+    const guardado = guardados[indice];
+    if (!guardado) return vacio;
+
+    return {
+      // Un nombre nulo en una posición fija recupera el nombre del catálogo
+      nombre: guardado.nombre ?? vacio.nombre,
+      ...Object.fromEntries(MEDIDAS_SEGMENTO.map(medida => [
+        medida.campo,
+        medida.texto ? (guardado[medida.api] ?? '') : aTextoNumero(guardado[medida.api]),
+      ])),
+    };
+  });
+};
 
 /**
  * Armar el payload que espera el API a partir del estado del formulario.
@@ -102,9 +159,7 @@ export const buildDopplerReportPayload = (form, patientId, clinicalHistoryId, es
       hallazgos[campoApi(lado, campo)] = aTexto(form[campoForm(lado, campo)]);
     });
 
-    CAMPOS_DIAMETRO.forEach(campo => {
-      hallazgos[campoApi(lado, campo)] = aNumero(form[campoForm(lado, campo)]);
-    });
+    hallazgos[campoApi(lado, 'segmentos')] = segmentosApi(form[campoForm(lado, 'segmentos')]);
   });
 
   return {
@@ -133,9 +188,7 @@ export const mapDopplerReportToForm = (reporte) => {
       form[campoForm(lado, campo)] = reporte[campoApi(lado, campo)] ?? '';
     });
 
-    CAMPOS_DIAMETRO.forEach(campo => {
-      form[campoForm(lado, campo)] = aTextoDiametro(reporte[campoApi(lado, campo)]);
-    });
+    form[campoForm(lado, 'segmentos')] = segmentosForm(reporte[campoApi(lado, 'segmentos')]);
   });
 
   return form;

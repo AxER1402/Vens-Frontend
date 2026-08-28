@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, NavLink, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Users, Calendar, Clipboard, BarChart3, Stethoscope, Bell, Receipt, Settings, LogOut, UserCog } from 'lucide-react';
+import { LayoutDashboard, Users, Calendar, Clipboard, BarChart3, Bell, Receipt, Settings, LogOut, UserCog } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import {
   Sidebar,
@@ -53,11 +53,11 @@ function AppSidebar() {
     <Sidebar collapsible="none" className="sticky top-0 h-screen border-none">
       <SidebarHeader className="p-0 border-none">
         <Link to="/dashboard" className="sidebar-logo">
-          <div className="sidebar-logo-icon"><Stethoscope size={18} /></div>
-          <div>
-            <div className="sidebar-logo-title">VENS</div>
-            <div className="sidebar-logo-sub">Flebología</div>
-          </div>
+          <span
+            className="sidebar-logo-marca"
+            role="img"
+            aria-label="Doctora Yojana Mendoza — Flebología"
+          />
         </Link>
       </SidebarHeader>
 
