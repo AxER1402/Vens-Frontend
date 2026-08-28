@@ -50,11 +50,14 @@ export const createEmptyForm = () => ({
   gestas: '', abortos: '', partos: '', cesareas: '', hijosVivos: '', hijosMuertos: '',
   ultimaMenstruacion: '', hormonas: '',
   enfermedades: [], enfermedadesOtros: '',
-  ta: '', fc: '', fr: '', temp: '', peso: '', ubicacion: '',
+  ta: '', fc: '', fr: '', temp: '', peso: '',
+  tobillo: '', pantorrilla: '',
+  ubicacion: '',
+  ceapC: '',
   ceapDiagnostico: [],
   txZonas: [],
   escleroConcentracion: '', escleroForma: '', escleroVolumen: '',
-  indicaciones: [], indicacionesOtros: '',
+  indicaciones: [], indicacionesDetalle: {}, indicacionesOtros: '',
   evolucion: '', observaciones: [], estado: '', notas: '',
 });
 
@@ -84,7 +87,7 @@ const decimal = (valor) => {
 
   const cantidad = limpio
     .replace(',', '.')
-    .replace(/\s*(%|ml|mL|kg|lbs?|°?\s*[cC])\s*$/, '')
+    .replace(/\s*(%|cm|ml|mL|kg|lbs?|°?\s*[cC])\s*$/, '')
     .trim();
 
   return /^\d+(\.\d+)?$/.test(cantidad) ? Number.parseFloat(cantidad) : limpio;
@@ -95,6 +98,23 @@ const booleano = (valor) => {
   if (valor === 'Sí') return true;
   if (valor === 'No') return false;
   return null;
+};
+
+/**
+ * Qué se recetó en cada indicación marcada, indexado por el valor del catálogo.
+ * Se descartan las indicaciones sin marcar y las que quedaron en blanco para no
+ * archivar recetas de tratamientos que no se indicaron.
+ */
+const construirDetalleIndicaciones = (form) => {
+  const marcadas = Array.isArray(form.indicaciones) ? form.indicaciones : [];
+  const detalle = {};
+
+  marcadas.forEach((indicacion) => {
+    const escrito = texto(form.indicacionesDetalle?.[indicacion]);
+    if (escrito !== null) detalle[indicacion] = escrito;
+  });
+
+  return Object.keys(detalle).length > 0 ? detalle : null;
 };
 
 /** Agrupar las listas marcadas por categoría del catálogo. */
@@ -143,12 +163,18 @@ export const buildClinicalHistoryPayload = (form, patientId, estadoRegistro = 'F
   frecuencia_respiratoria: entero(form.fr),
   temperatura: decimal(form.temp),
   peso: decimal(form.peso),
+  perimetro_tobillo: decimal(form.tobillo),
+  perimetro_pantorrilla: decimal(form.pantorrilla),
   ubicacion_patologia: texto(form.ubicacion),
+
+  // Diagnóstico CEAP: la clase clínica (ej: C2a) es un dato propio de la consulta
+  ceap_c: texto(form.ceapC),
 
   // Plan de tratamiento y escleroterapia
   esclero_concentracion: decimal(form.escleroConcentracion),
   esclero_forma: texto(form.escleroForma),
   esclero_volumen: decimal(form.escleroVolumen),
+  indicaciones_detalle: construirDetalleIndicaciones(form),
   indicaciones_otros: texto(form.indicacionesOtros),
 
   // Evolución y observaciones
@@ -195,13 +221,17 @@ export const mapClinicalHistoryToForm = (historia) => {
     fr: valor(historia.frecuencia_respiratoria),
     temp: valor(historia.temperatura),
     peso: valor(historia.peso),
+    tobillo: valor(historia.perimetro_tobillo),
+    pantorrilla: valor(historia.perimetro_pantorrilla),
     ubicacion: valor(historia.ubicacion_patologia),
+    ceapC: valor(historia.ceap_c),
     ceapDiagnostico: lista('ceap_diagnostico'),
     txZonas: lista('tx_zonas'),
     escleroConcentracion: valor(historia.esclero_concentracion),
     escleroForma: valor(historia.esclero_forma),
     escleroVolumen: valor(historia.esclero_volumen),
     indicaciones: lista('indicaciones'),
+    indicacionesDetalle: historia.indicaciones_detalle || {},
     indicacionesOtros: valor(historia.indicaciones_otros),
     evolucion: valor(historia.evolucion),
     observaciones: lista('observaciones'),
