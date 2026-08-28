@@ -19,22 +19,22 @@
 const TRAZOS = [
   {
     id: 'safena_interna',
-    label: 'Safena interna (magna)',
+    label: 'Safena interna (Mayor)',
     abrev: 'SI',
     color: '#0C7D8C',
     grosor: 3,
     // `null` = línea continua; el resto son patrones de stroke-dasharray
     patron: null,
-    ayuda: 'Trayecto de la vena safena magna.',
+    ayuda: 'Trayecto de la vena safena mayor.',
   },
   {
     id: 'safena_externa',
-    label: 'Safena externa (parva)',
+    label: 'Safena externa (Menor)',
     abrev: 'SE',
     color: '#243757',
     grosor: 3,
     patron: null,
-    ayuda: 'Trayecto de la vena safena parva, cara posterior.',
+    ayuda: 'Trayecto de la vena safena menor, cara posterior.',
   },
   {
     id: 'colateral',

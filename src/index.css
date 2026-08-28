@@ -308,25 +308,17 @@ h6 {
   gap: 14px;
 }
 
-.sidebar-logo-icon {
-  width: 38px;
-  height: 38px;
-  border-radius: 10px;
-  background: rgba(218, 213, 183, 0.15);
-  border: 1px solid rgba(218, 213, 183, 0.2);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  color: var(--sidebar-accent);
-}
-
-.sidebar-logo-title {
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--sidebar-text-active);
-  line-height: 1.2;
-  letter-spacing: -0.01em;
+/* El logotipo es trazo negro sobre transparente. En vez de invertirlo a blanco,
+   su canal alfa se usa como máscara y se pinta con --sidebar-text: así toma
+   literalmente el mismo color que "Menú principal" y lo sigue si el token
+   cambia, en lugar de quedarse con una aproximación. */
+.sidebar-logo-marca {
+  display: block;
+  width: 100%;
+  aspect-ratio: 2816 / 576;
+  background: var(--sidebar-text);
+  -webkit-mask: url('./assets/isotipo.png') no-repeat center / contain;
+  mask: url('./assets/isotipo.png') no-repeat center / contain;
 }
 
 .sidebar-logo-sub {
@@ -1054,26 +1046,17 @@ select.form-control {
   max-width: 400px;
 }
 
+/* Mismo trazo negro sobre el panel azul: se invierte igual que en la barra
+   lateral. Aquí el logo hace de titular —ya trae el nombre de la clínica— así
+   que va grande y no lleva encabezado encima. */
 .login-panel-logo {
-  width: 64px;
-  height: 64px;
-  border-radius: 16px;
-  background: rgba(218, 213, 183, 0.12);
-  border: 1px solid rgba(218, 213, 183, 0.2);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--brand-beige);
+  display: block;
+  width: 100%;
+  max-width: 360px;
+  height: auto;
   margin: 0 auto 28px;
-}
-
-.login-panel-headline {
-  font-size: 30px;
-  font-weight: 600;
-  color: #F5F3EE;
-  line-height: 1.2;
-  margin-bottom: 14px;
-  letter-spacing: -0.02em;
+  filter: brightness(0) invert(1);
+  opacity: 0.94;
 }
 
 .login-panel-desc {
@@ -2535,17 +2518,40 @@ select.form-control {
    Reutiliza los paneles y campos de la historia clínica; solo añade la
    fila de vaso (hallazgo + diámetro) que es propia del estudio.
 ====================================== */
-.dop-vasos {
+.dop-segmentos {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 8px;
 }
 
-.dop-vaso {
+/* Segmento, Ø Max., Velocidad, Duración, Observaciones y Diámetro.
+   Observaciones se lleva el espacio sobrante porque es texto libre. */
+.dop-seg {
   display: grid;
-  grid-template-columns: 1fr 150px;
-  gap: 16px;
-  align-items: end;
+  grid-template-columns: 1.2fr 0.75fr 0.85fr 0.75fr 2fr 0.75fr;
+  gap: 10px;
+  align-items: center;
+}
+
+.dop-seg-head {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--brand-text-light);
+  line-height: 1.3;
+  padding-bottom: 2px;
+}
+
+.dop-seg-nombre {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--brand-text);
+}
+
+.dop-seg .form-control {
+  padding: 8px 10px;
+  font-size: 13px;
 }
 
 /* Alinea el botón de regreso con el título: compensa su padding lateral */
@@ -2554,9 +2560,22 @@ select.form-control {
   margin-bottom: 6px;
 }
 
+/* Sin ancho para seis columnas, cada segmento se apila en dos. El encabezado
+   deja de servir ahí, así que se oculta y el nombre pasa a ocupar la fila. */
 @media (max-width: 1100px) {
-  .dop-vaso {
-    grid-template-columns: 1fr;
+  .dop-seg {
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--hc-line);
+  }
+
+  .dop-seg-head {
+    display: none;
+  }
+
+  .dop-seg > :first-child {
+    grid-column: 1 / -1;
   }
 }
 
@@ -2638,6 +2657,14 @@ select.form-control {
   background: var(--brand-deep);
   border-color: var(--brand-deep);
   color: #fff;
+}
+
+/* La herramienta activa se oscurece al pasar el cursor en vez de aclararse:
+   el hover claro genérico dejaba la etiqueta blanca sobre fondo claro.
+   Es el mismo tono de hover que usa .btn-primary sobre --brand-deep. */
+.mv-herramienta.on:hover:not(:disabled) {
+  background: #1D2D47;
+  border-color: #1D2D47;
 }
 
 .mv-herramienta:disabled {

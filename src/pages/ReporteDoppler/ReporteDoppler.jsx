@@ -21,14 +21,6 @@ const LADOS = [
   { id: 'izq', label: 'Miembro Inferior Izquierdo', abrev: 'MII' },
 ];
 
-/* Los vasos los define el servicio; aquí solo viven sus etiquetas */
-const ETIQUETAS_VASO = {
-  cayadoInt: 'Cayado safena interna',
-  troncoInt: 'Tronco safena interna',
-  cayadoExt: 'Cayado safena externa',
-  troncoExt: 'Tronco safena externa',
-};
-
 const SECTIONS = [
   { id: 'estudio', icon: <ClipboardList size={14} />, label: 'Datos del estudio' },
   { id: 'der', icon: <Activity size={14} />, label: 'Miembro inf. derecho' },
@@ -70,29 +62,53 @@ function InputField({ label, small, children }) {
   );
 }
 
-/* Fila de un vaso: hallazgo + diámetro medido */
-function Vaso({ lado, campo, label, form, onChange }) {
-  const nombre = dopplerReportService.campoForm(lado, campo);
-  const nombreDiam = `${nombre}Diam`;
+/* Encabezado de la tabla de segmentos: las unidades viven aquí y no dentro de
+   cada campo, que a este ancho de columna no daría abasto. */
+function SegmentosHead() {
+  return (
+    <div className="dop-seg dop-seg-head">
+      <span>Segmento</span>
+      {dopplerReportService.MEDIDAS_SEGMENTO.map(medida => (
+        <span key={medida.campo}>
+          {medida.unidad ? `${medida.label} (${medida.unidad})` : medida.label}
+        </span>
+      ))}
+    </div>
+  );
+}
+
+/* Fila de un segmento del sistema superficial. Los tres primeros llevan nombre
+   fijo; en los dos últimos el médico escribe el vaso que haya evaluado de más. */
+function Segmento({ indice, segmento, onChange }) {
+  const fijo = indice < dopplerReportService.SEGMENTOS_FIJOS.length;
+  const referencia = segmento.nombre || `segmento ${indice + 1}`;
 
   return (
-    <div className="dop-vaso">
-      <InputField label={label} small>
-        <input name={nombre} className="form-control" value={form[nombre]} onChange={onChange} />
-      </InputField>
-      <InputField label="Diámetro" small>
-        <span className="vital-wrap">
-          <input
-            name={nombreDiam}
-            className="form-control"
-            inputMode="decimal"
-            placeholder="Ej: 4.1"
-            value={form[nombreDiam]}
-            onChange={onChange}
-          />
-          <span className="vital-unit">mm</span>
-        </span>
-      </InputField>
+    <div className="dop-seg">
+      {fijo ? (
+        <span className="dop-seg-nombre">{segmento.nombre}</span>
+      ) : (
+        <input
+          className="form-control"
+          placeholder="Otro segmento…"
+          maxLength={60}
+          value={segmento.nombre}
+          onChange={e => onChange(indice, 'nombre', e.target.value)}
+          aria-label={`Nombre del segmento ${indice + 1}`}
+        />
+      )}
+
+      {dopplerReportService.MEDIDAS_SEGMENTO.map(medida => (
+        <input
+          key={medida.campo}
+          className="form-control"
+          inputMode={medida.texto ? undefined : 'decimal'}
+          maxLength={medida.texto ? 255 : undefined}
+          value={segmento[medida.campo]}
+          onChange={e => onChange(indice, medida.campo, e.target.value)}
+          aria-label={`${medida.label} de ${referencia}`}
+        />
+      ))}
     </div>
   );
 }
@@ -222,12 +238,28 @@ function ReporteDoppler() {
     setSaveMessage('');
   };
 
+  /* Un segmento se edita por posición: es lo que lo identifica dentro del lado. */
+  const cambiarSegmento = (lado, indice, campo, valor) => {
+    const clave = dopplerReportService.campoForm(lado, 'segmentos');
+
+    setForm(p => ({
+      ...p,
+      [clave]: p[clave].map((s, i) => (i === indice ? { ...s, [campo]: valor } : s)),
+    }));
+    setSaved(false);
+    setSaveMessage('');
+  };
+
   const isFilled = (id) => {
     if (id === 'estudio') return !!patient;
     if (id === 'conclusion') return !!form.conclusion.trim();
-    // Un miembro cuenta como informado cuando ya se midió algún diámetro
-    return dopplerReportService.VASOS.some(
-      vaso => form[`${dopplerReportService.campoForm(id, vaso)}Diam`]
+    // Un miembro cuenta como informado cuando algún segmento ya tiene medidas
+    const segmentos = form[dopplerReportService.campoForm(id, 'segmentos')] || [];
+
+    return segmentos.some(segmento =>
+      dopplerReportService.MEDIDAS_SEGMENTO.some(
+        medida => String(segmento[medida.campo] ?? '').trim() !== ''
+      )
     );
   };
 
@@ -411,15 +443,14 @@ function ReporteDoppler() {
 
                     <div>
                       <div className="hc-subhead">Sistema venoso superficial</div>
-                      <div className="dop-vasos">
-                        {dopplerReportService.VASOS.map(vaso => (
-                          <Vaso
-                            key={vaso}
-                            lado={lado.id}
-                            campo={vaso}
-                            label={ETIQUETAS_VASO[vaso]}
-                            form={form}
-                            onChange={ch}
+                      <div className="dop-segmentos">
+                        <SegmentosHead />
+                        {form[dopplerReportService.campoForm(lado.id, 'segmentos')].map((segmento, indice) => (
+                          <Segmento
+                            key={indice}
+                            indice={indice}
+                            segmento={segmento}
+                            onChange={(i, campo, valor) => cambiarSegmento(lado.id, i, campo, valor)}
                           />
                         ))}
                       </div>

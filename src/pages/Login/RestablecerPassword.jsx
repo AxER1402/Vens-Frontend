@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { Stethoscope, Lock, Eye, EyeOff, AlertCircle, CheckCircle2, ShieldAlert } from 'lucide-react';
+import logo from '../../assets/isotipo.png';
+import { Lock, Eye, EyeOff, AlertCircle, CheckCircle2, ShieldAlert } from 'lucide-react';
 import { resetPassword } from '../../services/authService';
 
 function RestablecerPassword() {
@@ -66,10 +67,11 @@ function RestablecerPassword() {
       {/* ── Left panel — Deep blue ── */}
       <div className="login-panel">
         <div className="login-panel-content">
-          <div className="login-panel-logo"><Stethoscope size={30} /></div>
-          <h1 className="login-panel-headline">
-            Clínica de<br />Flebología
-          </h1>
+          <img
+            className="login-panel-logo"
+            src={logo}
+            alt="Doctora Yojana Mendoza — Flebología"
+          />
           <p className="login-panel-desc">
             Elija una contraseña nueva para su cuenta. Por seguridad, se cerrarán todas las sesiones abiertas.
           </p>

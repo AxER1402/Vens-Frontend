@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Stethoscope, Users, Calendar, Clipboard, BarChart3, Mail, Lock, Eye, EyeOff, ShieldAlert, ArrowRight, AlertCircle } from 'lucide-react';
+import { Users, Calendar, Clipboard, BarChart3, Mail, Lock, Eye, EyeOff, ShieldAlert, ArrowRight, AlertCircle } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import logo from '../../assets/isotipo.png';
 
 function Login() {
   const navigate = useNavigate();
@@ -42,10 +43,11 @@ function Login() {
       {/* ── Left panel — Deep blue ── */}
       <div className="login-panel">
         <div className="login-panel-content">
-          <div className="login-panel-logo"><Stethoscope size={30} /></div>
-          <h1 className="login-panel-headline">
-            Clínica de<br />Flebología
-          </h1>
+          <img
+            className="login-panel-logo"
+            src={logo}
+            alt="Doctora Yojana Mendoza — Flebología"
+          />
           <p className="login-panel-desc">
             Sistema integral para la gestión de pacientes, historia clínica especializada y seguimiento vascular.
           </p>
