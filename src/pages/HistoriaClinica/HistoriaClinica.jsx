@@ -2,12 +2,15 @@ import { useState, useEffect, useMemo, useRef } from 'react';
 import Layout from '../../components/Layout/Layout';
 import {
   User, Folder, MessageSquare, Search, Stethoscope, CheckCircle, Pill, Clock,
-  Save, Activity, PenTool, Check, AlertCircle, Plus, RefreshCw, Lock, FileText
+  Save, Activity, PenTool, Check, AlertCircle, Plus, RefreshCw, Lock, FileText,
+  Eye
 } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import * as patientService from '../../services/patientService';
 import * as clinicalHistoryService from '../../services/clinicalHistoryService';
 import * as dopplerReportService from '../../services/dopplerReportService';
+import VistaPreviaReporte from '../../components/Reportes/VistaPreviaReporte';
+import { reporteHistoriaClinica } from '../../services/reporteService';
 import { Combobox } from '@/components/ui/combobox';
 import {
   Dialog,
@@ -171,6 +174,10 @@ function HistoriaClinica() {
   // Mapeo venoso de la consulta abierta. Igual que con el Ecodöppler, aquí solo
   // se consulta si ya existe: dibujarlo es tarea del taller de /mapeo-venoso.
   const [mapeoInfo, setMapeoInfo] = useState(null);
+
+  // Informe abierto en la vista previa, o null si no hay ninguna. Qué partes
+  // lleva se elige dentro del propio visor.
+  const [vistaPrevia, setVistaPrevia] = useState(null);
 
   // Read patientId query param
   const urlPatientId = searchParams.get('patientId') || searchParams.get('id');
@@ -480,6 +487,15 @@ function HistoriaClinica() {
      editor actual) o solo como imagen, en consultas anteriores a ese editor. */
   const elementosMapeo = mapeoInfo?.datos?.objetos?.length || 0;
   const tieneMapeo = !!(mapeoInfo?.url || elementosMapeo > 0);
+
+  /* Partes que el informe de esta consulta puede llevar hoy. Sale del estado que
+     la pantalla ya tiene cargado, así que el selector no necesita ir al servidor
+     para saber qué ofrecer. */
+  const partesDisponibles = useMemo(() => [
+    ...(historiaId ? ['historia'] : []),
+    ...(historiaId && tieneMapeo ? ['mapeo'] : []),
+    ...(reporteDoppler ? ['doppler'] : []),
+  ], [historiaId, tieneMapeo, reporteDoppler]);
 
   const isFilled = (id) => {
     if (id === 'interrogatorio') return !!form.consultaPor;
@@ -1213,6 +1229,7 @@ function HistoriaClinica() {
                     {reporteDoppler ? <FileText size={14} /> : <Activity size={14} />}
                     {reporteDoppler ? 'Ver reporte Ecodöppler' : 'Registrar reporte Ecodöppler'}
                   </button>
+
                   {!selectedPatientId && (
                     <span className="hc-notice">
                       <AlertCircle size={14} /> Seleccione un paciente para abrir su reporte Ecodöppler.
@@ -1284,6 +1301,26 @@ function HistoriaClinica() {
                   )}
                 </div>
                 <div className="hc-save-actions">
+                  {/* La vista previa vive fuera de la bifurcación: una consulta
+                      finalizada es justo cuando se quiere imprimir, así que el
+                      botón tiene que estar también en modo lectura. Necesita la
+                      consulta guardada porque el informe se arma con lo que hay
+                      en la base, no con lo que hay en el formulario. */}
+                  <button
+                    type="button"
+                    className="btn btn-ghost"
+                    disabled={!historiaId}
+                    title={historiaId
+                      ? 'Elegir qué incluye el informe y verlo antes de descargarlo'
+                      : 'Guarde la consulta para poder emitir su informe'}
+                    onClick={() => setVistaPrevia({
+                      ...reporteHistoriaClinica(historiaId, { partes: partesDisponibles }),
+                      aviso: saved ? null : 'Esta vista muestra la última versión guardada de la consulta. Los cambios que no haya guardado todavía no aparecen aquí.',
+                    })}
+                  >
+                    <Eye size={14} /> Vista previa
+                  </button>
+
                   {soloLectura ? (
                     <button
                       type="button"
@@ -1298,7 +1335,6 @@ function HistoriaClinica() {
                     </button>
                   ) : (
                     <>
-                      <button type="button" className="btn btn-ghost">Vista previa</button>
                       {/* Una consulta ya finalizada no puede volver a borrador */}
                       {estadoHistoria !== 'Finalizada' && (
                         <button
@@ -1326,6 +1362,20 @@ function HistoriaClinica() {
             </div>
           </div>
         </form>
+
+        {/* Único punto de emisión del expediente. Qué partes lleva el informe
+            se marca dentro del visor, y el documento se rehace al momento. */}
+        <VistaPreviaReporte
+          reporte={vistaPrevia}
+          onCerrar={() => setVistaPrevia(null)}
+          partes={{
+            disponibles: partesDisponibles,
+            construir: (seleccion) => ({
+              ...reporteHistoriaClinica(historiaId, { partes: seleccion }),
+              aviso: saved ? null : 'Esta vista muestra la última versión guardada de la consulta. Los cambios que no haya guardado todavía no aparecen aquí.',
+            }),
+          }}
+        />
       </div>
     </Layout>
   );
