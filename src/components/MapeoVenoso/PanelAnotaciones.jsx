@@ -1,8 +1,8 @@
 import { Pencil, Trash2, MessageSquareOff } from 'lucide-react';
 import { anotacionesDe, marcadoresDe, resumenPorMiembro } from './objetos';
 import { etiquetaZona, MIEMBROS } from './zonas';
-import { hallazgoDe } from './hallazgos';
-import { FormaHallazgo } from './SimbolosHallazgo';
+import { descripcionDe, simboloDe, estiloDe, significadoDe } from './catalogo';
+import { FormaMarcador } from './SimbolosMapeo';
 
 /**
  * Columna derecha: lista de anotaciones y marcadores del mapeo.
@@ -87,23 +87,27 @@ export default function PanelAnotaciones({
           <span className="mv-barra-titulo">Marcadores ({marcadores.length})</span>
           <ul className="mv-lista mv-lista-compacta">
             {marcadores.map(m => {
-              const hallazgo = hallazgoDe(m.hallazgo);
+              const lectura = significadoDe(m.color);
               return (
                 <li key={m.id}>
                   <button
                     type="button"
                     className={`mv-item mv-item-cuerpo${seleccion === m.id ? ' on' : ''}`}
                     onClick={() => onIr(m.id)}
-                    title="Ir al marcador en el mapa"
+                    title={`Ir al marcador en el mapa${lectura ? ` — ${lectura}` : ''}`}
                   >
                     <span className="mv-item-simbolo">
-                      <FormaHallazgo simbolo={hallazgo?.simbolo || 'punto'} color={hallazgo?.color} tamano={15} />
+                      <FormaMarcador simbolo={simboloDe(m)} color={estiloDe(m).color} tamano={15} />
                     </span>
                     <span className="mv-item-texto">
                       <span className="mv-item-zona">
-                        {hallazgo?.label || 'Marcador'} {m.numero}
+                        {descripcionDe(m)} {m.numero}
                       </span>
-                      <span className="mv-item-detalle">{etiquetaZona(m.zona)}</span>
+                      {/* La zona dice dónde está; la lectura del color, qué es.
+                          Sin ella la lista sería una fila de nombres iguales. */}
+                      <span className="mv-item-detalle">
+                        {[etiquetaZona(m.zona), lectura].filter(Boolean).join(' · ')}
+                      </span>
                     </span>
                   </button>
                 </li>

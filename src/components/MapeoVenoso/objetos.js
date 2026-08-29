@@ -6,11 +6,19 @@
  * mayor resolución (o vectorizada) no invalida los mapeos ya archivados.
  * El editor trabaja en unidades del viewBox y convierte en la frontera.
  *
- * Tipos de objeto:
- *   trazo      { puntos: [[x,y], …], hallazgo, color?, grosor? }
- *   marcador   { x, y, hallazgo, numero, zona }
+ * Tipos de objeto. `color`, `trayecto` y `marcador` son referencias al
+ * catálogo ('rojo', 'epifascial', 'perforante'), no valores de dibujo: lo que
+ * se archiva es la lectura clínica, y el hexadecimal con que se pinta puede
+ * afinarse después sin reinterpretar los mapeos ya guardados.
+ *
+ *   trazo      { puntos: [[x,y], …], color, trayecto, grosor? }
+ *   marcador   { x, y, color, marcador, numero, zona }
  *   anotacion  { x, y, texto, numero, zona }
  *   texto      { x, y, texto, tamano, color? }
+ *
+ * Los mapeos anteriores a la separación en tres ejes traen en su lugar un
+ * `hallazgo` y un `color` hexadecimal. Se leen tal cual y se vuelven a guardar
+ * tal cual: reescribirlos al vocabulario nuevo cambiaría lo que el médico firmó.
  */
 
 import { PLANTILLA_ANCHO, PLANTILLA_ALTO, PLANTILLA_ID, zonaDe } from './zonas';
@@ -121,20 +129,21 @@ export const mover = (objetos, id, dx, dy) =>
  * Trazo a partir de puntos en unidades del viewBox.
  * Devuelve null si el trazo no llegó a tener dos puntos distintos.
  */
-export const crearTrazo = (puntosVista, { hallazgo, color, grosor }) => {
+export const crearTrazo = (puntosVista, { color, trayecto, grosor }) => {
   if (!puntosVista || puntosVista.length < 2) return null;
   return {
     tipo: 'trazo',
-    hallazgo,
-    color: color || undefined,
+    color,
+    trayecto,
     grosor,
     puntos: puntosVista.map(p => [redondear(aNormX(p.x)), redondear(aNormY(p.y))]),
   };
 };
 
-export const crearMarcador = (puntoVista, hallazgo) => ({
+export const crearMarcador = (puntoVista, marcador, color) => ({
   tipo: 'marcador',
-  hallazgo,
+  marcador,
+  color,
   x: redondear(aNormX(puntoVista.x)),
   y: redondear(aNormY(puntoVista.y)),
 });
@@ -150,7 +159,7 @@ export const crearTexto = (puntoVista, texto, { color, tamano = 16 } = {}) => ({
   tipo: 'texto',
   texto,
   tamano,
-  color: color || undefined,
+  color,
   x: redondear(aNormX(puntoVista.x)),
   y: redondear(aNormY(puntoVista.y)),
 });
