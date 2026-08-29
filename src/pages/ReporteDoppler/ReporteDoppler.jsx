@@ -2,12 +2,14 @@ import { useState, useEffect } from 'react';
 import Layout from '../../components/Layout/Layout';
 import {
   Activity, ArrowLeft, Save, Check, Clock, ClipboardList, FileCheck, AlertCircle,
-  User, RefreshCw, Lock, PenTool
+  User, RefreshCw, Lock, PenTool, Eye
 } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import * as patientService from '../../services/patientService';
 import * as dopplerReportService from '../../services/dopplerReportService';
+import VistaPreviaReporte from '../../components/Reportes/VistaPreviaReporte';
+import { reporteEcodoppler } from '../../services/reporteService';
 
 const tagClass = {
   Activo: 'tag-success',
@@ -141,6 +143,9 @@ function ReporteDoppler() {
   const [soloLectura, setSoloLectura] = useState(false);
   const [loadingReporte, setLoadingReporte] = useState(!!historiaId);
   const [avisoReporte, setAvisoReporte] = useState('');
+
+  // Informe abierto en la vista previa, o null si no hay ninguna
+  const [vistaPrevia, setVistaPrevia] = useState(null);
 
   // Registrar y editar está restringido a Administrador y Médico (igual que el API)
   const canEdit = ['administrador', 'medico'].includes(user?.rol);
@@ -517,6 +522,24 @@ function ReporteDoppler() {
                   )}
                 </div>
                 <div className="hc-save-actions">
+                  {/* Fuera de la bifurcación: un estudio finalizado es justo
+                      cuando se quiere imprimir. El informe se arma con lo
+                      guardado, así que necesita el estudio ya registrado. */}
+                  <button
+                    type="button"
+                    className="btn btn-ghost"
+                    disabled={!reporteId}
+                    title={reporteId
+                      ? 'Ver el informe antes de descargarlo'
+                      : 'Guarde el estudio para poder emitir su informe'}
+                    onClick={() => setVistaPrevia({
+                      ...reporteEcodoppler(reporteId),
+                      aviso: saved ? null : 'Esta vista muestra la última versión guardada del estudio. Los cambios que no haya guardado todavía no aparecen aquí.',
+                    })}
+                  >
+                    <Eye size={14} /> Vista previa
+                  </button>
+
                   {soloLectura && canEdit ? (
                     <button
                       type="button"
@@ -560,6 +583,8 @@ function ReporteDoppler() {
             </div>
           </div>
         </form>
+
+        <VistaPreviaReporte reporte={vistaPrevia} onCerrar={() => setVistaPrevia(null)} />
       </div>
     </Layout>
   );

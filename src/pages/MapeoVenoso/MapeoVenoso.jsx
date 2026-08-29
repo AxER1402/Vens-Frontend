@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   ArrowLeft, User, RefreshCw, AlertCircle, Check, Save, Lock, PenTool,
-  Undo2, Redo2, Trash2, Download, Maximize2, Minimize2, ZoomIn, ZoomOut, Scan,
+  Undo2, Redo2, Trash2, Download, Maximize2, Minimize2, ZoomIn, ZoomOut, Scan, Eye,
 } from 'lucide-react';
 
 import Layout from '../../components/Layout/Layout';
@@ -11,6 +11,8 @@ import BarraHerramientas from '../../components/MapeoVenoso/BarraHerramientas';
 import PanelAnotaciones from '../../components/MapeoVenoso/PanelAnotaciones';
 import DialogoAnotacion from '../../components/MapeoVenoso/DialogoAnotacion';
 import { useHistorial } from '../../components/MapeoVenoso/useHistorial';
+import VistaPreviaReporte from '../../components/Reportes/VistaPreviaReporte';
+import { reporteMapeoVenoso } from '../../services/reporteService';
 import { descargarPng, exportarPng } from '../../components/MapeoVenoso/exportarPng';
 import {
   HERRAMIENTAS, HALLAZGO_TRAZO_INICIAL, HALLAZGO_MARCADOR_INICIAL,
@@ -86,6 +88,9 @@ function MapeoVenoso() {
   const [encuadre, setEncuadre] = useState(ENCUADRE_COMPLETO);
   const [expandido, setExpandido] = useState(false);
   const [dialogo, setDialogo] = useState(null);
+
+  // Informe del mapeo abierto en la vista previa, o null si no hay ninguna
+  const [vistaPrevia, setVistaPrevia] = useState(null);
 
   const historial = useHistorial([]);
   const { objetos, aplicar, deshacer, rehacer, reiniciar, marcarGuardado, limpio } = historial;
@@ -670,6 +675,22 @@ function MapeoVenoso() {
                 )}
               </div>
               <div className="hc-save-actions">
+                {/* El informe se arma con el mapeo archivado, no con el lienzo:
+                    por eso solo aparece cuando ya hay uno guardado, y avisa si
+                    quedan trazos sin guardar. A diferencia del PNG del lienzo,
+                    este PDF trae la leyenda y la tabla de hallazgos numerados. */}
+                {historiaId && mapeoUrl && (
+                  <button
+                    type="button"
+                    className="btn btn-ghost"
+                    onClick={() => setVistaPrevia({
+                      ...reporteMapeoVenoso(historiaId),
+                      aviso: limpio ? null : 'Esta vista muestra el mapeo archivado. Los trazos que no haya guardado todavía no aparecen aquí.',
+                    })}
+                  >
+                    <Eye size={14} /> Vista previa del informe
+                  </button>
+                )}
                 <button
                   type="button"
                   className="btn btn-primary"
@@ -722,6 +743,8 @@ function MapeoVenoso() {
         onConfirmar={confirmarDialogo}
         onCancelar={() => setDialogo(null)}
       />
+
+      <VistaPreviaReporte reporte={vistaPrevia} onCerrar={() => setVistaPrevia(null)} />
     </Layout>
   );
 }
