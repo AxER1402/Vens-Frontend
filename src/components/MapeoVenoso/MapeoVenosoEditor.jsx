@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import plantilla from '../../assets/mapeoVenoso.png';
-import SimbolosHallazgo, { Marcador, TAMANO_MARCADOR } from './SimbolosHallazgo';
-import { estiloDe, hallazgoDe } from './hallazgos';
+import SimbolosMapeo, { Marcador, TAMANO_MARCADOR } from './SimbolosMapeo';
+import { estiloDe, descripcionDe, simboloDe, tamanoDe, hexDe, trayectoDe } from './catalogo';
+import { camino, caminosDe, esPunteadoDeCruces } from './trazos';
 import { PLANTILLA_ANCHO, PLANTILLA_ALTO, ZONAS, etiquetaZona } from './zonas';
 import {
   aVistaX, aVistaY, aNormDX, aNormDY,
@@ -64,7 +65,7 @@ const cajaDe = (objeto, escala) => {
     return { x, y, ancho: Math.max(...xs) - x, alto: Math.max(...ys) - y };
   }
 
-  const lado = TAMANO_MARCADOR * escala;
+  const lado = (objeto.tipo === 'marcador' ? tamanoDe(objeto) : TAMANO_MARCADOR) * escala;
   const x = aVistaX(objeto.x);
   const y = aVistaY(objeto.y);
 
@@ -109,7 +110,8 @@ export default function MapeoVenosoEditor({
   const escala = encuadre.ancho / PLANTILLA_ANCHO;
   const herramienta = soloLectura ? 'seleccionar' : estilo.herramienta;
   const interactivo = !soloLectura && HERRAMIENTAS_INTERACTIVAS.includes(herramienta);
-  const colorTrazo = estilo.color || hallazgoDe(estilo.hallazgoTrazo)?.color || '#243757';
+  const colorTrazo = hexDe(estilo.color) || '#243757';
+  const trayectoElegido = trayectoDe(estilo.trayecto);
 
   /* ── Conversión de coordenadas ──────────────────────────────────────────
    * getScreenCTM() traduce del píxel de pantalla a la unidad del viewBox sin
@@ -137,15 +139,15 @@ export default function MapeoVenosoEditor({
   const cerrarTrayecto = useCallback(() => {
     if (trayecto && trayecto.length >= 2) {
       const nuevo = crearTrazo(trayecto, {
-        hallazgo: estilo.hallazgoTrazo,
         color: estilo.color,
+        trayecto: estilo.trayecto,
         grosor: estilo.grosor,
       });
       if (nuevo) onAgregar(nuevo);
     }
     setTrayecto(null);
     setCursor(null);
-  }, [trayecto, estilo.hallazgoTrazo, estilo.color, estilo.grosor, onAgregar]);
+  }, [trayecto, estilo.color, estilo.trayecto, estilo.grosor, onAgregar]);
 
   /* ── Zoom anclado en el puntero ──────────────────────────────────────── */
   const zoomEn = useCallback((punto, factor) => {
@@ -269,7 +271,7 @@ export default function MapeoVenosoEditor({
         break;
 
       case 'marcador':
-        onAgregar(crearMarcador(punto, estilo.hallazgoMarcador));
+        onAgregar(crearMarcador(punto, estilo.marcador, estilo.color));
         break;
 
       case 'anotacion':
@@ -341,8 +343,8 @@ export default function MapeoVenosoEditor({
 
     if (trazoActivo) {
       const nuevo = crearTrazo(trazoActivo, {
-        hallazgo: estilo.hallazgoTrazo,
         color: estilo.color,
+        trayecto: estilo.trayecto,
         grosor: estilo.grosor,
       });
       if (nuevo) onAgregar(nuevo);
@@ -371,7 +373,7 @@ export default function MapeoVenosoEditor({
 
   /* ── Render de un objeto ─────────────────────────────────────────────── */
   const dibujar = (objeto) => {
-    const { color, grosor, patron } = estiloDe(objeto);
+    const { color, grosor, patron, render, parametros } = estiloDe(objeto);
     const arrastrando = arrastre?.id === objeto.id;
 
     const comunes = {
@@ -384,13 +386,16 @@ export default function MapeoVenosoEditor({
     };
 
     if (objeto.tipo === 'trazo') {
-      const puntos = objeto.puntos.map(([x, y]) => `${aVistaX(x)},${aVistaY(y)}`).join(' ');
+      const vista = objeto.puntos.map(([x, y]) => [aVistaX(x), aVistaY(y)]);
+      const caminos = caminosDe(vista, render, parametros);
+
       return (
         <g key={objeto.id} {...comunes}>
-          {/* Copia invisible y más gruesa: hace clicable un trazo fino */}
+          {/* Copia invisible y más gruesa sobre el recorrido liso: hace clicable
+              un trazo fino, y también uno de equis, que casi no tiene tinta. */}
           {interactivo && (
-            <polyline
-              points={puntos}
+            <path
+              d={camino(vista)}
               fill="none"
               stroke="transparent"
               strokeWidth={grosor + 14 * escala}
@@ -398,40 +403,47 @@ export default function MapeoVenosoEditor({
               pointerEvents="stroke"
             />
           )}
-          <polyline
-            points={puntos}
-            fill="none"
-            stroke={color}
-            strokeWidth={grosor}
-            strokeDasharray={patron || undefined}
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            pointerEvents="none"
-          />
+          <title>{descripcionDe(objeto)}</title>
+          {caminos.map((d, i) => (
+            <path
+              key={i}
+              d={d}
+              fill="none"
+              stroke={color}
+              strokeWidth={grosor}
+              strokeDasharray={patron || undefined}
+              // Las equis son aspas sueltas: redondearles las puntas las
+              // convierte en manchas cuando el trazo es grueso.
+              strokeLinecap={esPunteadoDeCruces(render) ? 'butt' : 'round'}
+              strokeLinejoin="round"
+              pointerEvents="none"
+            />
+          ))}
         </g>
       );
     }
 
     if (objeto.tipo === 'marcador') {
-      const hallazgo = hallazgoDe(objeto.hallazgo);
+      const lado = tamanoDe(objeto);
       return (
         <g key={objeto.id} {...comunes}>
           <title>
-            {`${hallazgo?.label || 'Marcador'} ${objeto.numero} — ${etiquetaZona(objeto.zona)}`}
+            {`${descripcionDe(objeto)} ${objeto.numero} — ${etiquetaZona(objeto.zona)}`}
           </title>
           <circle
             cx={aVistaX(objeto.x)}
             cy={aVistaY(objeto.y)}
-            r={TAMANO_MARCADOR * escala * 0.7}
+            r={lado * escala * 0.7}
             fill="transparent"
             pointerEvents={interactivo ? 'all' : 'none'}
           />
           <Marcador
             x={aVistaX(objeto.x)}
             y={aVistaY(objeto.y)}
-            simbolo={hallazgo?.simbolo || 'punto'}
+            simbolo={simboloDe(objeto)}
             color={color}
             numero={objeto.numero}
+            tamano={lado}
             escala={escala}
           />
         </g>
@@ -492,7 +504,7 @@ export default function MapeoVenosoEditor({
       onDoubleClick={() => { if (trayecto) cerrarTrayecto(); }}
       style={{ cursor: cursorCss, touchAction: 'none' }}
     >
-      <SimbolosHallazgo />
+      <SimbolosMapeo />
 
       {/* Plantilla institucional, ya limpiada como asset: se dibuja tal cual.
           No lleva filtro CSS a propósito, para que lo que se ve en pantalla y
@@ -525,30 +537,32 @@ export default function MapeoVenosoEditor({
 
       {objetos.map(dibujar)}
 
-      {/* Trazo en curso */}
+      {/* Trazo en curso, ya con su patrón: el médico ve la onda o las equis
+          mientras dibuja y no solo al soltar. */}
       {trazoActivo && trazoActivo.length > 1 && (
-        <polyline
-          points={trazoActivo.map(p => `${p.x},${p.y}`).join(' ')}
-          fill="none"
-          stroke={colorTrazo}
-          strokeWidth={estilo.grosor}
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          pointerEvents="none"
-        />
+        <PatronEnCurso puntos={trazoActivo} trayecto={trayectoElegido} color={colorTrazo} grosor={estilo.grosor} />
       )}
 
-      {/* Trayecto por clics: lo ya fijado más el segmento hasta el cursor */}
+      {/* Trayecto por clics: los tramos ya fijados con su patrón, y el segmento
+          que sigue al cursor de guía discontinua, que aún no está puesto. */}
       {trayecto && (
         <g pointerEvents="none">
-          <polyline
-            points={[...trayecto, ...(cursor ? [cursor] : [])].map(p => `${p.x},${p.y}`).join(' ')}
-            fill="none"
-            stroke={colorTrazo}
-            strokeWidth={estilo.grosor}
-            strokeDasharray={`${6 * escala} ${4 * escala}`}
-            strokeLinecap="round"
-          />
+          {trayecto.length > 1 && (
+            <PatronEnCurso puntos={trayecto} trayecto={trayectoElegido} color={colorTrazo} grosor={estilo.grosor} />
+          )}
+          {cursor && (
+            <line
+              x1={trayecto[trayecto.length - 1].x}
+              y1={trayecto[trayecto.length - 1].y}
+              x2={cursor.x}
+              y2={cursor.y}
+              stroke={colorTrazo}
+              strokeWidth={estilo.grosor}
+              strokeDasharray={`${6 * escala} ${4 * escala}`}
+              strokeLinecap="round"
+              opacity="0.7"
+            />
+          )}
           {trayecto.map((p, i) => (
             <circle key={i} cx={p.x} cy={p.y} r={3.5 * escala} fill="#243757" />
           ))}
@@ -571,6 +585,34 @@ export default function MapeoVenosoEditor({
         />
       )}
     </svg>
+  );
+}
+
+/**
+ * Previsualización de un trazo mientras se dibuja, con el patrón del trayecto
+ * elegido. Comparte la geometría con el dibujo definitivo, así que lo que se ve
+ * al arrastrar es exactamente lo que queda al soltar.
+ */
+function PatronEnCurso({ puntos, trayecto, color, grosor }) {
+  const vista = puntos.map(p => [p.x, p.y]);
+  const caminos = caminosDe(vista, trayecto?.render, trayecto?.parametros);
+
+  return (
+    <>
+      {caminos.map((d, i) => (
+        <path
+          key={i}
+          d={d}
+          fill="none"
+          stroke={color}
+          strokeWidth={grosor}
+          strokeDasharray={trayecto?.patron || undefined}
+          strokeLinecap={esPunteadoDeCruces(trayecto?.render) ? 'butt' : 'round'}
+          strokeLinejoin="round"
+          pointerEvents="none"
+        />
+      ))}
+    </>
   );
 }
 

@@ -15,8 +15,8 @@ import VistaPreviaReporte from '../../components/Reportes/VistaPreviaReporte';
 import { reporteMapeoVenoso } from '../../services/reporteService';
 import { descargarPng, exportarPng } from '../../components/MapeoVenoso/exportarPng';
 import {
-  HERRAMIENTAS, HALLAZGO_TRAZO_INICIAL, HALLAZGO_MARCADOR_INICIAL,
-} from '../../components/MapeoVenoso/hallazgos';
+  HERRAMIENTAS, COLOR_INICIAL, TRAYECTO_INICIAL, MARCADOR_INICIAL,
+} from '../../components/MapeoVenoso/catalogo';
 import {
   ENCUADRE_COMPLETO, PLANTILLA_ANCHO, encuadreMiembro, etiquetaZona, zonaDe, MIEMBROS,
 } from '../../components/MapeoVenoso/zonas';
@@ -26,6 +26,7 @@ import {
   aVistaX, aVistaY, aNormX, aNormY, MAX_OBJETOS,
 } from '../../components/MapeoVenoso/objetos';
 
+import { avisarSiElCatalogoDivergió } from '../../services/venousMapService';
 import * as patientService from '../../services/patientService';
 import * as clinicalHistoryService from '../../services/clinicalHistoryService';
 import { useAuth } from '../../context/AuthContext';
@@ -51,9 +52,9 @@ const esEditable = (destino) =>
 
 const ESTILO_INICIAL = {
   herramienta: 'trazo',
-  hallazgoTrazo: HALLAZGO_TRAZO_INICIAL,
-  hallazgoMarcador: HALLAZGO_MARCADOR_INICIAL,
-  color: null,
+  color: COLOR_INICIAL,
+  trayecto: TRAYECTO_INICIAL,
+  marcador: MARCADOR_INICIAL,
   grosor: 3,
 };
 
@@ -100,6 +101,12 @@ function MapeoVenoso() {
   // Registrar y editar está restringido a Administrador y Médico (igual que el API)
   const canEdit = ['administrador', 'medico'].includes(user?.rol);
   const bloqueado = soloLectura || !canEdit || loadingHistoria;
+
+  /* En desarrollo, avisar por consola si el catálogo del editor y el del
+     backend se separaron. Ahora que son tres ejes hay tres listas que mantener
+     en paralelo, y una divergencia no se nota hasta que el guardado devuelve
+     422 con el trabajo del médico ya sobre la pantalla. */
+  useEffect(() => { avisarSiElCatalogoDivergió(); }, []);
 
   /* ── Carga del paciente ──────────────────────────────────────────────── */
   useEffect(() => {

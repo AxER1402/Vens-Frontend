@@ -2777,12 +2777,28 @@ select.form-control {
   outline-offset: 1px;
 }
 
-.mv-color-auto {
-  width: auto;
-  padding: 0 8px;
-  font-size: 10.5px;
-  background: var(--hc-control);
+/* El significado del color va escrito bajo la paleta, no solo en el título
+   emergente: un cuadro azul no dice nada por sí solo, y en el mapeo el color
+   es el diagnóstico. */
+.mv-color-significado {
+  margin: 2px 0 0;
+  font-size: 11px;
+  line-height: 1.35;
   color: var(--brand-text-muted);
+}
+
+.mv-color-significado strong {
+  color: var(--brand-text);
+  font-weight: 600;
+}
+
+/* Muestra de color en la leyenda de solo lectura: no se puede pulsar. Va como
+   <span>, así que necesita display propio para tomar tamaño. */
+.mv-color-muestra {
+  display: inline-block;
+  width: 18px;
+  height: 18px;
+  cursor: default;
 }
 
 /* ── Zona del lienzo ────────────────────────────────────────────────── */
