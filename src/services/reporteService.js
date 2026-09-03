@@ -192,3 +192,74 @@ export const descargarMapeoVenoso = (historiaId) =>
 
 export const descargarEcodoppler = (estudioId, { formato = 'pdf' } = {}) =>
   descargarReporte(reporteEcodoppler(estudioId), formato);
+
+/* ── Reportes de período ──────────────────────────────────────────────────
+ *
+ * Los descriptores de arriba describen **un registro**: esta consulta, este
+ * estudio. Los de aquí describen un rango: lo que pasó en la clínica entre dos
+ * fechas.
+ *
+ * La lista no se escribe en el frontend, se pide al servidor: es el backend
+ * quien sabe qué reportes existen, qué filtros admite cada uno y cuáles puede
+ * ver este usuario. Así retirar un reporte o cambiarle los permisos no obliga a
+ * tocar esta pantalla.
+ */
+
+/** Filtros que un reporte puede aceptar, además del rango de fechas. */
+const FILTROS = ['patient_id', 'medico_id'];
+
+/**
+ * Catálogo de reportes de período que el usuario autenticado puede emitir.
+ *
+ * @returns {Promise<{success: boolean, data?: Array, message?: string}>}
+ */
+export const getCatalogoReportes = async () => {
+  try {
+    const respuesta = await api.get('/reportes');
+
+    return { success: true, data: respuesta.data.data || [] };
+  } catch (error) {
+    return {
+      success: false,
+      message: error.response?.data?.message || 'No se pudo cargar el catálogo de reportes.',
+    };
+  }
+};
+
+/**
+ * Descriptor de un reporte de período, listo para la vista previa.
+ *
+ * Solo viajan los filtros que el reporte declara: mandar `medico_id` a un
+ * reporte de síntomas no lo recorta —el backend lo ignora— pero sí cambiaría la
+ * clave y haría que la vista previa se rehiciera sin motivo.
+ *
+ * @param {{clave: string, titulo: string, descripcion: string, filtros?: Array<string>, formatos?: Array<string>}} reporte
+ * @param {{desde?: string, hasta?: string, patient_id?: number|string, medico_id?: number|string}} filtros
+ */
+export const reportePeriodo = (reporte, filtros = {}) => {
+  const params = {};
+
+  if (filtros.desde) params.desde = filtros.desde;
+  if (filtros.hasta) params.hasta = filtros.hasta;
+
+  for (const filtro of FILTROS) {
+    if ((reporte.filtros ?? []).includes(filtro) && filtros[filtro]) {
+      params[filtro] = String(filtros[filtro]);
+    }
+  }
+
+  return {
+    // La clave lleva los parámetros dentro: es lo que mira la vista previa para
+    // saber que el documento cambió y hay que volver a pedirlo.
+    clave: `${reporte.clave}?${new URLSearchParams(params).toString()}`,
+    titulo: reporte.titulo,
+    descripcion: reporte.descripcion,
+    ruta: `/reportes/${reporte.clave}`,
+    params,
+    formatos: reporte.formatos ?? ['pdf', 'docx'],
+  };
+};
+
+/** Pedir un reporte de período y guardarlo, sin pasar por la vista previa. */
+export const descargarReportePeriodo = (reporte, filtros = {}, formato = 'pdf') =>
+  descargarReporte(reportePeriodo(reporte, filtros), formato);

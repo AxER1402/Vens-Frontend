@@ -319,3 +319,35 @@ export const deactivateDopplerReport = async (id) => {
     };
   }
 };
+
+/**
+ * Listado general de estudios, con los mismos filtros que acepta la API
+ * (`from_date`, `to_date`, `patient_id`, `estado_registro`).
+ *
+ * Lo usa la pantalla de reportes para contar los estudios del período sin tener
+ * que recorrer paciente por paciente.
+ */
+export const getDopplerReports = async (params = {}) => {
+  try {
+    const queryParams = new URLSearchParams();
+
+    if (params.from_date) queryParams.append('from_date', params.from_date);
+    if (params.to_date) queryParams.append('to_date', params.to_date);
+    if (params.patient_id) queryParams.append('patient_id', params.patient_id);
+    if (params.estado_registro) queryParams.append('estado_registro', params.estado_registro);
+
+    const queryString = queryParams.toString();
+    const response = await api.get(`/doppler-reports${queryString ? `?${queryString}` : ''}`);
+
+    return {
+      success: true,
+      data: response.data.data || [],
+    };
+  } catch (error) {
+    return {
+      success: false,
+      message: error.response?.data?.message || 'Error al obtener los estudios de Ecodöppler.',
+      status: error.response?.status,
+    };
+  }
+};

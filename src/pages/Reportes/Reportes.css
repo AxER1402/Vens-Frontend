@@ -1,92 +1,252 @@
-/* Reportes */
-.reportes-filters {
-  background: var(--color-white);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
-  padding: var(--space-5) var(--space-6);
-  margin-bottom: var(--space-6);
-  box-shadow: var(--shadow-sm);
+/* ======================================
+   REPORTES — centro de emisión de documentos
+
+   No trae paleta ni controles propios: reutiliza los del sistema plano
+   (.panel, .hc-field, .hc-chip, .tag, .btn) y solo añade la rejilla de
+   tarjetas y la tira de resumen, que no existen en ningún otro módulo.
+====================================== */
+
+.rp-page {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
 }
 
-.reportes-filters-title {
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-semi);
-  color: var(--color-text);
-  margin-bottom: var(--space-4);
+/* El .page-header y los paneles ya traen su propio margen inferior; aquí lo
+   lleva el gap del contenedor, así que se anula para no sumar dos veces. */
+.rp-page > .page-header,
+.rp-page > .panel,
+.rp-page > .notice {
+  margin-bottom: 0;
+}
+
+/* ── Parámetros ───────────────────────────────────────────────────────── */
+
+.rp-filtros {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+}
+
+/* Las etiquetas del panel son de filtro, no de formulario: van pegadas a su
+   control para que la fila se lea como una barra y no como un formulario. */
+.rp-filtros .hc-field {
+  gap: 6px;
+}
+
+.rp-atajos {
   display: flex;
   align-items: center;
-  gap: var(--space-2);
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--hc-line);
 }
 
-.reportes-filters-grid {
+.rp-atajos .flat-label {
+  margin-right: 4px;
+}
+
+/* Empuja «Restablecer» al extremo opuesto de los atajos */
+.rp-limpiar {
+  margin-left: auto;
+}
+
+.rp-nota {
+  margin-top: 12px;
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--brand-text-light);
+}
+
+.rp-nota strong {
+  color: var(--brand-text);
+  font-weight: 600;
+}
+
+/* ── Resumen del período ──────────────────────────────────────────────── */
+
+.rp-resumen {
   display: grid;
-  grid-template-columns: 1fr 1fr 1fr 1fr auto;
-  gap: var(--space-4);
-  align-items: end;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 12px;
 }
 
-/* Stats row */
-.reportes-stats {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: var(--space-5);
-  margin-bottom: var(--space-6);
+.rp-sum {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 14px 16px;
+  background: var(--brand-surface);
+  border: 1px solid var(--hc-line);
+  border-left: 2px solid var(--brand-slate);
 }
 
-.reporte-stat {
-  background: var(--color-white);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
-  padding: var(--space-5);
-  text-align: center;
-  box-shadow: var(--shadow-sm);
-  transition: all var(--transition-base);
-}
-
-.reporte-stat:hover {
-  transform: translateY(-2px);
-  box-shadow: var(--shadow-md);
-}
-
-.reporte-stat-icon {
-  font-size: 28px;
-  margin-bottom: var(--space-2);
-}
-
-.reporte-stat-value {
-  font-size: var(--font-size-2xl);
-  font-weight: var(--font-weight-bold);
-  color: var(--color-text);
+.rp-sum-icon {
+  color: var(--brand-slate);
+  line-height: 1;
   margin-bottom: 4px;
 }
 
-.reporte-stat-label {
-  font-size: var(--font-size-xs);
-  color: var(--color-text-muted);
+.rp-sum-val {
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1.1;
+  color: var(--brand-text);
+  font-variant-numeric: tabular-nums;
+}
+
+.rp-sum-label {
+  font-size: 11px;
+  color: var(--brand-text-light);
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  font-weight: var(--font-weight-medium);
 }
 
-/* Results card */
-.reportes-results {
-  background: var(--color-white);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
-  overflow: hidden;
-  box-shadow: var(--shadow-sm);
+/* ── Encabezado de sección ────────────────────────────────────────────── */
+
+.rp-seccion {
+  margin-bottom: 0;
 }
 
-.reportes-results-header {
+.rp-seccion-count {
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--brand-text-light);
+}
+
+/* ── Rejilla de reportes ──────────────────────────────────────────────── */
+
+.rp-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 12px;
+}
+
+.rp-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px;
+  background: var(--brand-surface);
+  border: 1px solid var(--hc-line);
+  transition: border-color var(--t-fast), background var(--t-fast);
+}
+
+.rp-card:hover {
+  border-color: var(--brand-slate);
+  background: var(--brand-surface-alt);
+}
+
+.rp-card-head {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  padding: var(--space-4) var(--space-6);
-  border-bottom: 1px solid var(--color-border);
-  background: linear-gradient(135deg, rgba(250, 226, 236, 0.5), rgba(238, 167, 191, 0.06));
+  gap: 10px;
 }
 
-.reportes-count {
-  font-size: var(--font-size-sm);
-  color: var(--color-text-muted);
+.rp-card-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  color: var(--brand-surface);
+  background: var(--brand-deep);
+}
+
+.rp-card-title {
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.25;
+  color: var(--brand-text);
+}
+
+.rp-card-desc {
+  flex: 1;
+  font-size: 12px;
+  line-height: 1.55;
+  color: var(--brand-text-muted);
+}
+
+.rp-card-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+/* Las etiquetas de filtro son informativas, no estados: van más discretas que
+   un .tag normal salvo cuando el filtro está puesto de verdad. */
+.rp-card-tags .tag {
+  font-size: 10px;
+  padding: 2px 7px;
+}
+
+/* Un .tag sin variante hereda el color del texto y se lee como texto suelto.
+   Las etiquetas de filtro sin aplicar necesitan seguir pareciendo etiquetas:
+   dicen qué recorta ese reporte, no qué está recortado ahora. */
+.rp-tag-neutra {
+  background: var(--brand-surface-deep);
+  color: var(--brand-text-light);
+}
+
+.rp-card-acciones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding-top: 10px;
+  border-top: 1px solid var(--hc-line);
+}
+
+/* ── Estados ──────────────────────────────────────────────────────────── */
+
+.rp-cargando {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 32px 0;
+  font-size: 12px;
+  color: var(--brand-text-light);
+  background: var(--brand-surface);
+  border: 1px solid var(--hc-line);
+}
+
+/* ── Selector de expediente ───────────────────────────────────────────── */
+
+.rp-lista {
+  max-height: 340px;
+  overflow-y: auto;
+  border: 1px solid var(--hc-line);
+  background: var(--brand-surface);
+}
+
+.rp-lista .hc-pick:last-child {
+  border-bottom: 0;
+}
+
+/* ── Adaptación ───────────────────────────────────────────────────────── */
+
+@media (max-width: 1200px) {
+  .rp-resumen {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (max-width: 1000px) {
+  .rp-filtros {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 700px) {
+  .rp-filtros,
+  .rp-resumen {
+    grid-template-columns: 1fr;
+  }
+
+  .rp-limpiar {
+    margin-left: 0;
+  }
 }
