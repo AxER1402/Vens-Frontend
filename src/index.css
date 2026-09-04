@@ -597,6 +597,23 @@ h6 {
   gap: 10px;
 }
 
+/* Todos los botones de la cabecera de una pantalla se miden igual, tomen o no
+   la clase .btn-sm en su JSX. Antes dependía de cada módulo: los del Inicio
+   eran pequeños y los de Pacientes, Citas o Usuarios grandes, y al pasar de
+   una pantalla a otra la barra saltaba de altura. El tamaño es de la barra, no
+   de quien la escribe. */
+.page-actions .btn {
+  gap: 6px;
+  padding: 5px 12px;
+  font-size: 12px;
+  border-radius: 6px;
+}
+
+.page-actions .btn svg {
+  width: 15px;
+  height: 15px;
+}
+
 /* ======================================
    CARDS & SECTIONS
 ====================================== */

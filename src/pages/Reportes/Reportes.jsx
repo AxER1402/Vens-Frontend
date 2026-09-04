@@ -41,6 +41,7 @@ import * as userService from '../../services/userService';
 import * as clinicalHistoryService from '../../services/clinicalHistoryService';
 import * as dopplerReportService from '../../services/dopplerReportService';
 import * as appointmentService from '../../services/appointmentService';
+import * as facturacionService from '../../services/facturacionService';
 import './Reportes.css';
 
 /**
@@ -198,7 +199,7 @@ function Reportes() {
 
     (async () => {
       const [reportes, listaPacientes, usuarios] = await Promise.all([
-        reporteService.getCatalogoReportes(),
+        reporteService.getCatalogoReportes('reportes'),
         patientService.getPatients({}),
         userService.getUsers(),
       ]);
@@ -251,14 +252,19 @@ function Reportes() {
     const rango = { from_date: filtros.desde, to_date: filtros.hasta };
     const porPaciente = filtros.patient_id ? { patient_id: filtros.patient_id } : {};
 
-    const [consultas, citas, estudios] = await Promise.all([
+    const [consultas, citas, estudios, cobros] = await Promise.all([
       clinicalHistoryService.getClinicalHistories({ ...rango, ...porPaciente }),
       appointmentService.getAppointments({ ...rango, ...porPaciente }),
       dopplerReportService.getDopplerReports({ ...rango, ...porPaciente }),
+      facturacionService.getInvoices({ ...rango, ...porPaciente }),
     ]);
 
     const listaConsultas = consultas.success ? consultas.data : [];
     const listaCitas = citas.success ? citas.data : [];
+
+    // Los anulados no vienen salvo que se pidan, así que lo que se suma aquí
+    // es lo que de verdad entró.
+    const listaCobros = cobros.success ? cobros.data : [];
 
     setResumen({
       consultas: listaConsultas.length,
@@ -277,6 +283,10 @@ function Reportes() {
       fechasDeConsulta: listaConsultas
         .map((c) => c.fecha_consulta)
         .filter(Boolean),
+      cobros: listaCobros.map((doc) => ({
+        fecha: doc.fecha_emision,
+        monto: Number(doc.total) || 0,
+      })),
     });
 
     setCargandoResumen(false);
@@ -544,6 +554,7 @@ function Reportes() {
               hasta={filtros.hasta}
               citasPorEstado={resumen?.porEstado ?? []}
               fechasDeConsulta={resumen?.fechasDeConsulta ?? []}
+              cobros={resumen?.cobros ?? []}
               cargando={cargandoResumen || !resumen}
             />
           </div>

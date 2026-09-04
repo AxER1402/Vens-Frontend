@@ -1,0 +1,79 @@
+/* ======================================
+   REPORTE DE INGRESOS — emisión desde facturación
+
+   Reutiliza los controles del sistema plano (.hc-field, .btn, .notice) y solo
+   añade la fila que alinea el rango con sus atajos.
+====================================== */
+
+.ri-bloque {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.ri-nota {
+  font-size: 12px;
+  line-height: 1.55;
+  color: var(--brand-text-muted);
+}
+
+.ri-controles {
+  display: grid;
+  grid-template-columns: 200px 200px 1fr;
+  align-items: end;
+  gap: 16px;
+}
+
+@media (max-width: 900px) {
+  .ri-controles {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .ri-atajos {
+    grid-column: 1 / -1;
+  }
+}
+
+.ri-atajos {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding-bottom: 2px;
+}
+
+.ri-atajos-rotulo {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--brand-text-light);
+}
+
+.ri-acciones {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding-top: 14px;
+  border-top: 1px solid var(--hc-line);
+}
+
+.ri-pista {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1;
+  min-width: 240px;
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--brand-text-light);
+}
+
+.ri-pista svg {
+  flex-shrink: 0;
+  color: var(--brand-slate);
+}

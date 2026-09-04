@@ -237,9 +237,18 @@ const FILTROS = ['patient_id', 'medico_id'];
  *
  * @returns {Promise<{success: boolean, data?: Array, message?: string}>}
  */
-export const getCatalogoReportes = async () => {
+/**
+ * Catálogo de reportes que este usuario puede emitir.
+ *
+ * `modulo` lo recorta a los de una pantalla: no todos se piden desde el mismo
+ * sitio —el de ingresos se emite donde se cobra— y cada pantalla lista los
+ * suyos.
+ */
+export const getCatalogoReportes = async (modulo = null) => {
   try {
-    const respuesta = await api.get('/reportes');
+    const respuesta = await api.get('/reportes', {
+      params: modulo ? { modulo } : {},
+    });
 
     return { success: true, data: respuesta.data.data || [] };
   } catch (error) {
