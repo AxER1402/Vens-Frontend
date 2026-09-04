@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Layout from '../../components/Layout/Layout';
+import Paginador from '../../components/Paginador';
 import {
   Search,
   UserX,
@@ -61,6 +62,8 @@ function Pacientes() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
+  const [pagina, setPagina] = useState(1);
+  const [meta, setMeta] = useState(null);
 
   // Permisos según Backend:
   // - Crear y Editar: administrador, medico, recepcionista
@@ -74,20 +77,28 @@ function Pacientes() {
     const res = await patientService.getPatients({
       search,
       estado: filterEstado,
-      activo: filterActivo
+      activo: filterActivo,
+      page: pagina,
     });
 
     if (res.success && res.data) {
       setPatients(res.data);
+      setMeta(res.meta);
     } else {
       setErrorMessage(res.message || 'No se pudo conectar con el servidor.');
     }
     setLoading(false);
-  }, [search, filterEstado, filterActivo]);
+  }, [search, filterEstado, filterActivo, pagina]);
 
   useEffect(() => {
     fetchPatients();
   }, [fetchPatients]);
+
+  // Cambiar un filtro con la página 4 abierta dejaría mirando un tramo que
+  // quizá ya no existe en el resultado nuevo.
+  useEffect(() => {
+    setPagina(1);
+  }, [search, filterEstado, filterActivo]);
 
   // Open Create Modal
   const handleOpenCreate = () => {
@@ -439,6 +450,15 @@ function Pacientes() {
           </tbody>
         </table>
       </div>
+
+      <Paginador
+        pagina={meta?.pagina ?? 1}
+        paginas={meta?.paginas ?? 1}
+        total={meta?.total ?? patients.length}
+        porPagina={meta?.por_pagina ?? patients.length}
+        onCambiar={setPagina}
+        etiqueta="pacientes"
+      />
 
       {/* ================= MODAL CREAR PACIENTE ================= */}
       <Dialog open={showCreateModal} onOpenChange={setShowCreateModal}>

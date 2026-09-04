@@ -11,11 +11,16 @@ import api from './api';
 export const getInvoices = async (params = {}) => {
   try {
     const response = await api.get('/invoices', { params });
-    return { success: true, data: response.data.data };
+    return {
+      success: true,
+      data: response.data.data,
+      meta: response.data.meta ?? null,
+    };
   } catch (error) {
     return {
       success: false,
       data: [],
+      meta: null,
       message: error.response?.data?.message || 'No se pudieron cargar los documentos.'
     };
   }

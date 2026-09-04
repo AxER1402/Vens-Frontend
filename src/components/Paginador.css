@@ -1,0 +1,38 @@
+/* ======================================
+   PAGINADOR
+
+   Los botones vienen del registro; aquí va la barra que los alinea con la
+   cuenta de registros y el estado apagado de los extremos.
+====================================== */
+
+.pg-barra {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--hc-line, var(--brand-border-light));
+}
+
+.pg-cuenta {
+  font-size: 11px;
+  color: var(--brand-text-light);
+  font-variant-numeric: tabular-nums;
+}
+
+/* El paginador del registro se centra en su ancho; aquí va a la derecha, al
+   lado opuesto de la cuenta. */
+.pg-controles {
+  margin: 0;
+  width: auto;
+  justify-content: flex-end;
+}
+
+/* Los extremos no se ocultan al llegar al principio o al final: que
+   desaparezcan mueve los demás botones justo cuando se les está apuntando. */
+.pg-inerte {
+  opacity: 0.35;
+  pointer-events: none;
+}

@@ -1,8 +1,12 @@
 import api from './api';
 
 /**
- * Obtener listado de pacientes con filtros opcionales
- * @param {Object} params - { search, estado, activo }
+ * Obtener listado de pacientes con filtros opcionales.
+ *
+ * Con `page` la respuesta viene por páginas y trae `meta`; sin él llega
+ * entera, que es lo que necesitan los selectores de paciente.
+ *
+ * @param {Object} params - { search, estado, activo, page, perPage }
  */
 export const getPatients = async (params = {}) => {
   try {
@@ -20,6 +24,11 @@ export const getPatients = async (params = {}) => {
       queryParams.append('activo', params.activo);
     }
 
+    if (params.page) {
+      queryParams.append('page', params.page);
+      queryParams.append('per_page', params.perPage ?? 30);
+    }
+
     const queryString = queryParams.toString();
     const url = `/patients${queryString ? `?${queryString}` : ''}`;
 
@@ -27,6 +36,7 @@ export const getPatients = async (params = {}) => {
     return {
       success: true,
       data: response.data.data || [],
+      meta: response.data.meta ?? null,
     };
   } catch (error) {
     return {

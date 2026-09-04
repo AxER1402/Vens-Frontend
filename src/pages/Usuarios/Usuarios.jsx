@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import Layout from '../../components/Layout/Layout';
+import Paginador from '../../components/Paginador';
 import {
   Search,
   UserX,
@@ -41,6 +42,8 @@ function Usuarios() {
   const [search, setSearch] = useState('');
   const [filterRole, setFilterRole] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
+  const [pagina, setPagina] = useState(1);
+  const [meta, setMeta] = useState(null);
 
   // Modal states
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -57,19 +60,32 @@ function Usuarios() {
   // Cargar usuarios desde la API
   const fetchUsers = useCallback(async () => {
     setLoading(true);
-    const res = await userService.getUsers();
+    const res = await userService.getUsers({
+      search,
+      rol: filterRole,
+      activo: filterStatus === 'activo' ? true : filterStatus === 'inactivo' ? false : '',
+      page: pagina,
+    });
+
     if (res.success && res.data) {
       setUsers(res.data);
+      setMeta(res.meta);
     } else {
       // Si la API falla o no hay conexión aún, mantenemos arreglo vacío y notificamos
       setErrorMessage(res.message || 'No se pudo conectar con el servidor.');
     }
     setLoading(false);
-  }, []);
+  }, [search, filterRole, filterStatus, pagina]);
 
   useEffect(() => {
     fetchUsers();
   }, [fetchUsers]);
+
+  // Cambiar un filtro con una página avanzada abierta dejaría mirando un tramo
+  // que quizá ya no existe en el resultado nuevo.
+  useEffect(() => {
+    setPagina(1);
+  }, [search, filterRole, filterStatus]);
 
   // Abrir Modal de Creación
   const handleOpenCreate = () => {
@@ -193,22 +209,9 @@ function Usuarios() {
     setIsSubmitting(false);
   };
 
-  // Filtrado de usuarios
-  const filteredUsers = users.filter((u) => {
-    const term = search.toLowerCase();
-    const matchSearch =
-      (u.name && u.name.toLowerCase().includes(term)) ||
-      (u.email && u.email.toLowerCase().includes(term)) ||
-      (u.telefono && u.telefono.toLowerCase().includes(term));
-
-    const matchRole = !filterRole || u.rol === filterRole;
-    const matchStatus =
-      !filterStatus ||
-      (filterStatus === 'activo' && Boolean(u.activo)) ||
-      (filterStatus === 'inactivo' && !u.activo);
-
-    return matchSearch && matchRole && matchStatus;
-  });
+  // El filtrado lo hace el servidor: sobre una lista paginada, filtrar aquí
+  // solo miraría los treinta de la página abierta.
+  const filteredUsers = users;
 
   const getInitials = (name) => {
     if (!name) return 'US';
@@ -297,7 +300,7 @@ function Usuarios() {
 
           <div className="toolbar-right">
             <span className="text-xs text-muted">
-              {filteredUsers.length} de {users.length} usuario(s)
+              {meta ? `${meta.total} usuario(s)` : `${users.length} usuario(s)`}
             </span>
           </div>
         </div>
@@ -408,6 +411,15 @@ function Usuarios() {
             </tbody>
           </table>
         </div>
+
+        <Paginador
+          pagina={meta?.pagina ?? 1}
+          paginas={meta?.paginas ?? 1}
+          total={meta?.total ?? users.length}
+          porPagina={meta?.por_pagina ?? users.length}
+          onCambiar={setPagina}
+          etiqueta="usuarios"
+        />
 
         {/* ================= MODAL CREAR USUARIO ================= */}
         <Dialog open={showCreateModal} onOpenChange={setShowCreateModal}>

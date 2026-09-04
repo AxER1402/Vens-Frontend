@@ -21,6 +21,7 @@ import * as clinicalHistoryService from '../../services/clinicalHistoryService';
 import { reporteDocumentoCobro } from '../../services/reporteService';
 import VistaPreviaReporte from '../../components/Reportes/VistaPreviaReporte';
 import GraficaIngresos from '../../components/Facturacion/GraficaIngresos';
+import Paginador from '../../components/Paginador';
 import './Facturacion.css';
 
 const { quetzales } = facturacionService;
@@ -93,6 +94,8 @@ function Facturacion() {
   const [aAnular, setAAnular] = useState(null);
   const [motivoAnulacion, setMotivoAnulacion] = useState('');
   const [vistaPrevia, setVistaPrevia] = useState(null);
+  const [pagina, setPagina] = useState(1);
+  const [meta, setMeta] = useState(null);
 
   /* ── Carga inicial ────────────────────────────────────────────────────── */
 
@@ -136,10 +139,18 @@ function Facturacion() {
 
   const cargarHistorial = useCallback(async () => {
     setCargandoHistorial(true);
-    const res = await facturacionService.getInvoices({ incluir_anuladas: 1 });
-    if (res.success) setDocumentos(res.data);
+    const res = await facturacionService.getInvoices({
+      incluir_anuladas: 1,
+      page: pagina,
+      per_page: 30,
+    });
+
+    if (res.success) {
+      setDocumentos(res.data);
+      setMeta(res.meta);
+    }
     setCargandoHistorial(false);
-  }, []);
+  }, [pagina]);
 
   useEffect(() => { cargarHistorial(); }, [cargarHistorial]);
 
@@ -241,6 +252,7 @@ function Facturacion() {
 
     setAviso(res.message);
     limpiar();
+    setPagina(1);
     cargarHistorial();
 
     // Se abre solo: emitir un recibo y tener que ir a buscarlo al historial
@@ -537,7 +549,7 @@ function Facturacion() {
           <div className="hc-section-head">
             <FileText size={14} />
             <h2 className="hc-section-title">Documentos emitidos</h2>
-            <span className="fa-head-nota">{documentos.length}</span>
+            <span className="fa-head-nota">{meta?.total ?? documentos.length}</span>
           </div>
           <div className="hc-section-body">
             {documentos.length === 0 ? (
@@ -606,6 +618,15 @@ function Facturacion() {
                 </table>
               </div>
             )}
+
+            <Paginador
+              pagina={meta?.pagina ?? 1}
+              paginas={meta?.paginas ?? 1}
+              total={meta?.total ?? documentos.length}
+              porPagina={meta?.por_pagina ?? documentos.length}
+              onCambiar={setPagina}
+              etiqueta="documentos"
+            />
           </div>
         </section>
       </div>
