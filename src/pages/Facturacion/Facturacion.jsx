@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
-  AlertCircle, Ban, CheckCircle2, ClipboardList, FilePlus, FileText,
+  AlertCircle, Ban, ClipboardList, FilePlus, FileText,
   Plus, Printer, Receipt, RefreshCw, Trash2, TrendingUp, User,
 } from 'lucide-react';
 
@@ -14,6 +14,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 
+import { useAvisos } from '../../components/Avisos';
 import { useAuth } from '../../context/AuthContext';
 import * as facturacionService from '../../services/facturacionService';
 import * as patientService from '../../services/patientService';
@@ -60,6 +61,7 @@ const formatearFecha = (valor) => {
 
 function Facturacion() {
   const { user } = useAuth();
+  const avisos = useAvisos();
 
   // La historia clínica puede mandar aquí una consulta ya elegida. Se lee del
   // estado de navegación y se limpia enseguida: si se quedara, recargar la
@@ -90,7 +92,6 @@ function Facturacion() {
   const [emitiendo, setEmitiendo] = useState('');
   const [cargandoHistorial, setCargandoHistorial] = useState(false);
   const [error, setError] = useState('');
-  const [aviso, setAviso] = useState('');
   const [aAnular, setAAnular] = useState(null);
   const [motivoAnulacion, setMotivoAnulacion] = useState('');
   const [vistaPrevia, setVistaPrevia] = useState(null);
@@ -231,8 +232,7 @@ function Facturacion() {
    */
   const pedirConfirmacion = (tipo) => {
     setError('');
-    setAviso('');
-
+    
     if (!form.patient_id) return setError('Elija el paciente al que se le cobra.');
     if (renglonesValidos().length === 0) {
       return setError('Agregue al menos un renglón con su descripción.');
@@ -253,8 +253,7 @@ function Facturacion() {
 
   const emitir = async (tipo) => {
     setError('');
-    setAviso('');
-
+    
     const renglones = items
       .filter((i) => i.descripcion.trim() !== '')
       .map((i) => ({
@@ -280,7 +279,7 @@ function Facturacion() {
 
     if (!res.success) return setError(res.message);
 
-    setAviso(res.message);
+    avisos.exito(res.message);
     limpiar();
     setPagina(1);
     cargarHistorial();
@@ -298,7 +297,7 @@ function Facturacion() {
     setMotivoAnulacion('');
 
     if (res.success) {
-      setAviso(res.message);
+      avisos.exito(res.message);
       cargarHistorial();
     } else {
       setError(res.message);
@@ -332,13 +331,6 @@ function Facturacion() {
           <div className="notice notice-danger">
             <span className="notice-body"><AlertCircle size={16} />{error}</span>
             <button type="button" className="btn btn-ghost btn-sm" onClick={() => setError('')}>Cerrar</button>
-          </div>
-        )}
-
-        {aviso && (
-          <div className="notice notice-success">
-            <span className="notice-body"><CheckCircle2 size={16} />{aviso}</span>
-            <button type="button" className="btn btn-ghost btn-sm" onClick={() => setAviso('')}>Cerrar</button>
           </div>
         )}
 
