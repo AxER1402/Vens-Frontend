@@ -698,9 +698,15 @@ h6 {
   transform: translateY(-2px);
 }
 
+/* Dos líneas reservadas para el rótulo: con «Pacientes atendidos» al lado de
+   «Consultas», la etiqueta larga parte en dos y empuja su cifra media línea
+   más abajo que las demás. Reservando el alto, la fila de números queda
+   alineada aunque los rótulos midan distinto. */
 .stat-label {
   font-size: 11px;
   font-weight: 600;
+  line-height: 1.25;
+  min-height: 2.5em;
   color: var(--brand-text-muted);
   text-transform: uppercase;
   letter-spacing: 0.06em;

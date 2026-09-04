@@ -65,51 +65,9 @@
   font-weight: 600;
 }
 
-/* ── Resumen del período ──────────────────────────────────────────────── */
+/* ── Cabecera de las dos familias de documentos ───────────────────────── */
 
-.rp-resumen {
-  display: grid;
-  grid-template-columns: repeat(5, 1fr);
-  gap: 12px;
-}
-
-.rp-sum {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  padding: 14px 16px;
-  background: var(--brand-surface);
-  border: 1px solid var(--hc-line);
-  border-left: 2px solid var(--brand-slate);
-}
-
-.rp-sum-icon {
-  color: var(--brand-slate);
-  line-height: 1;
-  margin-bottom: 4px;
-}
-
-.rp-sum-val {
-  font-size: 22px;
-  font-weight: 700;
-  line-height: 1.1;
-  color: var(--brand-text);
-  font-variant-numeric: tabular-nums;
-}
-
-.rp-sum-label {
-  font-size: 11px;
-  color: var(--brand-text-light);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-}
-
-/* ── Encabezado de sección ────────────────────────────────────────────── */
-
-.rp-seccion {
-  margin-bottom: 0;
-}
-
+/* El contador va al extremo opuesto del título dentro de la cabecera plana */
 .rp-seccion-count {
   margin-left: auto;
   font-size: 11px;
@@ -117,6 +75,16 @@
 }
 
 /* ── Rejilla de reportes ──────────────────────────────────────────────── */
+
+/* Dentro del contenedor solo va la rejilla, así que no hace falta el aire que
+   el cuerpo de sección reserva para separar grupos de campos. */
+.rp-page .hc-section-body {
+  gap: 0;
+}
+
+.rp-page .hc-section {
+  margin-bottom: 0;
+}
 
 .rp-grid {
   display: grid;
@@ -145,15 +113,18 @@
   gap: 10px;
 }
 
+/* El mismo tratamiento que los íconos de las tarjetas del Inicio: recuadro
+   claro con el trazo en azul pizarra, no un bloque macizo. */
 .rp-card-icon {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 32px;
-  height: 32px;
+  width: 34px;
+  height: 34px;
   flex-shrink: 0;
-  color: var(--brand-surface);
-  background: var(--brand-deep);
+  color: var(--brand-slate);
+  background: var(--color-info-bg);
+  border: 1px solid rgba(58, 95, 111, 0.15);
 }
 
 .rp-card-title {
