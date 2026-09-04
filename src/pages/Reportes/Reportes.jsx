@@ -201,7 +201,7 @@ function Reportes() {
       const [reportes, listaPacientes, usuarios] = await Promise.all([
         reporteService.getCatalogoReportes('reportes'),
         patientService.getPatients({}),
-        userService.getUsers(),
+        userService.getMedicos(),
       ]);
 
       if (!vigente) return;

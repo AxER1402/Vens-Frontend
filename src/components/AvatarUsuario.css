@@ -1,0 +1,24 @@
+/* El avatar conserva el degradado de marca que ya tenía el panel lateral: la
+   foto solo sustituye al relleno, no cambia la forma ni el sitio. */
+.avatar-usuario {
+  border-radius: 50%;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.avatar-usuario-iniciales {
+  background: linear-gradient(135deg, var(--brand-slate), var(--brand-deep));
+  color: #F5F3EE;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  line-height: 1;
+  user-select: none;
+}
+
+.avatar-usuario-foto {
+  object-fit: cover;
+  background: var(--brand-surface-deep);
+}

@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
 import { Link, NavLink, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Users, Calendar, Clipboard, BarChart3, Bell, Receipt, Settings, LogOut, UserCog } from 'lucide-react';
+import { LayoutDashboard, Users, Calendar, Clipboard, BarChart3, Bell, Receipt, LogOut, UserCog } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useNotificaciones } from '@/hooks/useNotificaciones';
 import PanelNotificaciones from './PanelNotificaciones';
+import MenuAjustes from './MenuAjustes';
+import AvatarUsuario from '../AvatarUsuario';
 import {
   Sidebar,
   SidebarContent,
@@ -33,13 +35,6 @@ const navItems = [
   { to: '/reportes', icon: BarChart3, label: 'Reportes' },
   { to: '/usuarios', icon: UserCog, label: 'Usuarios', adminOnly: true },
 ];
-
-const getInitials = (name) => {
-  if (!name) return 'US';
-  const parts = name.trim().split(' ');
-  if (parts.length >= 2) return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
-  return name.slice(0, 2).toUpperCase();
-};
 
 function AppSidebar() {
   const { user } = useAuth();
@@ -94,7 +89,11 @@ function AppSidebar() {
 
       <SidebarFooter className="sidebar-footer">
         <div className="sidebar-user">
-          <div className="sidebar-user-avatar">{getInitials(displayName)}</div>
+          <AvatarUsuario
+            nombre={displayName}
+            fotoUrl={user?.foto_url}
+            tamano={34}
+          />
           <div>
             <div className="sidebar-user-name" title={displayName}>{displayName}</div>
             <div className="sidebar-user-role capitalize">{displayRole}</div>
@@ -112,8 +111,9 @@ function Topbar() {
   const [showNotificaciones, setShowNotificaciones] = useState(false);
   const notificaciones = useNotificaciones(isAuthenticated);
 
-  // Cerrar sesión no es inmediato: primero se pregunta, porque el botón queda
-  // junto a los de notificaciones y ajustes y se toca sin querer.
+  // Cerrar sesión no es inmediato: primero se pregunta. Se sale de la opción
+  // del menú de ajustes, que está a un clic de las demás, y un cierre sin
+  // querer cuesta volver a teclear las credenciales y perder lo sin guardar.
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [cerrando, setCerrando] = useState(false);
 
@@ -146,16 +146,7 @@ function Topbar() {
           <Bell size={16} strokeWidth={2} />
           {notificaciones.total > 0 && <span className="notif-dot" />}
         </button>
-        <button className="topbar-notif" title="Ajustes">
-          <Settings size={16} strokeWidth={2} />
-        </button>
-        <button
-          className="topbar-notif"
-          title="Cerrar sesión"
-          onClick={() => setShowLogoutModal(true)}
-        >
-          <LogOut size={16} strokeWidth={2} />
-        </button>
+        <MenuAjustes onCerrarSesion={() => setShowLogoutModal(true)} />
       </div>
 
       <PanelNotificaciones
@@ -175,7 +166,7 @@ function Topbar() {
           querer— y no su aspecto: el recuadro se viste con el sistema plano
           que usan los demás módulos. */}
       <AlertDialog open={showLogoutModal} onOpenChange={setShowLogoutModal}>
-        <AlertDialogContent className="flat-page confirm-box">
+        <AlertDialogContent className="flat-page confirm-box confirm-vidrio" overlayClassName="confirm-fondo">
           <div className="confirm-head">
             <span className="confirm-icon">
               <LogOut size={17} strokeWidth={2} />
