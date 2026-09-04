@@ -3,12 +3,24 @@ import api from './api';
 /**
  * Obtener listado de usuarios
  */
-export const getUsers = async () => {
+export const getUsers = async (params = {}) => {
   try {
-    const response = await api.get('/users');
+    const consulta = {};
+
+    if (params.search?.trim()) consulta.search = params.search.trim();
+    if (params.rol) consulta.rol = params.rol;
+    if (params.activo !== undefined && params.activo !== '') consulta.activo = params.activo;
+
+    if (params.page) {
+      consulta.page = params.page;
+      consulta.per_page = params.perPage ?? 30;
+    }
+
+    const response = await api.get('/users', { params: consulta });
     return {
       success: true,
       data: response.data.data || [],
+      meta: response.data.meta ?? null,
     };
   } catch (error) {
     return {
