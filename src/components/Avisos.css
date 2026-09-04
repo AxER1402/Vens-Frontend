@@ -1,12 +1,17 @@
 /* ======================================
    AVISOS FLOTANTES
 
-   Toman la forma de las tarjetas del sistema —borde fino, sin esquinas
-   redondeadas, filo de color a la izquierda— y solo añaden la pila fija y la
-   entrada.
+   Llevan prefijo propio y no el .av- del panel de notificaciones: los dos
+   viven a la vez en la pantalla y compartir nombres de clase hacía que las
+   reglas de uno se aplicaran al otro.
+
+   Son una lámina de vidrio sobre el contenido, no una tarjeta más: van
+   traslúcidos y con el fondo difuminado, delgados, y sin el filo de color a la
+   izquierda —el color ya lo lleva el ícono y con la franja pesaban como una
+   fila de tabla—.
 ====================================== */
 
-.av-pila {
+.aviso-pila {
   position: fixed;
   top: 18px;
   right: 18px;
@@ -20,23 +25,32 @@
 
 /* La pila no debe interceptar clics sobre lo que hay debajo; cada aviso sí,
    para poder cerrarlo. */
-.av-aviso {
+.aviso-caja {
   pointer-events: auto;
   display: grid;
   grid-template-columns: auto 1fr auto;
-  align-items: start;
+  align-items: center;
   gap: 10px;
-  padding: 12px 12px 12px 14px;
+  padding: 9px 10px 9px 12px;
   background: var(--brand-surface);
   border: 1px solid var(--brand-border-light);
-  border-left: 3px solid var(--brand-slate);
-  box-shadow: 0 8px 24px -12px rgba(36, 55, 87, 0.35);
-  animation: av-entrar 180ms cubic-bezier(0.22, 1, 0.36, 1);
+  box-shadow: 0 10px 30px -14px rgba(36, 55, 87, 0.45);
+  animation: aviso-entrar 180ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* El vidrio solo donde el navegador sabe difuminar. Sin el guard, el aviso
+   quedaría semitransparente sobre el contenido y sería ilegible. */
+@supports (backdrop-filter: blur(2px)) or (-webkit-backdrop-filter: blur(2px)) {
+  .aviso-caja {
+    background: color-mix(in srgb, var(--brand-surface) 82%, transparent);
+    -webkit-backdrop-filter: blur(18px) saturate(150%);
+    backdrop-filter: blur(18px) saturate(150%);
+  }
 }
 
 /* Entra desde el borde por el que aparece, no desde arriba: el movimiento dice
    de dónde viene y a dónde volverá. */
-@keyframes av-entrar {
+@keyframes aviso-entrar {
   from {
     opacity: 0;
     transform: translateX(12px);
@@ -48,47 +62,41 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .av-aviso {
+  .aviso-caja {
     animation: none;
   }
 }
 
-.av-icono {
+/* El color del tipo vive aquí y en ningún otro lado: un ícono basta para
+   distinguir un «listo» de un «no se pudo» sin pintar el aviso entero. */
+.aviso-icono {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding-top: 1px;
   color: var(--brand-slate);
 }
 
-.av-cuerpo {
+.aviso-cuerpo {
   min-width: 0;
 }
 
-.av-titulo {
-  font-size: 10px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.07em;
-  color: var(--brand-text-light);
-}
-
-.av-mensaje {
-  margin-top: 2px;
-  font-size: 13px;
+/* Sin rótulo propio: «LISTO» encima de «Paciente registrado» no añadía nada
+   que el ícono no dijera ya, y costaba una línea de alto. */
+.aviso-mensaje {
+  font-size: 12.5px;
   font-weight: 500;
-  line-height: 1.4;
+  line-height: 1.35;
   color: var(--brand-text);
 }
 
-.av-detalle {
+.aviso-detalle {
   margin-top: 3px;
   font-size: 11px;
   line-height: 1.5;
   color: var(--brand-text-muted);
 }
 
-.av-cerrar {
+.aviso-cerrar {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -101,7 +109,7 @@
   transition: all var(--t-fast);
 }
 
-.av-cerrar:hover {
+.aviso-cerrar:hover {
   background: var(--brand-surface-deep);
   border-color: var(--brand-border-light);
   color: var(--brand-text);
@@ -109,18 +117,10 @@
 
 /* ── Tipos ────────────────────────────────────────────────────────────── */
 
-.av-exito {
-  border-left-color: var(--color-success);
-}
-
-.av-exito .av-icono {
+.aviso-exito .aviso-icono {
   color: var(--color-success);
 }
 
-.av-error {
-  border-left-color: var(--color-danger);
-}
-
-.av-error .av-icono {
+.aviso-error .aviso-icono {
   color: var(--color-danger);
 }

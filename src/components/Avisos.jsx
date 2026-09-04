@@ -31,12 +31,6 @@ const ICONOS = {
   info: Info,
 };
 
-const TITULOS = {
-  exito: 'Listo',
-  error: 'No se pudo',
-  info: 'Aviso',
-};
-
 export function AvisosProvider({ children }) {
   const [avisos, setAvisos] = useState([]);
   const relojes = useRef(new Map());
@@ -84,23 +78,22 @@ export function AvisosProvider({ children }) {
 
       {/* aria-live para que un lector de pantalla lo anuncie sin robar el foco:
           el aviso informa de algo que ya pasó, no pide nada. */}
-      <div className="av-pila" role="status" aria-live="polite">
+      <div className="aviso-pila" role="status" aria-live="polite">
         {avisos.map((aviso) => {
           const Icono = ICONOS[aviso.tipo] ?? Info;
 
           return (
-            <div key={aviso.id} className={`av-aviso av-${aviso.tipo}`}>
-              <span className="av-icono"><Icono size={16} /></span>
+            <div key={aviso.id} className={`aviso-caja av-${aviso.tipo}`}>
+              <span className="aviso-icono"><Icono size={16} /></span>
 
-              <div className="av-cuerpo">
-                <p className="av-titulo">{TITULOS[aviso.tipo]}</p>
-                <p className="av-mensaje">{aviso.mensaje}</p>
-                {aviso.detalle && <p className="av-detalle">{aviso.detalle}</p>}
+              <div className="aviso-cuerpo">
+                <p className="aviso-mensaje">{aviso.mensaje}</p>
+                {aviso.detalle && <p className="aviso-detalle">{aviso.detalle}</p>}
               </div>
 
               <button
                 type="button"
-                className="av-cerrar"
+                className="aviso-cerrar"
                 aria-label="Cerrar aviso"
                 onClick={() => retirar(aviso.id)}
               >

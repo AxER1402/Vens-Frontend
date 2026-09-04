@@ -21,9 +21,6 @@ function Aviso({ aviso, mostrarMedico, onDescartar }) {
     <li className="av-item">
       <div>
         <div className="av-hora">{aviso.hora}</div>
-        {aviso.estado !== 'Programada' && (
-          <span className="av-estado">{aviso.estado}</span>
-        )}
       </div>
 
       <div>
@@ -33,8 +30,14 @@ function Aviso({ aviso, mostrarMedico, onDescartar }) {
 
         {aviso.motivo && <p className="av-motivo">{aviso.motivo}</p>}
 
-        {(aviso.paciente?.telefono || (mostrarMedico && aviso.medico?.name)) && (
+        {(aviso.estado !== 'Programada' || aviso.paciente?.telefono
+          || (mostrarMedico && aviso.medico?.name)) && (
           <div className="av-datos">
+            {/* El estado va aquí y no bajo la hora: «CONFIRMADA» no cabe en el
+                ancho de una hora y se partía por la mitad. */}
+            {aviso.estado !== 'Programada' && (
+              <span className="av-estado">{aviso.estado}</span>
+            )}
             {aviso.paciente?.telefono && (
               <span className="av-dato">
                 <Phone size={12} />

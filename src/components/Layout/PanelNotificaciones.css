@@ -146,13 +146,20 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* Etiqueta dentro de la fila de datos. Debajo de la hora no cabía: la columna
+   mide lo que mide una hora y «CONFIRMADA» se partía por la mitad. */
 .av-estado {
-  display: block;
-  margin-top: 2px;
-  font-size: 10px;
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 6px;
+  background: var(--brand-surface-deep);
+  border: 1px solid var(--brand-border-light);
+  font-size: 9.5px;
+  font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  color: var(--brand-text-light);
+  white-space: nowrap;
+  color: var(--brand-text-muted);
 }
 
 .av-paciente {

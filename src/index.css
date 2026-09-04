@@ -1625,13 +1625,18 @@ select.form-control {
    pone el CSS y no utilidades sueltas, para que se mida igual que el resto de
    los módulos planos. */
 /* El recuadro llega con el relleno y las esquinas del componente del registro;
-   aquí se le quitan para que se mida y se vea como los demás módulos planos. */
+   aquí se le quitan para que se mida y se vea como los demás módulos planos.
+   El ancho también: el del registro son 24rem, y una confirmación de tres
+   salidas —seguir, salir sin guardar, guardar y salir— no cabe en ese ancho y
+   los botones se salían de la caja. */
 .confirm-box {
   padding: 0;
   gap: 0;
   border-radius: 0;
   background: var(--brand-surface);
   border-color: var(--brand-border-light);
+  width: min(calc(100vw - 32px), 30rem);
+  max-width: min(calc(100vw - 32px), 30rem);
 }
 
 .confirm-head {
@@ -1673,11 +1678,18 @@ select.form-control {
   color: var(--brand-text);
 }
 
+/* Se envuelven antes de desbordarse: en una pantalla estrecha tres botones no
+   entran en una línea, y salirse de la caja es peor que bajar de renglón. */
 .confirm-actions {
   display: flex;
   justify-content: flex-end;
-  gap: 12px;
+  flex-wrap: wrap;
+  gap: 10px;
   margin: 20px 24px 22px;
+}
+
+.confirm-actions .btn {
+  flex-shrink: 0;
 }
 
 /* Filas clave/valor del diálogo de detalle */
