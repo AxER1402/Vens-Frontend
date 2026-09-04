@@ -56,6 +56,30 @@ export const reporteHistoriaClinica = (historiaId, { partes } = {}) => {
 };
 
 /**
+ * Documento de cobro: el recibo o la factura que se le entrega al paciente.
+ *
+ * @param {{id: number, tipo: string, serie: string, numero: number, estado?: string, fel_estado?: string}} documento
+ */
+export const reporteDocumentoCobro = (documento) => {
+  const esFactura = documento.tipo === 'factura';
+  const anulado = documento.estado === 'Anulada';
+  const sinCertificar = esFactura && documento.fel_estado !== 'Certificada';
+
+  return {
+    clave: `cobro-${documento.id}`,
+    titulo: `${esFactura ? 'Factura' : 'Recibo'} ${documento.serie}-${documento.numero}`,
+    descripcion: anulado
+      ? 'Documento anulado: se imprime para el archivo, con la leyenda encima.'
+      : sinCertificar
+      ? 'Factura registrada y pendiente de certificar ante la SAT.'
+      : 'Detalle de lo cobrado, con el IVA desglosado.',
+    ruta: `/invoices/${documento.id}/reporte`,
+    params: {},
+    formatos: ['pdf', 'docx'],
+  };
+};
+
+/**
  * Mapeo venoso de una consulta. Solo PDF: es una lámina a escala con su
  * leyenda, y en Word la imagen se convierte en un objeto flotante que se
  * desplaza al primer retoque y pierde la proporción con la que se imprime.

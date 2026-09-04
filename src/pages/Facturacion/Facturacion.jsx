@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   AlertCircle, Ban, CheckCircle2, ClipboardList, FilePlus, FileText,
-  Plus, Receipt, RefreshCw, Trash2, User,
+  Plus, Printer, Receipt, RefreshCw, Trash2, User,
 } from 'lucide-react';
 
 import Layout from '../../components/Layout/Layout';
@@ -17,6 +17,8 @@ import { useAuth } from '../../context/AuthContext';
 import * as facturacionService from '../../services/facturacionService';
 import * as patientService from '../../services/patientService';
 import * as clinicalHistoryService from '../../services/clinicalHistoryService';
+import { reporteDocumentoCobro } from '../../services/reporteService';
+import VistaPreviaReporte from '../../components/Reportes/VistaPreviaReporte';
 import './Facturacion.css';
 
 const { quetzales } = facturacionService;
@@ -81,6 +83,7 @@ function Facturacion() {
   const [aviso, setAviso] = useState('');
   const [aAnular, setAAnular] = useState(null);
   const [motivoAnulacion, setMotivoAnulacion] = useState('');
+  const [vistaPrevia, setVistaPrevia] = useState(null);
 
   /* ── Carga inicial ────────────────────────────────────────────────────── */
 
@@ -201,6 +204,10 @@ function Facturacion() {
     setAviso(res.message);
     limpiar();
     cargarHistorial();
+
+    // Se abre solo: emitir un recibo y tener que ir a buscarlo al historial
+    // para imprimirlo deja el trabajo a medias.
+    setVistaPrevia(reporteDocumentoCobro(res.data));
   };
 
   const confirmarAnulacion = async () => {
@@ -522,16 +529,26 @@ function Facturacion() {
                           )}
                         </td>
                         <td className="fa-num">
-                          {puedeCobrar && doc.estado !== 'Anulada' && (
+                          <div className="fa-acciones">
                             <button
                               type="button"
                               className="btn btn-ghost btn-sm"
-                              title="Anular documento"
-                              onClick={() => { setAAnular(doc); setMotivoAnulacion(''); }}
+                              title="Ver e imprimir"
+                              onClick={() => setVistaPrevia(reporteDocumentoCobro(doc))}
                             >
-                              <Ban size={14} />
+                              <Printer size={14} />
                             </button>
-                          )}
+                            {puedeCobrar && doc.estado !== 'Anulada' && (
+                              <button
+                                type="button"
+                                className="btn btn-ghost btn-sm"
+                                title="Anular documento"
+                                onClick={() => { setAAnular(doc); setMotivoAnulacion(''); }}
+                              >
+                                <Ban size={14} />
+                              </button>
+                            )}
+                          </div>
                         </td>
                       </tr>
                     ))}
@@ -542,6 +559,8 @@ function Facturacion() {
           </div>
         </section>
       </div>
+
+      <VistaPreviaReporte reporte={vistaPrevia} onCerrar={() => setVistaPrevia(null)} />
 
       {/* ── Confirmar anulación ────────────────────────────────────────── */}
       <AlertDialog open={aAnular !== null} onOpenChange={(abierto) => { if (!abierto) setAAnular(null); }}>
