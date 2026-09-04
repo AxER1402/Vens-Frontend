@@ -178,6 +178,14 @@
 
 /* ── Historial ────────────────────────────────────────────────────────── */
 
+/* Los dos botones de la fila, juntos y a la derecha */
+.fa-acciones {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+}
+
 .fa-correlativo {
   display: block;
   font-weight: 600;
