@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { Link, NavLink, useNavigate } from 'react-router-dom';
 import { LayoutDashboard, Users, Calendar, Clipboard, BarChart3, Bell, Receipt, Settings, LogOut, UserCog } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import { useNotificaciones } from '@/hooks/useNotificaciones';
+import PanelNotificaciones from './PanelNotificaciones';
 import {
   Sidebar,
   SidebarContent,
@@ -110,7 +112,10 @@ function AppSidebar() {
 
 function Topbar() {
   const navigate = useNavigate();
-  const { logoutUser, user } = useAuth();
+  const { logoutUser, user, isAuthenticated } = useAuth();
+
+  const [showNotificaciones, setShowNotificaciones] = useState(false);
+  const notificaciones = useNotificaciones(isAuthenticated);
 
   // Cerrar sesión no es inmediato: primero se pregunta, porque el botón queda
   // junto a los de notificaciones y ajustes y se toca sin querer.
@@ -137,9 +142,18 @@ function Topbar() {
       <div className="topbar-left"></div>
       <div className="topbar-right">
         <span className="topbar-date">{today}</span>
-        <button className="topbar-notif" title="Notificaciones" style={{ position: 'relative' }}>
+        <button
+          className="topbar-notif"
+          title="Notificaciones"
+          style={{ position: 'relative' }}
+          onClick={() => setShowNotificaciones(true)}
+        >
           <Bell size={16} strokeWidth={2} />
-          <span className="notif-dot"></span>
+          {notificaciones.total > 0 && (
+            <span className="notif-count">
+              {notificaciones.total > 9 ? '9+' : notificaciones.total}
+            </span>
+          )}
         </button>
         <button className="topbar-notif" title="Ajustes">
           <Settings size={16} strokeWidth={2} />
@@ -152,6 +166,17 @@ function Topbar() {
           <LogOut size={16} strokeWidth={2} />
         </button>
       </div>
+
+      <PanelNotificaciones
+        abierto={showNotificaciones}
+        onOpenChange={setShowNotificaciones}
+        avisos={notificaciones.avisos}
+        cargando={notificaciones.cargando}
+        error={notificaciones.error}
+        onDescartar={notificaciones.descartar}
+        onDescartarTodos={notificaciones.descartarTodos}
+        mostrarMedico={user?.rol !== 'medico'}
+      />
 
       {/* ================= CONFIRMAR CIERRE DE SESIÓN ================= */}
       {/* AlertDialog y no Dialog: no se descarta tocando fuera del recuadro,
