@@ -1496,7 +1496,7 @@ function HistoriaClinica() {
                 navigate(destino);
               }}
             >
-              {saving ? 'Guardando…' : 'Guardar borrador y salir'}
+              {saving ? 'Guardando…' : 'Guardar y salir'}
             </button>
           </div>
         </AlertDialogContent>
