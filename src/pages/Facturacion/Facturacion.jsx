@@ -1,209 +1,586 @@
-import { useState } from 'react';
-import Layout from '../../components/Layout/Layout';
-import { FileText, Search, CreditCard, DollarSign, CheckCircle, FilePlus, User } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import {
+  AlertCircle, Ban, CheckCircle2, ClipboardList, FilePlus, FileText,
+  Plus, Receipt, RefreshCw, Trash2, User,
+} from 'lucide-react';
 
-const PATIENTS = [
-  { id: 'P-001', nombre: 'Ana García López',   rfc: 'GALA850312XXX', cp: '01000' },
-  { id: 'P-002', nombre: 'Carlos Méndez Ruiz', rfc: 'MERC780725YYY', cp: '11000' },
-  { id: 'P-003', nombre: 'María Velásquez',     rfc: 'VEM921108ZZZ',  cp: '54000' },
+import Layout from '../../components/Layout/Layout';
+import { Combobox } from '@/components/ui/combobox';
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+
+import { useAuth } from '../../context/AuthContext';
+import * as facturacionService from '../../services/facturacionService';
+import * as patientService from '../../services/patientService';
+import * as clinicalHistoryService from '../../services/clinicalHistoryService';
+import './Facturacion.css';
+
+const { quetzales } = facturacionService;
+
+const METODOS_PAGO = ['Efectivo', 'Tarjeta de débito', 'Tarjeta de crédito', 'Transferencia', 'Cheque'];
+
+/** Lo que más se cobra, para no escribirlo cada vez. */
+const SUGERENCIAS = [
+  { descripcion: 'Consulta de flebología', precio: 350 },
+  { descripcion: 'Sesión de escleroterapia', precio: 600 },
+  { descripcion: 'Estudio de Ecodöppler venoso', precio: 450 },
+  { descripcion: 'Medias de compresión', precio: 400, tipo: 'B' },
 ];
 
+const renglonVacio = () => ({
+  clave: `r-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+  tipo: 'S',
+  descripcion: '',
+  cantidad: '1',
+  precio_unitario: '',
+  descuento: '',
+});
+
+const aNumero = (valor) => {
+  const n = Number(String(valor).replace(',', '.'));
+  return Number.isFinite(n) ? n : 0;
+};
+
+const formatearFecha = (valor) => {
+  if (!valor) return '—';
+  const fecha = new Date(`${String(valor).slice(0, 10)}T00:00:00`);
+  return Number.isNaN(fecha.getTime())
+    ? valor
+    : fecha.toLocaleDateString('es-GT', { day: '2-digit', month: 'short', year: 'numeric' });
+};
+
 function Facturacion() {
-  const [patientId, setPatientId] = useState('');
-  const [patient, setPatient] = useState(null);
+  const { user } = useAuth();
+
+  // Cobrar y anular los hace quien está en el mostrador. El médico entra a
+  // consultar, y por eso no ve botones que el servidor le va a rechazar.
+  const puedeCobrar = user?.rol === 'administrador' || user?.rol === 'recepcionista';
+
+  const [pacientes, setPacientes] = useState([]);
+  const [consultas, setConsultas] = useState([]);
+  const [documentos, setDocumentos] = useState([]);
+
   const [form, setForm] = useState({
-    concepto: 'Consulta Médica de Especialidad (Angiología)',
-    monto: '1200.00',
-    metodoPago: '01 - Efectivo',
-    usoCfdi: 'G03 - Gastos en general',
-    regimen: '601 - General de Ley Personas Morales'
+    patient_id: '',
+    clinical_history_id: '',
+    nit_receptor: 'CF',
+    nombre_receptor: '',
+    direccion_receptor: '',
+    metodo_pago: 'Efectivo',
+    observaciones: '',
   });
-  
-  const [status, setStatus] = useState(null); // 'sat_success' | 'internal_success'
+  const [items, setItems] = useState([renglonVacio()]);
 
-  const handlePatientSelect = (e) => {
-    const pId = e.target.value;
-    setPatientId(pId);
-    setPatient(PATIENTS.find(p => p.id === pId) || null);
-    setStatus(null);
+  const [emitiendo, setEmitiendo] = useState('');
+  const [cargandoHistorial, setCargandoHistorial] = useState(false);
+  const [error, setError] = useState('');
+  const [aviso, setAviso] = useState('');
+  const [aAnular, setAAnular] = useState(null);
+  const [motivoAnulacion, setMotivoAnulacion] = useState('');
+
+  /* ── Carga inicial ────────────────────────────────────────────────────── */
+
+  useEffect(() => {
+    (async () => {
+      const res = await patientService.getPatients();
+      if (res.success) {
+        setPacientes(res.data.map((p) => ({ value: String(p.id), label: p.nombre, telefono: p.telefono })));
+      }
+    })();
+  }, []);
+
+  const cargarHistorial = useCallback(async () => {
+    setCargandoHistorial(true);
+    const res = await facturacionService.getInvoices({ incluir_anuladas: 1 });
+    if (res.success) setDocumentos(res.data);
+    setCargandoHistorial(false);
+  }, []);
+
+  useEffect(() => { cargarHistorial(); }, [cargarHistorial]);
+
+  /* Las consultas del paciente elegido: son las que se pueden cobrar. */
+  useEffect(() => {
+    if (!form.patient_id) {
+      setConsultas([]);
+      return;
+    }
+
+    (async () => {
+      const res = await clinicalHistoryService.getClinicalHistoriesByPatient(form.patient_id);
+      setConsultas(res.success ? res.data : []);
+    })();
+  }, [form.patient_id]);
+
+  /* ── Cuentas ──────────────────────────────────────────────────────────── */
+
+  /* El servidor vuelve a hacer estas cuentas y su resultado es el que manda;
+     esto es solo para que quien cobra vea el total antes de emitir. */
+  const cuentas = useMemo(() => {
+    let subtotal = 0;
+    let descuento = 0;
+
+    for (const item of items) {
+      subtotal += aNumero(item.cantidad) * aNumero(item.precio_unitario);
+      descuento += aNumero(item.descuento);
+    }
+
+    const total = Math.max(0, subtotal - descuento);
+    const base = total / 1.12;
+
+    return { subtotal, descuento, total, iva: total - base };
+  }, [items]);
+
+  /* ── Renglones ────────────────────────────────────────────────────────── */
+
+  const cambiarItem = (clave, campo, valor) =>
+    setItems((prev) => prev.map((i) => (i.clave === clave ? { ...i, [campo]: valor } : i)));
+
+  const agregarItem = (sugerencia) =>
+    setItems((prev) => [...prev, {
+      ...renglonVacio(),
+      descripcion: sugerencia?.descripcion ?? '',
+      precio_unitario: sugerencia ? String(sugerencia.precio) : '',
+      tipo: sugerencia?.tipo ?? 'S',
+    }]);
+
+  const quitarItem = (clave) =>
+    setItems((prev) => (prev.length === 1 ? [renglonVacio()] : prev.filter((i) => i.clave !== clave)));
+
+  /* ── Emisión ──────────────────────────────────────────────────────────── */
+
+  const elegirPaciente = (id) => {
+    const paciente = pacientes.find((p) => p.value === id);
+    setForm((prev) => ({
+      ...prev,
+      patient_id: id,
+      clinical_history_id: '',
+      nombre_receptor: paciente?.label ?? prev.nombre_receptor,
+    }));
   };
 
-  const ch = (e) => {
-    const { name, value } = e.target;
-    setForm(p => ({ ...p, [name]: value }));
+  const limpiar = () => {
+    setForm({
+      patient_id: '', clinical_history_id: '', nit_receptor: 'CF',
+      nombre_receptor: '', direccion_receptor: '', metodo_pago: 'Efectivo', observaciones: '',
+    });
+    setItems([renglonVacio()]);
   };
 
-  const handleSat = () => {
-    setStatus('sat_success');
+  const emitir = async (tipo) => {
+    setError('');
+    setAviso('');
+
+    const renglones = items
+      .filter((i) => i.descripcion.trim() !== '')
+      .map((i) => ({
+        tipo: i.tipo,
+        descripcion: i.descripcion.trim(),
+        cantidad: aNumero(i.cantidad),
+        precio_unitario: aNumero(i.precio_unitario),
+        descuento: aNumero(i.descuento),
+      }));
+
+    if (!form.patient_id) return setError('Elija el paciente al que se le cobra.');
+    if (renglones.length === 0) return setError('Agregue al menos un renglón con su descripción.');
+
+    setEmitiendo(tipo);
+    const res = await facturacionService.emitirInvoice({
+      ...form,
+      clinical_history_id: form.clinical_history_id || null,
+      tipo,
+      items: renglones,
+    });
+    setEmitiendo('');
+
+    if (!res.success) return setError(res.message);
+
+    setAviso(res.message);
+    limpiar();
+    cargarHistorial();
   };
 
-  const handleInternal = () => {
-    setStatus('internal_success');
+  const confirmarAnulacion = async () => {
+    if (!motivoAnulacion.trim()) return;
+
+    const res = await facturacionService.anularInvoice(aAnular.id, motivoAnulacion.trim());
+    setAAnular(null);
+    setMotivoAnulacion('');
+
+    if (res.success) {
+      setAviso(res.message);
+      cargarHistorial();
+    } else {
+      setError(res.message);
+    }
   };
+
+  const opcionesConsulta = consultas.map((c) => ({
+    value: String(c.id),
+    label: `Consulta del ${formatearFecha(c.fecha_consulta)}`,
+  }));
 
   return (
     <Layout breadcrumb="Facturación">
-      <div className="page-header">
-        <div>
-          <h1 className="page-title">Facturación y Cobranza</h1>
-          <p className="page-subtitle">Emisión de comprobantes fiscales (CFDI) y recibos internos</p>
-        </div>
-        <div className="page-actions">
-          <button className="btn btn-secondary">
-            <FileText size={16} /> Ver Historial
-          </button>
-        </div>
-      </div>
-
-      <div className="hc-layout">
-        
-        {/* Lado izquierdo: Buscador de pacientes y resumen */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-          <div className="card-base" style={{ padding: '24px' }}>
-            <div className="section-header">
-              <span className="section-bar"></span>
-              <span className="section-title">Datos del Paciente</span>
-            </div>
-            
-            <div className="form-group mb-4">
-              <label className="form-label">Buscar paciente</label>
-              <div className="search-wrap">
-                <Search className="search-icon-inner" />
-                <select className="form-control" value={patientId} onChange={handlePatientSelect}>
-                  <option value="">Seleccionar paciente...</option>
-                  {PATIENTS.map(p => (
-                    <option key={p.id} value={p.id}>{p.nombre}</option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            {patient && (
-              <div style={{ background: 'var(--brand-surface-alt)', padding: '16px', borderRadius: '12px', border: '1px solid var(--brand-border)' }}>
-                <div className="flex items-center gap-3 mb-2">
-                  <div style={{ width: 40, height: 40, borderRadius: '50%', background: 'var(--brand-tertiary)', color: '#0D401C', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    <User size={20} />
-                  </div>
-                  <div>
-                    <div style={{ fontWeight: 700, color: 'var(--brand-text)' }}>{patient.nombre}</div>
-                    <div style={{ fontSize: 12, color: 'var(--brand-text-muted)' }}>ID: {patient.id}</div>
-                  </div>
-                </div>
-                <div style={{ marginTop: 12, fontSize: 13 }}>
-                  <div className="flex justify-between mb-1">
-                    <span className="text-muted">RFC:</span>
-                    <span className="text-medium">{patient.rfc}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted">C.P.:</span>
-                    <span className="text-medium">{patient.cp}</span>
-                  </div>
-                </div>
-              </div>
-            )}
-            {!patient && (
-              <div className="empty-state" style={{ padding: '32px' }}>
-                <div className="empty-icon"><Search size={32} /></div>
-                <p>Seleccione un paciente para facturar</p>
-              </div>
-            )}
+      <div className="flat-page fa-page">
+        <div className="page-header">
+          <div>
+            <h1 className="page-title">Facturación</h1>
+            <p className="page-subtitle">
+              Recibos internos y facturas electrónicas, en quetzales y con el IVA incluido en el precio.
+            </p>
+          </div>
+          <div className="page-actions">
+            <button type="button" className="btn btn-secondary" onClick={cargarHistorial} disabled={cargandoHistorial}>
+              <RefreshCw size={15} className={cargandoHistorial ? 'animate-spin' : ''} />
+              Actualizar
+            </button>
           </div>
         </div>
 
-        {/* Lado derecho: Formulario de cobro */}
-        <div>
-          <div className="card-base" style={{ padding: '24px', opacity: patient ? 1 : 0.5, pointerEvents: patient ? 'auto' : 'none' }}>
-            <div className="section-header">
-              <span className="section-bar"></span>
-              <span className="section-title">Detalles del Comprobante</span>
-            </div>
+        {error && (
+          <div className="notice notice-danger">
+            <span className="notice-body"><AlertCircle size={16} />{error}</span>
+            <button type="button" className="btn btn-ghost btn-sm" onClick={() => setError('')}>Cerrar</button>
+          </div>
+        )}
 
-            <div className="hc-grid-2 mb-4">
-              <div className="form-group">
-                <label className="form-label">Concepto <span className="req">*</span></label>
-                <input name="concepto" className="form-control" value={form.concepto} onChange={ch} />
-              </div>
-              <div className="form-group">
-                <label className="form-label">Monto (MXN) <span className="req">*</span></label>
-                <div className="search-wrap">
-                  <DollarSign className="search-icon-inner" />
-                  <input name="monto" type="number" step="0.01" className="form-control" value={form.monto} onChange={ch} />
-                </div>
-              </div>
-            </div>
+        {aviso && (
+          <div className="notice notice-success">
+            <span className="notice-body"><CheckCircle2 size={16} />{aviso}</span>
+            <button type="button" className="btn btn-ghost btn-sm" onClick={() => setAviso('')}>Cerrar</button>
+          </div>
+        )}
 
-            <div className="hc-grid-3 mb-6">
-              <div className="form-group">
-                <label className="form-label">Método de Pago</label>
-                <select name="metodoPago" className="form-control" value={form.metodoPago} onChange={ch}>
-                  <option>01 - Efectivo</option>
-                  <option>03 - Transferencia electrónica</option>
-                  <option>04 - Tarjeta de crédito</option>
-                  <option>28 - Tarjeta de débito</option>
+        {/* ── A quién se le cobra ──────────────────────────────────────── */}
+        <section className="hc-section">
+          <div className="hc-section-head">
+            <User size={14} />
+            <h2 className="hc-section-title">A quién se le cobra</h2>
+          </div>
+          <div className="hc-section-body">
+            <div className="fa-grid">
+              <div className="hc-field">
+                <label className="hc-field-label">Paciente</label>
+                <Combobox
+                  items={pacientes}
+                  value={form.patient_id}
+                  onChange={elegirPaciente}
+                  placeholder="Seleccione un paciente…"
+                  searchPlaceholder="Buscar por nombre…"
+                  icon={<User size={15} />}
+                />
+              </div>
+
+              <div className="hc-field">
+                <label className="hc-field-label">
+                  Consulta que se cobra <span className="fa-opcional">opcional</span>
+                </label>
+                <Combobox
+                  items={opcionesConsulta}
+                  value={form.clinical_history_id}
+                  onChange={(v) => setForm((p) => ({ ...p, clinical_history_id: v }))}
+                  placeholder={form.patient_id ? 'Sin consulta asociada' : 'Elija primero un paciente'}
+                  searchPlaceholder="Buscar consulta…"
+                  icon={<ClipboardList size={15} />}
+                />
+              </div>
+
+              <div className="hc-field">
+                <label className="hc-field-label">
+                  NIT <span className="fa-opcional">CF si no lo da</span>
+                </label>
+                <input
+                  className="form-control"
+                  value={form.nit_receptor}
+                  onChange={(e) => setForm((p) => ({ ...p, nit_receptor: e.target.value }))}
+                  placeholder="CF"
+                />
+              </div>
+
+              <div className="hc-field">
+                <label className="hc-field-label">Nombre en el documento</label>
+                <input
+                  className="form-control"
+                  value={form.nombre_receptor}
+                  onChange={(e) => setForm((p) => ({ ...p, nombre_receptor: e.target.value }))}
+                  placeholder="Nombre del receptor"
+                />
+              </div>
+
+              <div className="hc-field">
+                <label className="hc-field-label">Dirección</label>
+                <input
+                  className="form-control"
+                  value={form.direccion_receptor}
+                  onChange={(e) => setForm((p) => ({ ...p, direccion_receptor: e.target.value }))}
+                  placeholder="Ciudad"
+                />
+              </div>
+
+              <div className="hc-field">
+                <label className="hc-field-label">Método de pago</label>
+                <select
+                  className="form-control"
+                  value={form.metodo_pago}
+                  onChange={(e) => setForm((p) => ({ ...p, metodo_pago: e.target.value }))}
+                >
+                  {METODOS_PAGO.map((m) => <option key={m} value={m}>{m}</option>)}
                 </select>
               </div>
-              <div className="form-group">
-                <label className="form-label">Uso de CFDI</label>
-                <select name="usoCfdi" className="form-control" value={form.usoCfdi} onChange={ch}>
-                  <option>G03 - Gastos en general</option>
-                  <option>D01 - Honorarios médicos, dentales y gastos hospitalarios</option>
-                  <option>P01 - Por definir</option>
-                </select>
-              </div>
-              <div className="form-group">
-                <label className="form-label">Régimen Fiscal</label>
-                <select name="regimen" className="form-control" value={form.regimen} onChange={ch}>
-                  <option>601 - General de Ley Personas Morales</option>
-                  <option>612 - Personas Físicas con Actividades Empresariales y Profesionales</option>
-                  <option>626 - Régimen Simplificado de Confianza</option>
-                </select>
-              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* ── Qué se cobra ─────────────────────────────────────────────── */}
+        <section className="hc-section">
+          <div className="hc-section-head">
+            <Receipt size={14} />
+            <h2 className="hc-section-title">Qué se cobra</h2>
+            <span className="fa-head-nota">{items.length} renglón(es)</span>
+          </div>
+          <div className="hc-section-body">
+            <div className="table-wrap">
+              <table className="data-table fa-tabla">
+                <thead>
+                  <tr>
+                    <th>Descripción</th>
+                    <th className="fa-num">Cantidad</th>
+                    <th className="fa-num">Precio</th>
+                    <th className="fa-num">Descuento</th>
+                    <th className="fa-num">Total</th>
+                    <th />
+                  </tr>
+                </thead>
+                <tbody>
+                  {items.map((item) => {
+                    const total = aNumero(item.cantidad) * aNumero(item.precio_unitario) - aNumero(item.descuento);
+
+                    return (
+                      <tr key={item.clave}>
+                        <td>
+                          <input
+                            className="form-control"
+                            value={item.descripcion}
+                            onChange={(e) => cambiarItem(item.clave, 'descripcion', e.target.value)}
+                            placeholder="Consulta, sesión, material…"
+                          />
+                        </td>
+                        <td className="fa-num">
+                          <input
+                            className="form-control fa-control-num"
+                            value={item.cantidad}
+                            onChange={(e) => cambiarItem(item.clave, 'cantidad', e.target.value)}
+                            inputMode="decimal"
+                          />
+                        </td>
+                        <td className="fa-num">
+                          <input
+                            className="form-control fa-control-num"
+                            value={item.precio_unitario}
+                            onChange={(e) => cambiarItem(item.clave, 'precio_unitario', e.target.value)}
+                            inputMode="decimal"
+                            placeholder="0.00"
+                          />
+                        </td>
+                        <td className="fa-num">
+                          <input
+                            className="form-control fa-control-num"
+                            value={item.descuento}
+                            onChange={(e) => cambiarItem(item.clave, 'descuento', e.target.value)}
+                            inputMode="decimal"
+                            placeholder="0.00"
+                          />
+                        </td>
+                        <td className="fa-num fa-total-fila">{quetzales(Math.max(0, total))}</td>
+                        <td className="fa-num">
+                          <button
+                            type="button"
+                            className="btn btn-ghost btn-sm"
+                            title="Quitar renglón"
+                            onClick={() => quitarItem(item.clave)}
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
             </div>
 
-            {/* Acciones de Facturación */}
-            <div style={{ display: 'flex', gap: '16px', paddingTop: '24px', borderTop: '1px solid var(--brand-border)' }}>
-              <button 
-                className="btn btn-primary btn-lg" 
-                style={{ flex: 1 }}
-                onClick={handleSat}
-              >
-                <FilePlus size={18} />
-                Generar Factura CFDI (SAT)
+            <div className="fa-atajos">
+              <button type="button" className="btn btn-secondary btn-sm" onClick={() => agregarItem()}>
+                <Plus size={14} /> Agregar renglón
               </button>
-              <button 
-                className="btn btn-secondary btn-lg"
-                style={{ flex: 1 }}
-                onClick={handleInternal}
-              >
-                <CreditCard size={18} />
-                Generar Recibo Interno (Sin SAT)
-              </button>
+              <span className="fa-atajos-sep">o lo de siempre:</span>
+              {SUGERENCIAS.map((s) => (
+                <button
+                  key={s.descripcion}
+                  type="button"
+                  className="btn btn-ghost btn-sm"
+                  onClick={() => agregarItem(s)}
+                >
+                  {s.descripcion}
+                </button>
+              ))}
             </div>
 
-            {/* Estados de éxito */}
-            {status === 'sat_success' && (
-              <div style={{ marginTop: '24px', padding: '16px', background: 'rgba(167, 238, 179, 0.1)', border: '1px solid rgba(167, 238, 179, 0.3)', borderRadius: '12px', display: 'flex', alignItems: 'center', gap: '12px', color: 'var(--brand-tertiary)' }}>
-                <CheckCircle size={24} />
-                <div>
-                  <div style={{ fontWeight: 700 }}>Factura CFDI Generada Exitosamente</div>
-                  <div style={{ fontSize: 13, opacity: 0.8 }}>Folio Fiscal (UUID): 12345678-ABCD-1234-ABCD-1234567890AB</div>
-                </div>
+            <div className="fa-cuentas">
+              <div className="fa-cuenta"><span>Subtotal</span><strong>{quetzales(cuentas.subtotal)}</strong></div>
+              <div className="fa-cuenta"><span>Descuento</span><strong>−{quetzales(cuentas.descuento)}</strong></div>
+              <div className="fa-cuenta fa-cuenta-iva">
+                <span>IVA 12% incluido</span><strong>{quetzales(cuentas.iva)}</strong>
               </div>
-            )}
+              <div className="fa-cuenta fa-cuenta-total"><span>Total a pagar</span><strong>{quetzales(cuentas.total)}</strong></div>
+            </div>
 
-            {status === 'internal_success' && (
-              <div style={{ marginTop: '24px', padding: '16px', background: 'rgba(167, 227, 238, 0.1)', border: '1px solid rgba(167, 227, 238, 0.3)', borderRadius: '12px', display: 'flex', alignItems: 'center', gap: '12px', color: 'var(--brand-secondary)' }}>
-                <CheckCircle size={24} />
-                <div>
-                  <div style={{ fontWeight: 700 }}>Recibo Interno Generado</div>
-                  <div style={{ fontSize: 13, opacity: 0.8 }}>Folio Interno: REC-2026-0042. Este recibo no tiene validez fiscal.</div>
-                </div>
+            <div className="fa-emitir">
+              {puedeCobrar ? (
+                <>
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    onClick={() => emitir('recibo')}
+                    disabled={emitiendo !== ''}
+                  >
+                    <Receipt size={15} />
+                    {emitiendo === 'recibo' ? 'Emitiendo…' : 'Emitir recibo'}
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-primary"
+                    onClick={() => emitir('factura')}
+                    disabled={emitiendo !== ''}
+                  >
+                    <FilePlus size={15} />
+                    {emitiendo === 'factura' ? 'Emitiendo…' : 'Emitir factura'}
+                  </button>
+                  <p className="fa-nota-fel">
+                    La factura queda registrada y <strong>pendiente de certificar</strong>: la conexión con el
+                    certificador de la SAT todavía no está contratada. El recibo interno se emite completo.
+                  </p>
+                </>
+              ) : (
+                <p className="fa-nota-fel">
+                  Su usuario puede consultar los documentos emitidos, pero <strong>no emitir ni anular</strong>:
+                  esas dos las hace administración o recepción.
+                </p>
+              )}
+            </div>
+          </div>
+        </section>
+
+        {/* ── Historial ────────────────────────────────────────────────── */}
+        <section className="hc-section">
+          <div className="hc-section-head">
+            <FileText size={14} />
+            <h2 className="hc-section-title">Documentos emitidos</h2>
+            <span className="fa-head-nota">{documentos.length}</span>
+          </div>
+          <div className="hc-section-body">
+            {documentos.length === 0 ? (
+              <p className="hc-empty">Todavía no se ha emitido ningún documento.</p>
+            ) : (
+              <div className="table-wrap">
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th>Documento</th>
+                      <th>Fecha</th>
+                      <th>Paciente</th>
+                      <th>NIT</th>
+                      <th className="fa-num">Total</th>
+                      <th>Estado</th>
+                      <th />
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {documentos.map((doc) => (
+                      <tr key={doc.id} className={doc.estado === 'Anulada' ? 'fa-anulada' : ''}>
+                        <td>
+                          <span className="fa-correlativo">{doc.serie}-{doc.numero}</span>
+                          <span className="fa-tipo">{doc.tipo === 'factura' ? 'Factura' : 'Recibo'}</span>
+                        </td>
+                        <td>{formatearFecha(doc.fecha_emision)}</td>
+                        <td>{doc.patient?.nombre ?? doc.nombre_receptor}</td>
+                        <td>{doc.nit_receptor}</td>
+                        <td className="fa-num fa-total-fila">{quetzales(doc.total)}</td>
+                        <td>
+                          {doc.estado === 'Anulada' ? (
+                            <span className="tag tag-danger" title={doc.motivo_anulacion}>Anulada</span>
+                          ) : doc.fel_estado === 'Pendiente' ? (
+                            <span className="tag tag-warning" title={doc.fel_mensaje}>Sin certificar</span>
+                          ) : doc.fel_estado === 'Certificada' ? (
+                            <span className="tag tag-success">Certificada</span>
+                          ) : (
+                            <span className="tag tag-info">Emitida</span>
+                          )}
+                        </td>
+                        <td className="fa-num">
+                          {puedeCobrar && doc.estado !== 'Anulada' && (
+                            <button
+                              type="button"
+                              className="btn btn-ghost btn-sm"
+                              title="Anular documento"
+                              onClick={() => { setAAnular(doc); setMotivoAnulacion(''); }}
+                            >
+                              <Ban size={14} />
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             )}
           </div>
-        </div>
-
+        </section>
       </div>
+
+      {/* ── Confirmar anulación ────────────────────────────────────────── */}
+      <AlertDialog open={aAnular !== null} onOpenChange={(abierto) => { if (!abierto) setAAnular(null); }}>
+        <AlertDialogContent className="flat-page confirm-box">
+          <div className="confirm-head">
+            <span className="confirm-icon"><Ban size={17} /></span>
+            <AlertDialogTitle className="confirm-title">Anular documento</AlertDialogTitle>
+          </div>
+
+          <AlertDialogDescription className="confirm-text">
+            El documento <strong>{aAnular?.serie}-{aAnular?.numero}</strong> por{' '}
+            <strong>{quetzales(aAnular?.total)}</strong> dejará de contar como ingreso, pero sigue
+            existiendo con su número y con el motivo a la vista. No se puede deshacer.
+          </AlertDialogDescription>
+
+          <div className="confirm-text">
+            <input
+              className="form-control"
+              value={motivoAnulacion}
+              onChange={(e) => setMotivoAnulacion(e.target.value)}
+              placeholder="Motivo de la anulación"
+            />
+          </div>
+
+          <div className="confirm-actions dialog-sep">
+            <button type="button" className="btn btn-secondary" onClick={() => setAAnular(null)}>
+              Cancelar
+            </button>
+            <button
+              type="button"
+              className="btn btn-danger"
+              onClick={confirmarAnulacion}
+              disabled={!motivoAnulacion.trim()}
+            >
+              Sí, anular
+            </button>
+          </div>
+        </AlertDialogContent>
+      </AlertDialog>
     </Layout>
   );
 }

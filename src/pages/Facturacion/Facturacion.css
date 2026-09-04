@@ -1,0 +1,204 @@
+/* ======================================
+   FACTURACIÓN
+
+   No trae paleta ni controles propios: reutiliza el sistema plano de los demás
+   módulos (.hc-section, .hc-field, .data-table, .btn, .tag) y solo añade la
+   rejilla del encabezado, la tabla de renglones y el bloque de cuentas.
+====================================== */
+
+.fa-page {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.fa-page > .page-header,
+.fa-page > .notice,
+.fa-page > .hc-section {
+  margin-bottom: 0;
+}
+
+/* El cuerpo de sección separa sus hijos con 28px para agrupar campos; aquí
+   adentro los bloques ya traen su propio margen y sumarlos abre un hueco. */
+.fa-page .hc-section-body {
+  gap: 0;
+}
+
+.fa-head-nota {
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--brand-text-light);
+}
+
+.fa-opcional {
+  margin-left: 6px;
+  font-size: 10px;
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--brand-text-light);
+}
+
+/* ── Datos del receptor ───────────────────────────────────────────────── */
+
+.fa-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+}
+
+@media (max-width: 1100px) {
+  .fa-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 700px) {
+  .fa-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ── Renglones ────────────────────────────────────────────────────────── */
+
+/* Los campos de la tabla van sin el relleno del formulario: dentro de una
+   celda, el aire de un control suelto separa más de lo que ordena. */
+.fa-tabla .form-control {
+  padding: 6px 8px;
+  font-size: 12px;
+}
+
+.fa-num {
+  text-align: right;
+}
+
+.fa-control-num {
+  text-align: right;
+  max-width: 110px;
+  margin-left: auto;
+}
+
+.fa-total-fila {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  color: var(--brand-text);
+  white-space: nowrap;
+}
+
+.fa-atajos {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.fa-atajos-sep {
+  font-size: 11px;
+  color: var(--brand-text-light);
+}
+
+/* ── Cuentas ──────────────────────────────────────────────────────────── */
+
+/* Pegadas a la derecha y bajo la tabla: es donde se busca el total después de
+   escribir los renglones. */
+.fa-cuentas {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-self: flex-end;
+  width: 100%;
+  max-width: 300px;
+  margin-top: 20px;
+  margin-left: auto;
+  padding-top: 14px;
+  border-top: 1px solid var(--hc-line);
+}
+
+.fa-cuenta {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  font-size: 12px;
+  color: var(--brand-text-muted);
+}
+
+.fa-cuenta strong {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  color: var(--brand-text);
+}
+
+/* El IVA no se suma, se separa: va en gris para que no se lea como un cargo
+   añadido al total que tiene debajo. */
+.fa-cuenta-iva,
+.fa-cuenta-iva strong {
+  color: var(--brand-text-light);
+  font-weight: 400;
+}
+
+.fa-cuenta-total {
+  margin-top: 6px;
+  padding-top: 10px;
+  border-top: 1px solid var(--hc-line);
+  font-size: 13px;
+  color: var(--brand-text);
+}
+
+.fa-cuenta-total strong {
+  font-size: 18px;
+  letter-spacing: -0.02em;
+}
+
+/* ── Emisión ──────────────────────────────────────────────────────────── */
+
+.fa-emitir {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid var(--hc-line);
+}
+
+.fa-nota-fel {
+  flex: 1;
+  min-width: 240px;
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--brand-text-light);
+}
+
+.fa-nota-fel strong {
+  color: var(--brand-text-muted);
+  font-weight: 600;
+}
+
+/* ── Historial ────────────────────────────────────────────────────────── */
+
+.fa-correlativo {
+  display: block;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--brand-text);
+}
+
+.fa-tipo {
+  display: block;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--brand-text-light);
+}
+
+/* Un documento anulado sigue en la lista, pero apagado: está para consulta,
+   no para leerlo como si contara. */
+.fa-anulada td {
+  opacity: 0.55;
+}
+
+.fa-anulada .fa-total-fila {
+  text-decoration: line-through;
+}
