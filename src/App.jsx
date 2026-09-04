@@ -1,4 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { AvisosProvider } from './components/Avisos';
 import { AuthProvider } from './context/AuthContext';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { AdminRoute } from './components/AdminRoute';
@@ -20,33 +21,35 @@ import { TooltipProvider } from '@/components/ui/tooltip';
 
 function App() {
   return (
-    <AuthProvider>
-      <TooltipProvider>
-        <BrowserRouter>
-          <Routes>
-            <Route path="/"                  element={<Navigate to="/dashboard" replace />} />
-            <Route path="/login"             element={<Login />} />
+    <AvisosProvider>
+      <AuthProvider>
+        <TooltipProvider>
+          <BrowserRouter>
+            <Routes>
+              <Route path="/"                  element={<Navigate to="/dashboard" replace />} />
+              <Route path="/login"             element={<Login />} />
 
-            {/* Recuperación de contraseña (públicas) */}
-            <Route path="/recuperar-contrasena"   element={<RecuperarPassword />} />
-            <Route path="/restablecer-contrasena" element={<RestablecerPassword />} />
+              {/* Recuperación de contraseña (públicas) */}
+              <Route path="/recuperar-contrasena"   element={<RecuperarPassword />} />
+              <Route path="/restablecer-contrasena" element={<RestablecerPassword />} />
 
-            {/* Protected Application Routes */}
-            <Route path="/dashboard"         element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-            <Route path="/pacientes"         element={<ProtectedRoute><Pacientes /></ProtectedRoute>} />
-            <Route path="/citas"             element={<ProtectedRoute><Citas /></ProtectedRoute>} />
-            <Route path="/historia-clinica"  element={<ProtectedRoute><HistoriaClinica /></ProtectedRoute>} />
-            <Route path="/reportes"          element={<ProtectedRoute><Reportes /></ProtectedRoute>} />
-            <Route path="/facturacion"       element={<ProtectedRoute><Facturacion /></ProtectedRoute>} />
-            <Route path="/reporte-doppler"   element={<ProtectedRoute><ReporteDoppler /></ProtectedRoute>} />
-            <Route path="/mapeo-venoso"      element={<ProtectedRoute><MapeoVenoso /></ProtectedRoute>} />
-            <Route path="/usuarios"          element={<AdminRoute><Usuarios /></AdminRoute>} />
+              {/* Protected Application Routes */}
+              <Route path="/dashboard"         element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+              <Route path="/pacientes"         element={<ProtectedRoute><Pacientes /></ProtectedRoute>} />
+              <Route path="/citas"             element={<ProtectedRoute><Citas /></ProtectedRoute>} />
+              <Route path="/historia-clinica"  element={<ProtectedRoute><HistoriaClinica /></ProtectedRoute>} />
+              <Route path="/reportes"          element={<ProtectedRoute><Reportes /></ProtectedRoute>} />
+              <Route path="/facturacion"       element={<ProtectedRoute><Facturacion /></ProtectedRoute>} />
+              <Route path="/reporte-doppler"   element={<ProtectedRoute><ReporteDoppler /></ProtectedRoute>} />
+              <Route path="/mapeo-venoso"      element={<ProtectedRoute><MapeoVenoso /></ProtectedRoute>} />
+              <Route path="/usuarios"          element={<AdminRoute><Usuarios /></AdminRoute>} />
 
-            <Route path="*"                  element={<Navigate to="/dashboard" replace />} />
-          </Routes>
-        </BrowserRouter>
-      </TooltipProvider>
-    </AuthProvider>
+              <Route path="*"                  element={<Navigate to="/dashboard" replace />} />
+            </Routes>
+          </BrowserRouter>
+        </TooltipProvider>
+      </AuthProvider>
+    </AvisosProvider>
   );
 }
 

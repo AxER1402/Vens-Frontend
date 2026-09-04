@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useMemo, Fragment } from 'react';
 import Layout from '../../components/Layout/Layout';
+import { useAvisos } from '../../components/Avisos';
 import StatCard from '../../components/StatCard';
 import {
   CalendarX,
@@ -236,6 +237,8 @@ function Citas() {
   const canManageBlocked = rol === 'administrador' || rol === 'medico';
 
   // Primary data state
+  const avisos = useAvisos();
+
   const [appointments, setAppointments] = useState([]);
   const [patients, setPatients] = useState([]);
   const [doctors, setDoctors] = useState([]);
@@ -244,7 +247,6 @@ function Citas() {
 
   // Messages state
   const [errorMessage, setErrorMessage] = useState('');
-  const [successMessage, setSuccessMessage] = useState('');
 
   // Vista de agenda: 'dia' | 'semana' | 'lista'
   const [view, setView] = useState('semana');
@@ -606,7 +608,7 @@ function Citas() {
     });
 
     if (res.success) {
-      setSuccessMessage('Cita agendada exitosamente.');
+      avisos.exito('Cita agendada exitosamente.');
       setShowCreateModal(false);
       fetchAppointments();
     } else {
@@ -682,7 +684,7 @@ function Citas() {
     });
 
     if (res.success) {
-      setSuccessMessage(
+      avisos.exito(
         isDateTimeChanged
           ? 'Cita reprogramada y marcada como Reagendada exitosamente.'
           : 'Cita actualizada exitosamente.'
@@ -727,7 +729,7 @@ function Citas() {
     const res = await appointmentService.assignPatientToAppointment(selectedAppointment.id, assignPatientId);
 
     if (res.success) {
-      setSuccessMessage('Paciente reasignado exitosamente.');
+      avisos.exito('Paciente reasignado exitosamente.');
       setShowAssignPatientModal(false);
 
       if (filterPatientId && String(assignPatientId) !== String(filterPatientId)) {
@@ -756,7 +758,7 @@ function Citas() {
     const res = await appointmentService.cancelAppointment(selectedAppointment.id, motivoCancelacion);
 
     if (res.success) {
-      setSuccessMessage('Cita cancelada exitosamente.');
+      avisos.exito('Cita cancelada exitosamente.');
       setShowCancelModal(false);
       fetchAppointments();
     } else {
@@ -782,7 +784,7 @@ function Citas() {
     });
 
     if (res.success) {
-      setSuccessMessage('Cita marcada como Confirmada exitosamente.');
+      avisos.exito('Cita marcada como Confirmada exitosamente.');
       fetchAppointments();
     } else {
       setErrorMessage(res.message || 'Error al confirmar la cita.');
@@ -807,7 +809,7 @@ function Citas() {
     });
 
     if (res.success) {
-      setSuccessMessage('Cita reactivada como Programada exitosamente.');
+      avisos.exito('Cita reactivada como Programada exitosamente.');
       fetchAppointments();
     } else {
       setErrorMessage(res.message || 'Error al reactivar la cita.');
@@ -834,7 +836,7 @@ function Citas() {
 
     if (res.success && res.data) {
       const newPatient = res.data;
-      setSuccessMessage(`Paciente "${newPatient.nombre}" registrado correctamente.`);
+      avisos.exito(`Paciente "${newPatient.nombre}" registrado correctamente.`);
       await fetchPatients();
       
       // Select the newly created patient in appointmentForm or assignPatientId
@@ -1065,18 +1067,6 @@ function Citas() {
             </button>
           </div>
         </div>
-
-        {successMessage && (
-          <div className="notice notice-success">
-            <span className="notice-body">
-              <CheckCircle2 size={16} />
-              {successMessage}
-            </span>
-            <button type="button" className="btn btn-ghost btn-sm" onClick={() => setSuccessMessage('')}>
-              Cerrar
-            </button>
-          </div>
-        )}
 
         {/* Navegación de la agenda y selector de vista */}
         <div className="agenda-bar">

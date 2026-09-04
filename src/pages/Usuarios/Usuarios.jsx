@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import Layout from '../../components/Layout/Layout';
+import { useAvisos } from '../../components/Avisos';
 import Paginador from '../../components/Paginador';
 import {
   Search,
@@ -7,7 +8,6 @@ import {
   Pencil,
   UserPlus,
   AlertCircle,
-  CheckCircle2,
   Phone,
   Mail,
   Power,
@@ -37,6 +37,8 @@ const ESTADO_FILTER_OPTIONS = [
 ];
 
 function Usuarios() {
+  const avisos = useAvisos();
+
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -55,7 +57,6 @@ function Usuarios() {
   const [form, setForm] = useState(EMPTY_USER_FORM);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
-  const [successMessage, setSuccessMessage] = useState('');
 
   // Cargar usuarios desde la API
   const fetchUsers = useCallback(async () => {
@@ -91,8 +92,7 @@ function Usuarios() {
   const handleOpenCreate = () => {
     setForm(EMPTY_USER_FORM);
     setErrorMessage('');
-    setSuccessMessage('');
-    setShowCreateModal(true);
+        setShowCreateModal(true);
   };
 
   // Abrir Modal de Edición
@@ -108,8 +108,7 @@ function Usuarios() {
       activo: Boolean(user.activo)
     });
     setErrorMessage('');
-    setSuccessMessage('');
-    setShowEditModal(true);
+        setShowEditModal(true);
   };
 
   // Abrir Modal de Desactivación / Cambio de Estado
@@ -133,7 +132,7 @@ function Usuarios() {
     const res = await userService.createUser(form);
 
     if (res.success) {
-      setSuccessMessage('Usuario creado exitosamente.');
+      avisos.exito('Usuario creado exitosamente.');
       setShowCreateModal(false);
       fetchUsers();
     } else {
@@ -161,7 +160,7 @@ function Usuarios() {
     const res = await userService.updateUser(selectedUser.id, form);
 
     if (res.success) {
-      setSuccessMessage('Usuario actualizado exitosamente.');
+      avisos.exito('Usuario actualizado exitosamente.');
       setShowEditModal(false);
       fetchUsers();
     } else {
@@ -184,7 +183,7 @@ function Usuarios() {
       // Desactivar usuario utilizando la ruta DELETE /users/{id}
       const res = await userService.deactivateUser(selectedUser.id);
       if (res.success) {
-        setSuccessMessage('Usuario desactivado exitosamente.');
+        avisos.exito('Usuario desactivado exitosamente.');
         setShowDeactivateModal(false);
         fetchUsers();
       } else {
@@ -199,7 +198,7 @@ function Usuarios() {
         activo: true
       });
       if (res.success) {
-        setSuccessMessage('Usuario reactivado exitosamente.');
+        avisos.exito('Usuario reactivado exitosamente.');
         setShowDeactivateModal(false);
         fetchUsers();
       } else {
@@ -243,22 +242,6 @@ function Usuarios() {
           </div>
         </div>
 
-        {/* Banner de mensajes de éxito */}
-        {successMessage && (
-          <div className="notice notice-success">
-            <span className="notice-body">
-              <CheckCircle2 size={16} />
-              {successMessage}
-            </span>
-            <button
-              type="button"
-              className="btn btn-ghost btn-sm"
-              onClick={() => setSuccessMessage('')}
-            >
-              Cerrar
-            </button>
-          </div>
-        )}
 
         {/* Toolbar / Filtros */}
         <div className="toolbar">

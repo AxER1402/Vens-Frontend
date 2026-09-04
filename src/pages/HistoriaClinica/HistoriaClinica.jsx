@@ -20,6 +20,12 @@ import {
   DialogDescription,
   DialogFooter
 } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 const SECTIONS = [
   { id: 'interrogatorio', icon: <MessageSquare size={14} />, label: 'Interrogatorio y Síntomas' },
@@ -135,6 +141,7 @@ function OptCheck({ value, label, list, onToggle }) {
 
 function HistoriaClinica() {
   const navigate = useNavigate();
+
   const [searchParams, setSearchParams] = useSearchParams();
 
   // Patients state
@@ -150,6 +157,18 @@ function HistoriaClinica() {
 
   const [active, setActive] = useState('interrogatorio');
   const [saved, setSaved] = useState(false);
+
+  /**
+   * Salida pendiente de confirmar cuando hay cambios sin guardar.
+   *
+   * El Ecodöppler y el mapeo venoso se llenan en otra pantalla y vuelven a
+   * esta; si se sale con la consulta a medias, lo escrito se pierde sin que
+   * nadie lo diga. Se guarda a dónde iba para poder llevarlo ahí si decide
+   * salir de todas formas.
+   */
+  const [salidaPendiente, setSalidaPendiente] = useState(null);
+
+
   const [saveMessage, setSaveMessage] = useState('');
   const [saving, setSaving] = useState(false);
 
@@ -165,6 +184,21 @@ function HistoriaClinica() {
   const [historiaId, setHistoriaId] = useState(null);
   const [estadoHistoria, setEstadoHistoria] = useState(null);
   const [soloLectura, setSoloLectura] = useState(false);
+
+  /**
+   * Ir a otra pantalla, avisando antes si la consulta tiene cambios sin
+   * guardar. `destino` es a dónde se va y `motivo` lo que se está por hacer,
+   * para que el aviso diga de qué salida se trata.
+   */
+  const salirA = (destino, motivo) => {
+    if (soloLectura || saved) {
+      navigate(destino);
+      return;
+    }
+
+    setSalidaPendiente({ destino, motivo });
+  };
+
 
   // Estudio de Ecodöppler adjunto a la consulta abierta. Solo se consulta para
   // saber si ya existe: así el expediente ofrece verlo en lugar de llenarlo.
@@ -519,11 +553,16 @@ function HistoriaClinica() {
    * de ahí se actualiza la misma historia (PUT), tanto en borrador como al
    * finalizarla. El mapeo venoso viaja aparte por ser un archivo.
    */
+  /**
+   * Guardar la consulta. Devuelve si se guardó, que es lo que necesita saber
+   * quien la guarda para poder salir de la pantalla: navegar después de un
+   * guardado fallido pierde justo lo que se quería conservar.
+   */
   const guardarHistoria = async (estadoRegistro) => {
     if (!selectedPatientId) {
       setSaved(false);
       setSaveMessage('Seleccione un paciente antes de guardar la historia clínica.');
-      return;
+      return false;
     }
 
     setSaving(true);
@@ -539,7 +578,7 @@ function HistoriaClinica() {
       setSaved(false);
       setSaveMessage([res.message, detalle].filter(Boolean).join(' '));
       setSaving(false);
-      return;
+      return false;
     }
 
     const id = res.data?.id || historiaId;
@@ -568,6 +607,8 @@ function HistoriaClinica() {
     setSaved(true);
     setSaveMessage(mensaje);
     setSaving(false);
+
+    return true;
   };
 
   const handleSave = (e) => {
@@ -737,7 +778,11 @@ function HistoriaClinica() {
                   </button>
                   {patient ? (
                     <>
-                      <button type="button" className="btn btn-ghost btn-sm" onClick={() => navigate('/pacientes')}>
+                      <button
+                        type="button"
+                        className="btn btn-ghost btn-sm"
+                        onClick={() => salirA('/pacientes', 'ir al expediente')}
+                      >
                         Ver expediente
                       </button>
                       <button type="button" className="btn btn-ghost btn-sm" onClick={() => handleSelectPatient('')}>
@@ -1221,10 +1266,13 @@ function HistoriaClinica() {
                     type="button"
                     className={`btn ${reporteDoppler ? 'btn-primary' : 'btn-secondary'}`}
                     disabled={!selectedPatientId}
-                    onClick={() => navigate(`/reporte-doppler?${new URLSearchParams({
-                      patientId: String(selectedPatientId),
-                      ...(historiaId ? { historiaId: String(historiaId) } : {})
-                    })}`)}
+                    onClick={() => salirA(
+                      `/reporte-doppler?${new URLSearchParams({
+                        patientId: String(selectedPatientId),
+                        ...(historiaId ? { historiaId: String(historiaId) } : {})
+                      })}`,
+                      'abrir el reporte de Ecodöppler'
+                    )}
                   >
                     {reporteDoppler ? <FileText size={14} /> : <Activity size={14} />}
                     {reporteDoppler ? 'Ver reporte Ecodöppler' : 'Registrar reporte Ecodöppler'}
@@ -1265,10 +1313,13 @@ function HistoriaClinica() {
                     type="button"
                     className={`btn ${tieneMapeo ? 'btn-primary' : 'btn-secondary'}`}
                     disabled={!selectedPatientId}
-                    onClick={() => navigate(`/mapeo-venoso?${new URLSearchParams({
-                      patientId: String(selectedPatientId),
-                      ...(historiaId ? { historiaId: String(historiaId) } : {})
-                    })}`)}
+                    onClick={() => salirA(
+                      `/mapeo-venoso?${new URLSearchParams({
+                        patientId: String(selectedPatientId),
+                        ...(historiaId ? { historiaId: String(historiaId) } : {})
+                      })}`,
+                      'abrir el mapeo venoso'
+                    )}
                   >
                     <PenTool size={14} />
                     {tieneMapeo ? 'Ver mapeo venoso' : 'Registrar mapeo venoso'}
@@ -1386,7 +1437,72 @@ function HistoriaClinica() {
 
         {/* Único punto de emisión del expediente. Qué partes lleva el informe
             se marca dentro del visor, y el documento se rehace al momento. */}
-        <VistaPreviaReporte
+        {/* ── Salir con la consulta a medias ─────────────────────────────── */}
+      {/* El Ecodöppler y el mapeo se llenan en otra pantalla. Salir sin
+          guardar pierde lo escrito y nadie lo diría, así que se avisa antes
+          y se ofrece guardar el borrador sin perder el viaje. */}
+      <AlertDialog
+        open={salidaPendiente !== null}
+        onOpenChange={(abierto) => { if (!abierto) setSalidaPendiente(null); }}
+      >
+        <AlertDialogContent className="flat-page confirm-box">
+          <div className="confirm-head">
+            <span className="confirm-icon"><AlertCircle size={17} /></span>
+            <AlertDialogTitle className="confirm-title">
+              La consulta tiene cambios sin guardar
+            </AlertDialogTitle>
+          </div>
+
+          <AlertDialogDescription className="confirm-text">
+            Está por {salidaPendiente?.motivo ?? 'salir de esta pantalla'} y lo escrito
+            en la consulta todavía no está guardado. Si sale ahora se pierde.
+            <br />
+            Puede guardar el borrador y seguir: la consulta queda como está y podrá
+            terminarla al volver.
+          </AlertDialogDescription>
+
+          <div className="confirm-actions dialog-sep">
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={() => setSalidaPendiente(null)}
+            >
+              Seguir aquí
+            </button>
+            <button
+              type="button"
+              className="btn btn-ghost"
+              onClick={() => {
+                const destino = salidaPendiente.destino;
+                setSalidaPendiente(null);
+                navigate(destino);
+              }}
+            >
+              Salir sin guardar
+            </button>
+            <button
+              type="button"
+              className="btn btn-primary"
+              disabled={saving || !selectedPatientId}
+              onClick={async () => {
+                const destino = salidaPendiente.destino;
+                const guardada = await guardarHistoria('Borrador');
+
+                // Si el guardado falló, el diálogo se queda abierto con el
+                // mensaje del error: salir ahora perdería lo que se quiso salvar.
+                if (!guardada) return;
+
+                setSalidaPendiente(null);
+                navigate(destino);
+              }}
+            >
+              {saving ? 'Guardando…' : 'Guardar borrador y salir'}
+            </button>
+          </div>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <VistaPreviaReporte
           reporte={vistaPrevia}
           onCerrar={() => setVistaPrevia(null)}
           partes={{

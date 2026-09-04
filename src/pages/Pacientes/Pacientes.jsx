@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Layout from '../../components/Layout/Layout';
+import { useAvisos } from '../../components/Avisos';
 import Paginador from '../../components/Paginador';
 import {
   Search,
@@ -9,7 +10,6 @@ import {
   Pencil,
   UserPlus,
   AlertCircle,
-  CheckCircle2,
   Power,
   Activity,
   ShieldAlert
@@ -61,7 +61,7 @@ function Pacientes() {
   const [form, setForm] = useState(EMPTY_PATIENT_FORM);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
-  const [successMessage, setSuccessMessage] = useState('');
+  const avisos = useAvisos();
   const [pagina, setPagina] = useState(1);
   const [meta, setMeta] = useState(null);
 
@@ -104,8 +104,7 @@ function Pacientes() {
   const handleOpenCreate = () => {
     setForm(EMPTY_PATIENT_FORM);
     setErrorMessage('');
-    setSuccessMessage('');
-    setShowCreateModal(true);
+        setShowCreateModal(true);
   };
 
   // Open Edit Modal
@@ -121,8 +120,7 @@ function Pacientes() {
       estado: patient.estado || 'Activo'
     });
     setErrorMessage('');
-    setSuccessMessage('');
-    setShowEditModal(true);
+        setShowEditModal(true);
   };
 
   // Open Deactivate / Reactivate Modal
@@ -150,7 +148,7 @@ function Pacientes() {
     const res = await patientService.createPatient(form);
 
     if (res.success) {
-      setSuccessMessage('Paciente registrado exitosamente.');
+      avisos.exito('Paciente registrado exitosamente.');
       setShowCreateModal(false);
       fetchPatients();
     } else {
@@ -182,7 +180,7 @@ function Pacientes() {
     const res = await patientService.updatePatient(selectedPatient.id, form);
 
     if (res.success) {
-      setSuccessMessage('Paciente actualizado exitosamente.');
+      avisos.exito('Paciente actualizado exitosamente.');
       setShowEditModal(false);
       fetchPatients();
     } else {
@@ -212,7 +210,7 @@ function Pacientes() {
     }
 
     if (res.success) {
-      setSuccessMessage(
+      avisos.exito(
         res.message || `Paciente ${selectedPatient.activo ? 'desactivado' : 'activado'} exitosamente.`
       );
       setShowDeactivateModal(false);
@@ -266,22 +264,6 @@ function Pacientes() {
         </div>
       </div>
 
-      {/* Banner de mensajes de éxito */}
-      {successMessage && (
-        <div className="notice notice-success">
-          <span className="notice-body">
-            <CheckCircle2 size={16} />
-            {successMessage}
-          </span>
-          <button
-            type="button"
-            className="btn btn-ghost btn-sm"
-            onClick={() => setSuccessMessage('')}
-          >
-            Cerrar
-          </button>
-        </div>
-      )}
 
       {/* Toolbar / Filtros */}
       <div className="toolbar">
