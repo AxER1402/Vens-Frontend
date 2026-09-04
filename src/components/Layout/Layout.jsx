@@ -19,13 +19,8 @@ import {
 } from '@/components/ui/sidebar';
 import {
   AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
   AlertDialogContent,
   AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogMedia,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 
@@ -179,32 +174,43 @@ function Topbar() {
       />
 
       {/* ================= CONFIRMAR CIERRE DE SESIÓN ================= */}
-      {/* AlertDialog y no Dialog: no se descarta tocando fuera del recuadro,
-          que es justo el gesto con el que se sale sin querer de un modal. */}
+      {/* Del AlertDialog se toma el comportamiento —no se descarta tocando
+          fuera del recuadro, que es el gesto con el que uno se sale sin
+          querer— y no su aspecto: el recuadro se viste con el sistema plano
+          que usan los demás módulos. */}
       <AlertDialog open={showLogoutModal} onOpenChange={setShowLogoutModal}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogMedia>
-              <LogOut className="text-brand-slate" />
-            </AlertDialogMedia>
-            <AlertDialogTitle>¿Cerrar la sesión?</AlertDialogTitle>
-            <AlertDialogDescription>
-              {user?.name ? <>Se cerrará la sesión de <strong>{user.name}</strong>. </> : null}
-              Se perderá cualquier cambio sin guardar y deberá ingresar sus
-              credenciales para volver a entrar.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
+        <AlertDialogContent className="flat-page confirm-box">
+          <div className="confirm-head">
+            <span className="confirm-icon">
+              <LogOut size={17} strokeWidth={2} />
+            </span>
+            <AlertDialogTitle className="confirm-title">Cerrar sesión</AlertDialogTitle>
+          </div>
 
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={cerrando}>Cancelar</AlertDialogCancel>
-            <AlertDialogAction
-              variant="destructive"
+          <AlertDialogDescription className="confirm-text">
+            {user?.name ? <>Se cerrará la sesión de <strong>{user.name}</strong>. </> : null}
+            Se perderá cualquier cambio sin guardar y deberá ingresar sus
+            credenciales para volver a entrar.
+          </AlertDialogDescription>
+
+          <div className="confirm-actions dialog-sep">
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={() => setShowLogoutModal(false)}
+              disabled={cerrando}
+            >
+              Cancelar
+            </button>
+            <button
+              type="button"
+              className="btn btn-danger"
               onClick={handleConfirmLogout}
               disabled={cerrando}
             >
               {cerrando ? 'Cerrando…' : 'Sí, cerrar sesión'}
-            </AlertDialogAction>
-          </AlertDialogFooter>
+            </button>
+          </div>
         </AlertDialogContent>
       </AlertDialog>
     </header>

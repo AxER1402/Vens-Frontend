@@ -1,0 +1,250 @@
+/* ======================================
+   PANEL DE AVISOS — quién viene hoy y mañana
+
+   No trae paleta propia: reutiliza el sistema plano de los demás módulos
+   (.panel-title, .btn, .tag) y solo añade lo que no existe en ningún otro
+   lado, que es la lámina traslúcida del costado y la ficha de cada aviso.
+====================================== */
+
+/* El difuminado es lo que hace que la lámina se lea como un vidrio sobre la
+   pantalla y no como una hoja pegada encima. Donde no exista backdrop-filter
+   la lámina queda opaca: preferible a un panel transparente e ilegible. */
+.av-fondo {
+  background: rgba(36, 55, 87, 0.22);
+}
+
+.av-panel {
+  background: var(--brand-surface);
+  border-left: 1px solid var(--brand-border);
+  border-radius: 0;
+  color: var(--brand-text);
+}
+
+/* Un poco más ancha que la lámina de fábrica: la hora lleva columna propia y
+   con 24rem los nombres largos parten en dos líneas. Solo cuando entra por el
+   costado; abajo, en el teléfono, el ancho lo manda la pantalla. */
+.av-panel[data-swipe-axis='x'] {
+  --drawer-content-width: 25rem;
+}
+
+@supports (backdrop-filter: blur(2px)) or (-webkit-backdrop-filter: blur(2px)) {
+  .av-fondo {
+    -webkit-backdrop-filter: blur(10px);
+    backdrop-filter: blur(10px);
+  }
+
+  /* 88% y no menos: por debajo de eso el texto empieza a pelearse con la
+     pantalla que quedó atrás. */
+  .av-panel {
+    background: color-mix(in srgb, var(--brand-surface) 88%, transparent);
+    -webkit-backdrop-filter: blur(22px) saturate(140%);
+    backdrop-filter: blur(22px) saturate(140%);
+  }
+}
+
+/* ── Encabezado y pie ─────────────────────────────────────────────────── */
+
+.av-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 18px 20px 14px;
+  border-bottom: 1px solid var(--brand-border-light);
+  text-align: left;
+}
+
+.av-head-sub {
+  margin-top: 4px;
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--brand-text-light);
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.av-cuenta {
+  flex-shrink: 0;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  color: var(--brand-text-light);
+}
+
+.av-cuerpo {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 16px 20px;
+}
+
+.av-pie {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 20px;
+  border-top: 1px solid var(--brand-border-light);
+}
+
+/* ── Grupos por día ───────────────────────────────────────────────────── */
+
+.av-grupo + .av-grupo {
+  margin-top: 20px;
+}
+
+.av-grupo-titulo {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 10px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--brand-text);
+}
+
+.av-grupo-count {
+  font-weight: 400;
+  letter-spacing: 0;
+  color: var(--brand-text-light);
+}
+
+.av-lista {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  list-style: none;
+}
+
+/* ── Ficha de un aviso ────────────────────────────────────────────────── */
+
+/* La hora va en una columna aparte y no dentro del texto: al abrir el panel
+   se busca «a qué hora», y así las horas quedan alineadas entre sí. */
+.av-item {
+  position: relative;
+  display: grid;
+  grid-template-columns: 52px 1fr;
+  gap: 14px;
+  padding: 14px 16px;
+  padding-right: 38px;
+  background: var(--brand-surface);
+  border: 1px solid var(--brand-border-light);
+  border-left: 2px solid var(--brand-slate);
+  transition: border-color var(--t-fast), background var(--t-fast);
+}
+
+.av-item:hover {
+  border-color: var(--brand-border);
+  border-left-color: var(--brand-deep);
+  background: var(--brand-surface-alt);
+}
+
+.av-hora {
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.2;
+  color: var(--brand-text);
+  font-variant-numeric: tabular-nums;
+}
+
+.av-estado {
+  display: block;
+  margin-top: 2px;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--brand-text-light);
+}
+
+.av-paciente {
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.3;
+  color: var(--brand-text);
+}
+
+.av-motivo {
+  margin-top: 3px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--brand-text-muted);
+}
+
+.av-datos {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  margin-top: 8px;
+  font-size: 11px;
+  color: var(--brand-text-light);
+}
+
+.av-dato {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.av-dato svg {
+  flex-shrink: 0;
+}
+
+/* El aspa no se esconde hasta el hover: en pantalla táctil no hay hover, y un
+   botón que solo aparece con el cursor ahí no existe. */
+.av-descartar {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--brand-text-light);
+  cursor: pointer;
+  transition: all var(--t-fast);
+}
+
+.av-descartar:hover {
+  background: var(--brand-surface-deep);
+  border-color: var(--brand-border-light);
+  color: var(--brand-text);
+}
+
+/* ── Estados sin fichas ───────────────────────────────────────────────── */
+
+.av-vacio {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 56px 24px;
+  text-align: center;
+}
+
+.av-vacio svg {
+  color: var(--brand-text-light);
+}
+
+.av-vacio-titulo {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--brand-text);
+}
+
+.av-vacio-texto {
+  max-width: 15rem;
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--brand-text-light);
+}
+
+.av-cargando {
+  padding: 48px 24px;
+  text-align: center;
+  font-size: 12px;
+  color: var(--brand-text-light);
+}

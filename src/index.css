@@ -1583,6 +1583,66 @@ select.form-control {
   padding-top: 14px;
 }
 
+/* ── Diálogo de confirmación ──────────────────────────────────────────────
+   Recuadro corto de «¿seguro?»: un ícono, una frase y dos salidas. El aire lo
+   pone el CSS y no utilidades sueltas, para que se mida igual que el resto de
+   los módulos planos. */
+/* El recuadro llega con el relleno y las esquinas del componente del registro;
+   aquí se le quitan para que se mida y se vea como los demás módulos planos. */
+.confirm-box {
+  padding: 0;
+  gap: 0;
+  border-radius: 0;
+  background: var(--brand-surface);
+  border-color: var(--brand-border-light);
+}
+
+.confirm-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 22px 24px 0;
+}
+
+.confirm-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+  background: var(--brand-surface-alt);
+  border: 1px solid var(--brand-border-light);
+  color: var(--brand-slate);
+}
+
+.confirm-title {
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.3;
+  color: var(--brand-text);
+}
+
+.confirm-text {
+  margin-top: 16px;
+  padding: 0 24px;
+  font-size: 13px;
+  line-height: 1.65;
+  color: var(--brand-text-muted);
+}
+
+.confirm-text strong {
+  font-weight: 600;
+  color: var(--brand-text);
+}
+
+.confirm-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin: 20px 24px 22px;
+}
+
 /* Filas clave/valor del diálogo de detalle */
 .detail-row {
   display: flex;
