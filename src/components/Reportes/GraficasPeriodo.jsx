@@ -59,13 +59,13 @@ function BarrasPorEstado({ datos }) {
 
 /* ── Columnas: cuánto trabajo hubo en cada tramo del período ────────────── */
 
-function ColumnasEnElTiempo({ datos }) {
+function ColumnasEnElTiempo({ datos, vacio, formatear = (v) => v, pie }) {
   const [encima, setEncima] = useState(null);
   const maximo = Math.max(1, ...datos.map((d) => d.valor));
   const total = datos.reduce((suma, d) => suma + d.valor, 0);
 
   if (total === 0) {
-    return <p className="gr-vacio">No hubo consultas registradas en el período elegido.</p>;
+    return <p className="gr-vacio">{vacio}</p>;
   }
 
   // Con muchos tramos las etiquetas se pisan: se rotula uno de cada tantos y
@@ -86,7 +86,7 @@ function ColumnasEnElTiempo({ datos }) {
           >
             {encima === i && (
               <span className="gr-globo">
-                {d.etiquetaLarga}: <strong>{d.valor}</strong>
+                {d.etiquetaLarga}: <strong>{formatear(d.valor)}</strong>
               </span>
             )}
             {d.valor > 0 && (
@@ -107,9 +107,7 @@ function ColumnasEnElTiempo({ datos }) {
         ))}
       </div>
 
-      <p className="gr-pie">
-        {total} en total · máximo de {maximo} en un mismo tramo
-      </p>
+      <p className="gr-pie">{pie(total, maximo)}</p>
     </div>
   );
 }
@@ -174,15 +172,42 @@ function tramosDelPeriodo(desde, hasta) {
 
 const NOMBRE_PASO = { dia: 'por día', semana: 'por semana', mes: 'por mes' };
 
-function GraficasPeriodo({ desde, hasta, citasPorEstado, fechasDeConsulta, cargando }) {
-  const { paso, tramos } = tramosDelPeriodo(desde, hasta);
-
-  for (const fecha of fechasDeConsulta) {
-    const dia = new Date(`${String(fecha).slice(0, 10)}T00:00:00`);
+/**
+ * Reparte sucesos en los tramos del período. `cuanto` dice qué se acumula: uno
+ * por suceso cuando se cuentan consultas, el monto cuando se suman cobros.
+ */
+function repartir(tramos, sucesos, fechaDe, cuanto) {
+  for (const suceso of sucesos) {
+    const dia = new Date(`${String(fechaDe(suceso)).slice(0, 10)}T00:00:00`);
     if (Number.isNaN(dia.getTime())) continue;
+
     const tramo = tramos.find((t) => dia >= t.desde && dia < t.hasta);
-    if (tramo) tramo.valor += 1;
+    if (tramo) tramo.valor += cuanto(suceso);
   }
+
+  return tramos;
+}
+
+/** Quetzales, sin decimales: en el eje de una gráfica los centavos estorban. */
+const quetzalesCortos = (monto) =>
+  `Q${new Intl.NumberFormat('es-GT', { maximumFractionDigits: 0 }).format(Math.round(monto))}`;
+
+function GraficasPeriodo({ desde, hasta, citasPorEstado, fechasDeConsulta, cobros, cargando }) {
+  const { paso } = tramosDelPeriodo(desde, hasta);
+
+  const consultas = repartir(
+    tramosDelPeriodo(desde, hasta).tramos,
+    fechasDeConsulta,
+    (f) => f,
+    () => 1
+  );
+
+  const entradas = repartir(
+    tramosDelPeriodo(desde, hasta).tramos,
+    cobros,
+    (c) => c.fecha,
+    (c) => c.monto
+  );
 
   return (
     <div className="gr-par">
@@ -206,7 +231,29 @@ function GraficasPeriodo({ desde, hasta, citasPorEstado, fechasDeConsulta, carga
         {cargando ? (
           <p className="gr-vacio">Contando…</p>
         ) : (
-          <ColumnasEnElTiempo datos={tramos} />
+          <ColumnasEnElTiempo
+            datos={consultas}
+            vacio="No hubo consultas registradas en el período elegido."
+            pie={(total, maximo) => `${total} en total · máximo de ${maximo} en un mismo tramo`}
+          />
+        )}
+      </figure>
+
+      <figure className="gr-figura">
+        <figcaption className="gr-titulo">
+          Entradas por cobros
+          <span className="gr-subtitulo">Lo cobrado {NOMBRE_PASO[paso]}, sin los documentos anulados</span>
+        </figcaption>
+        {cargando ? (
+          <p className="gr-vacio">Sumando…</p>
+        ) : (
+          <ColumnasEnElTiempo
+            datos={entradas}
+            vacio="No se registraron cobros en el período elegido."
+            formatear={quetzalesCortos}
+            pie={(total, maximo) =>
+              `${quetzalesCortos(total)} en total · máximo de ${quetzalesCortos(maximo)} en un mismo tramo`}
+          />
         )}
       </figure>
     </div>

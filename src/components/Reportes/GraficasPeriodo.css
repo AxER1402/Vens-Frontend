@@ -7,16 +7,12 @@
    depende de comparar largos a ojo ni de ver el color.
 ====================================== */
 
+/* Tres gráficas si caben, dos o una si no: el ancho mínimo lo fija la columna
+   de nombres de la primera, que es la que peor tolera estrecharse. */
 .gr-par {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 28px;
-}
-
-@media (max-width: 1000px) {
-  .gr-par {
-    grid-template-columns: 1fr;
-  }
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 28px 32px;
 }
 
 .gr-figura {
