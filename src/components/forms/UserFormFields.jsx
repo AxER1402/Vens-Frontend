@@ -1,5 +1,6 @@
 import { User, Mail, Phone, Lock, ShieldCheck, Check } from 'lucide-react';
 import { Combobox } from '@/components/ui/combobox';
+import { manejarTelefono, TELEFONO_MAXIMO } from '../../lib/telefono';
 
 export const EMPTY_USER_FORM = {
   name: '',
@@ -88,10 +89,13 @@ export function UserFormFields({ form, setForm, mode = 'create' }) {
             <input
               name="telefono"
               type="text"
+              inputMode="numeric"
+              autoComplete="tel"
+              maxLength={TELEFONO_MAXIMO}
               className="form-control"
-              placeholder="+503 7123-4567"
+              placeholder="22222222"
               value={form.telefono}
-              onChange={set('telefono')}
+              onChange={manejarTelefono(set('telefono'))}
             />
           </div>
         </div>

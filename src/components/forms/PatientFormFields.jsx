@@ -1,5 +1,6 @@
 import { User, Users, Calendar, Phone, MapPin, Heart, Activity } from 'lucide-react';
 import { Combobox } from '@/components/ui/combobox';
+import { manejarTelefono, TELEFONO_MAXIMO } from '../../lib/telefono';
 
 export const EMPTY_PATIENT_FORM = {
   nombre: '',
@@ -83,13 +84,18 @@ export function PatientFormFields({ form, setForm, showEstado = true }) {
           </label>
           <div className="input-wrap">
             <span className="input-icon"><Phone size={15} /></span>
+            {/* Solo dígitos: lo que se pegue con guiones o espacios se limpia
+                mientras se escribe, así el campo enseña la regla sin decirla. */}
             <input
               name="telefono"
               type="text"
+              inputMode="numeric"
+              autoComplete="tel"
+              maxLength={TELEFONO_MAXIMO}
               className="form-control"
-              placeholder="+503 7890-1234"
+              placeholder="22222222"
               value={form.telefono}
-              onChange={set('telefono')}
+              onChange={manejarTelefono(set('telefono'))}
               required
             />
           </div>
