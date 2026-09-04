@@ -1,0 +1,214 @@
+/* ======================================
+   CONFIGURACIÓN
+====================================== */
+
+/* Las secciones a la izquierda y el contenido a la derecha. En pantallas
+   angostas la navegación pasa arriba y se desplaza en horizontal, que es
+   preferible a comerse la mitad del ancho útil del formulario. */
+.config-disposicion {
+  display: grid;
+  grid-template-columns: 248px minmax(0, 1fr);
+  gap: 24px;
+  align-items: start;
+}
+
+@media (max-width: 900px) {
+  .config-disposicion {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.config-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  position: sticky;
+  top: 92px;
+}
+
+@media (max-width: 900px) {
+  .config-nav {
+    position: static;
+    flex-direction: row;
+    overflow-x: auto;
+    padding-bottom: 4px;
+  }
+
+  .config-nav-descripcion {
+    display: none;
+  }
+}
+
+.config-nav-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 11px 13px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  font-family: var(--font-sans);
+  text-align: left;
+  cursor: pointer;
+  transition: all var(--t-fast);
+  white-space: nowrap;
+}
+
+.config-nav-item svg {
+  color: var(--brand-text-light);
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.config-nav-item:hover {
+  background: var(--brand-surface-deep);
+}
+
+.config-nav-item.activo {
+  background: var(--brand-surface);
+  border-color: var(--brand-border-light);
+  box-shadow: var(--shadow-xs);
+}
+
+.config-nav-item.activo svg {
+  color: var(--brand-slate);
+}
+
+.config-nav-texto {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.config-nav-titulo {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--brand-text);
+}
+
+.config-nav-descripcion {
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--brand-text-light);
+  white-space: normal;
+}
+
+/* El último panel no arrastra el margen inferior: deja un hueco que parece
+   que falta algo debajo. */
+.config-contenido .hc-section:last-child {
+  margin-bottom: 0;
+}
+
+/* ── Foto de perfil ─────────────────────────────────────────────── */
+.config-foto {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.config-foto-lado {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 220px;
+  flex: 1;
+}
+
+.config-foto-acciones {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* ── Campos ─────────────────────────────────────────────────────── */
+.config-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 20px 24px;
+}
+
+/* Un dato que se muestra pero no se edita. Se le da el alto y el borde de un
+   campo para que la fila no se descuadre, y un fondo distinto para que se
+   entienda a simple vista que ahí no se escribe. */
+.config-dato-fijo {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 10px 14px;
+  font-size: 15px;
+  line-height: 1.5;
+  color: var(--brand-text-muted);
+  background: var(--brand-surface-deep);
+  border: 1px solid var(--brand-border-light);
+  border-radius: 8px;
+  min-width: 0;
+}
+
+.config-dato-fijo svg {
+  color: var(--brand-text-light);
+  flex-shrink: 0;
+}
+
+.config-dato-fijo span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.config-acciones {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding-top: 4px;
+}
+
+/* Una aclaración que acompaña a un campo desde la casilla de al lado. */
+.config-nota {
+  align-self: center;
+  font-size: 12px;
+  line-height: 1.55;
+  color: var(--brand-text-light);
+  margin: 0;
+}
+
+/* ── Requisitos de la contraseña ────────────────────────────────── */
+.config-pie-campos {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.config-requisitos {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 20px;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.config-requisito {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--brand-text-light);
+  transition: color var(--t-fast);
+}
+
+.config-requisito svg {
+  flex-shrink: 0;
+  opacity: 0.55;
+}
+
+.config-requisito.cumplido {
+  color: var(--color-success, #2E7D5B);
+}
+
+.config-requisito.cumplido svg {
+  opacity: 1;
+}

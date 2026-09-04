@@ -32,6 +32,29 @@ export const getUsers = async (params = {}) => {
 };
 
 /**
+ * El personal al que se le puede asignar una cita o un informe.
+ *
+ * No es `getUsers` con un filtro: aquel administra las cuentas y solo lo puede
+ * llamar el administrador, así que usarlo para llenar un selector dejaba sin
+ * médicos a quien agenda desde el mostrador. Este devuelve nombre y rol, que
+ * es todo lo que un selector necesita.
+ */
+export const getMedicos = async () => {
+  try {
+    const response = await api.get('/medicos');
+    return {
+      success: true,
+      data: response.data.data || [],
+    };
+  } catch (error) {
+    return {
+      success: false,
+      message: error.response?.data?.message || 'Error al obtener la lista de médicos.',
+    };
+  }
+};
+
+/**
  * Obtener detalle de un usuario específico
  */
 export const getUserById = async (id) => {

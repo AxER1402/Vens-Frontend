@@ -16,6 +16,7 @@ import Facturacion     from './pages/Facturacion/Facturacion';
 import ReporteDoppler  from './pages/ReporteDoppler/ReporteDoppler';
 import MapeoVenoso     from './pages/MapeoVenoso/MapeoVenoso';
 import Usuarios        from './pages/Usuarios/Usuarios';
+import Configuracion   from './pages/Configuracion/Configuracion';
 
 import { TooltipProvider } from '@/components/ui/tooltip';
 
@@ -43,6 +44,11 @@ function App() {
               <Route path="/reporte-doppler"   element={<ProtectedRoute><ReporteDoppler /></ProtectedRoute>} />
               <Route path="/mapeo-venoso"      element={<ProtectedRoute><MapeoVenoso /></ProtectedRoute>} />
               <Route path="/usuarios"          element={<AdminRoute><Usuarios /></AdminRoute>} />
+
+              {/* Configuración: protegida, no restringida a administrador. Su
+                  cuenta la gestiona cada quien; las secciones de administración
+                  se filtran dentro de la pantalla y las cierra el backend. */}
+              <Route path="/configuracion"     element={<ProtectedRoute><Configuracion /></ProtectedRoute>} />
 
               <Route path="*"                  element={<Navigate to="/dashboard" replace />} />
             </Routes>

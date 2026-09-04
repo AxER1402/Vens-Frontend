@@ -1,0 +1,114 @@
+/* ======================================
+   MENÚ DE AJUSTES (encabezado)
+====================================== */
+
+.menu-ajustes {
+  position: relative;
+  display: inline-flex;
+}
+
+/* Cuelga del botón alineado a la derecha porque el botón vive en la esquina
+   derecha del encabezado: abriéndolo hacia la izquierda no se sale de la
+   pantalla en monitores angostos. */
+.menu-ajustes-panel {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 60;
+  min-width: 232px;
+  padding: 6px;
+  background: var(--brand-surface);
+  border: 1px solid var(--brand-border-light);
+  border-radius: 12px;
+  /* Más marcada que la sombra del sistema: esto flota sobre el contenido y
+     tiene que despegarse de él, no posarse encima. */
+  box-shadow: 0 12px 32px rgba(36, 55, 87, 0.14), 0 2px 6px rgba(36, 55, 87, 0.06);
+  animation: menu-ajustes-entrar 120ms ease-out;
+}
+
+@keyframes menu-ajustes-entrar {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.menu-ajustes-cabecera {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px 10px;
+  border-bottom: 1px solid var(--brand-border-light);
+  margin-bottom: 6px;
+}
+
+.menu-ajustes-identidad {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.menu-ajustes-nombre {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--brand-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.menu-ajustes-rol {
+  font-size: 11px;
+  color: var(--brand-text-light);
+}
+
+.menu-ajustes-lista {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.menu-ajustes-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 8px 10px;
+  background: transparent;
+  border: none;
+  border-radius: 8px;
+  font-family: var(--font-sans);
+  font-size: 13px;
+  color: var(--brand-text);
+  text-align: left;
+  cursor: pointer;
+  transition: background var(--t-fast), color var(--t-fast);
+}
+
+.menu-ajustes-item:hover {
+  background: var(--brand-surface-deep);
+}
+
+.menu-ajustes-item svg {
+  color: var(--brand-text-light);
+  flex-shrink: 0;
+}
+
+.menu-ajustes-item:hover svg {
+  color: var(--brand-slate);
+}
+
+.menu-ajustes-separador {
+  height: 1px;
+  background: var(--brand-border-light);
+  margin: 6px 4px;
+}
+
+/* Cerrar sesión se marca en rojo solo al pasar por encima: en reposo es una
+   opción más, y no conviene que el ojo la busque antes que las demás. */
+.menu-ajustes-salir:hover {
+  background: #FDF2F2;
+  color: #A93226;
+}
+
+.menu-ajustes-salir:hover svg {
+  color: #A93226;
+}

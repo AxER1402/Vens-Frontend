@@ -320,12 +320,12 @@ function Citas() {
     }
   }, []);
 
-  // Fetch doctors list
+  // Fetch doctors list. El backend ya devuelve solo al personal asignable y
+  // activo, así que aquí no hay que filtrar nada ni adivinar con un respaldo.
   const fetchDoctors = useCallback(async () => {
-    const res = await userService.getUsers();
+    const res = await userService.getMedicos();
     if (res.success && res.data) {
-      const drs = res.data.filter(u => u.rol === 'medico' || u.rol === 'administrador');
-      setDoctors(drs.length > 0 ? drs : res.data);
+      setDoctors(res.data);
     }
   }, []);
 

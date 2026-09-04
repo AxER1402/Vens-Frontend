@@ -131,6 +131,22 @@ export function AuthProvider({ children }) {
     return res;
   };
 
+  /**
+   * Vuelve a leer la cuenta del backend y la deja en el contexto.
+   *
+   * Lo usa la pantalla de configuración: al guardar el nombre o la foto, el
+   * panel lateral y el menú tienen que enterarse sin obligar a recargar la
+   * página. Se pide a /auth/me en lugar de confiar en lo que devolvió la
+   * edición, para que lo que se muestre sea siempre lo que quedó guardado.
+   */
+  const refrescarUsuario = useCallback(async () => {
+    const res = await authService.getProfile();
+    if (res.success) {
+      setUser(res.user);
+    }
+    return res;
+  }, []);
+
   const logoutUser = async () => {
     cancelarTemporizador();
     await authService.logout();
@@ -147,6 +163,7 @@ export function AuthProvider({ children }) {
     isAuthenticated: !!token && !!user,
     loginUser,
     logoutUser,
+    refrescarUsuario,
   };
 
   return (
