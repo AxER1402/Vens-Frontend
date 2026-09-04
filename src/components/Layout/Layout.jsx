@@ -16,13 +16,16 @@ import {
   SidebarInset,
 } from '@/components/ui/sidebar';
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogMedia,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 const navItems = [
   { to: '/dashboard', icon: LayoutDashboard, label: 'Inicio' },
@@ -151,42 +154,34 @@ function Topbar() {
       </div>
 
       {/* ================= CONFIRMAR CIERRE DE SESIÓN ================= */}
-      <Dialog open={showLogoutModal} onOpenChange={setShowLogoutModal}>
-        <DialogContent className="flat-page sm:max-w-md rounded-none bg-brand-surface">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-brand-text">
-              <LogOut className="text-brand-slate" size={20} />
-              Cerrar sesión
-            </DialogTitle>
-            <DialogDescription className="text-muted">
-              ¿Estás seguro de que deseas cerrar la sesión
-              {user?.name ? <> de <strong>{user.name}</strong></> : null}?
-              <br />
-              Se perderá cualquier cambio sin guardar y deberás ingresar tus
+      {/* AlertDialog y no Dialog: no se descarta tocando fuera del recuadro,
+          que es justo el gesto con el que se sale sin querer de un modal. */}
+      <AlertDialog open={showLogoutModal} onOpenChange={setShowLogoutModal}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogMedia>
+              <LogOut className="text-brand-slate" />
+            </AlertDialogMedia>
+            <AlertDialogTitle>¿Cerrar la sesión?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {user?.name ? <>Se cerrará la sesión de <strong>{user.name}</strong>. </> : null}
+              Se perderá cualquier cambio sin guardar y deberá ingresar sus
               credenciales para volver a entrar.
-            </DialogDescription>
-          </DialogHeader>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
 
-          <DialogFooter className="dialog-sep flex flex-row justify-end gap-3">
-            <button
-              type="button"
-              className="btn btn-secondary"
-              onClick={() => setShowLogoutModal(false)}
-              disabled={cerrando}
-            >
-              Cancelar
-            </button>
-            <button
-              type="button"
-              className="btn btn-danger"
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={cerrando}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
               onClick={handleConfirmLogout}
               disabled={cerrando}
             >
               {cerrando ? 'Cerrando…' : 'Sí, cerrar sesión'}
-            </button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </header>
   );
 }
