@@ -1,20 +1,67 @@
 import api from './api';
 
+const TOKEN_KEY = 'token';
+const USER_KEY = 'user';
+const EXPIRACION_KEY = 'token_expires_at';
+
+/**
+ * Guarda el momento exacto en que vence la sesión (ISO 8601 del backend).
+ * Sin ese dato se borra la marca anterior para no arrastrar un vencimiento
+ * viejo de otra sesión.
+ */
+const guardarVencimiento = (expiresAt) => {
+  if (expiresAt) {
+    localStorage.setItem(EXPIRACION_KEY, expiresAt);
+  } else {
+    localStorage.removeItem(EXPIRACION_KEY);
+  }
+};
+
+/**
+ * Momento en que vence la sesión, en milisegundos, o null si no se conoce.
+ */
+export const getSessionExpiry = () => {
+  const guardado = localStorage.getItem(EXPIRACION_KEY);
+  if (!guardado) return null;
+
+  const vencimiento = new Date(guardado).getTime();
+  return Number.isNaN(vencimiento) ? null : vencimiento;
+};
+
+/**
+ * ¿Ya pasó la hora de vida de la sesión guardada?
+ */
+export const isSessionExpired = () => {
+  const vencimiento = getSessionExpiry();
+  return vencimiento !== null && vencimiento <= Date.now();
+};
+
+/**
+ * Borra del navegador todo rastro de la sesión.
+ */
+export const clearSession = () => {
+  localStorage.removeItem(TOKEN_KEY);
+  localStorage.removeItem(USER_KEY);
+  localStorage.removeItem(EXPIRACION_KEY);
+};
+
 export const login = async (email, password) => {
   try {
     const response = await api.post('/auth/login', { email, password });
-    const { access_token, user } = response.data.data;
-    
+    const { access_token, user, expires_at: expiresAt } = response.data.data;
+
     if (access_token) {
-      localStorage.setItem('token', access_token);
-      localStorage.setItem('user', JSON.stringify(user));
+      localStorage.setItem(TOKEN_KEY, access_token);
+      localStorage.setItem(USER_KEY, JSON.stringify(user));
+      guardarVencimiento(expiresAt);
     }
-    
+
     return {
       success: true,
       message: response.data.message || 'Inicio de sesión exitoso.',
       token: access_token,
-      user
+      user,
+      expiresAt: getSessionExpiry()
     };
   } catch (error) {
     const message = error.response?.data?.message || 'Error de conexión con el servidor.';
@@ -30,10 +77,14 @@ export const getProfile = async () => {
   try {
     const response = await api.get('/auth/me');
     const user = response.data.data;
-    localStorage.setItem('user', JSON.stringify(user));
+    localStorage.setItem(USER_KEY, JSON.stringify(user));
+    // El backend recuerda en cada consulta cuándo vence la sesión, así que se
+    // reajusta la marca local por si el reloj del navegador iba desfasado.
+    guardarVencimiento(user.expires_at);
     return {
       success: true,
-      user
+      user,
+      expiresAt: getSessionExpiry()
     };
   } catch (error) {
     return {
@@ -98,14 +149,13 @@ export const resetPassword = async ({ token, email, password, passwordConfirmati
 
 export const logout = async () => {
   try {
-    const token = localStorage.getItem('token');
+    const token = localStorage.getItem(TOKEN_KEY);
     if (token) {
       await api.post('/auth/logout');
     }
   } catch (error) {
     console.warn('Logout API warning:', error?.message);
   } finally {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
+    clearSession();
   }
 };

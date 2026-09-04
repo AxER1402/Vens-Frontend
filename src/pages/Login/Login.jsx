@@ -1,12 +1,12 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Users, Calendar, Clipboard, BarChart3, Mail, Lock, Eye, EyeOff, ShieldAlert, ArrowRight, AlertCircle } from 'lucide-react';
+import { Users, Calendar, Clipboard, BarChart3, Mail, Lock, Eye, EyeOff, ShieldAlert, ArrowRight, AlertCircle, Clock } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import logo from '../../assets/isotipo.png';
 
 function Login() {
   const navigate = useNavigate();
-  const { loginUser } = useAuth();
+  const { loginUser, sesionExpirada } = useAuth();
 
   const [form, setForm] = useState({ email: '', password: '' });
   const [showPassword, setShowPassword] = useState(false);
@@ -73,6 +73,18 @@ function Login() {
         <div className="login-form-box">
           <h2 className="login-form-title">Bienvenido</h2>
           <p className="login-form-sub">Ingrese sus credenciales para acceder al sistema</p>
+
+          {sesionExpirada && !errorMsg && (
+            <div className="mb-5 p-4 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 text-sm flex items-start gap-3 shadow-xs animate-in fade-in-0">
+              <Clock size={20} className="shrink-0 mt-0.5 text-amber-600" />
+              <div>
+                <span className="font-semibold block text-amber-900">La sesión expiró</span>
+                <span className="mt-0.5 block leading-relaxed">
+                  Por seguridad, la sesión dura una hora. Ingrese sus credenciales para continuar.
+                </span>
+              </div>
+            </div>
+          )}
 
           {errorMsg && (
             <div className="mb-5 p-4 rounded-xl bg-red-50 border border-red-200 text-red-700 text-sm flex items-start gap-3 shadow-xs animate-in fade-in-0">
