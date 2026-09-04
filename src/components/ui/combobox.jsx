@@ -24,7 +24,11 @@ export function Combobox({
   // Normalize items to { value, label }
   const normalizedItems = items.map(item => {
     if (typeof item === 'object' && item !== null) {
-      return { value: item.value ?? item.label, label: item.label ?? item.value };
+      return {
+        value: item.value ?? item.label,
+        label: item.label ?? item.value,
+        busqueda: item.busqueda ?? null,
+      };
     }
     return { value: item, label: item };
   });
@@ -33,9 +37,14 @@ export function Combobox({
   const showSearch = searchable ?? (normalizedItems.length > 6 || Boolean(onAddNew));
 
   // Filter items
-  const filteredItems = normalizedItems.filter(i =>
-    String(i.label).toLowerCase().includes(search.toLowerCase())
-  );
+  // Un item puede traer `busqueda` con lo que además debería encontrarlo: el
+  // teléfono de un paciente, por ejemplo. Quien llama por teléfono lo tiene a
+  // mano antes que el nombre completo.
+  const filteredItems = normalizedItems.filter(i => {
+    const aguja = search.toLowerCase();
+    const pajar = `${i.label} ${i.busqueda ?? ''}`.toLowerCase();
+    return pajar.includes(aguja);
+  });
 
   // Close when clicking outside
   useEffect(() => {

@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import {
   AlertCircle, Ban, CheckCircle2, ClipboardList, FilePlus, FileText,
-  Plus, Printer, Receipt, RefreshCw, Trash2, User,
+  Plus, Printer, Receipt, RefreshCw, Trash2, TrendingUp, User,
 } from 'lucide-react';
 
 import Layout from '../../components/Layout/Layout';
@@ -19,6 +20,7 @@ import * as patientService from '../../services/patientService';
 import * as clinicalHistoryService from '../../services/clinicalHistoryService';
 import { reporteDocumentoCobro } from '../../services/reporteService';
 import VistaPreviaReporte from '../../components/Reportes/VistaPreviaReporte';
+import GraficaIngresos from '../../components/Facturacion/GraficaIngresos';
 import './Facturacion.css';
 
 const { quetzales } = facturacionService;
@@ -58,6 +60,13 @@ const formatearFecha = (valor) => {
 function Facturacion() {
   const { user } = useAuth();
 
+  // La historia clínica puede mandar aquí una consulta ya elegida. Se lee del
+  // estado de navegación y se limpia enseguida: si se quedara, recargar la
+  // página volvería a rellenar un cobro que quizá ya se emitió.
+  const location = useLocation();
+  const navigate = useNavigate();
+  const desdeLaConsulta = location.state ?? null;
+
   // Cobrar y anular los hace quien está en el mostrador. El médico entra a
   // consultar, y por eso no ve botones que el servidor le va a rechazar.
   const puedeCobrar = user?.rol === 'administrador' || user?.rol === 'recepcionista';
@@ -90,11 +99,40 @@ function Facturacion() {
   useEffect(() => {
     (async () => {
       const res = await patientService.getPatients();
-      if (res.success) {
-        setPacientes(res.data.map((p) => ({ value: String(p.id), label: p.nombre, telefono: p.telefono })));
-      }
+      if (!res.success) return;
+
+      const lista = res.data.map((p) => ({
+        value: String(p.id),
+        label: p.nombre,
+        // El buscador del selector mira también aquí, para poder encontrar al
+        // paciente por su teléfono cuando lo llama por teléfono.
+        busqueda: [p.nombre, p.telefono].filter(Boolean).join(' '),
+        telefono: p.telefono,
+      }));
+      setPacientes(lista);
+
+      // Al llegar desde la consulta el paciente ya viene elegido, pero su
+      // nombre solo se sabe cuando llega la lista.
+      setForm((prev) => {
+        if (!prev.patient_id || prev.nombre_receptor) return prev;
+
+        const paciente = lista.find((p) => p.value === prev.patient_id);
+        return paciente ? { ...prev, nombre_receptor: paciente.label } : prev;
+      });
     })();
   }, []);
+
+  useEffect(() => {
+    if (!desdeLaConsulta?.patientId) return;
+
+    setForm((prev) => ({
+      ...prev,
+      patient_id: String(desdeLaConsulta.patientId),
+      clinical_history_id: desdeLaConsulta.historiaId ? String(desdeLaConsulta.historiaId) : '',
+    }));
+
+    navigate('.', { replace: true, state: null });
+  }, [desdeLaConsulta, navigate]);
 
   const cargarHistorial = useCallback(async () => {
     setCargandoHistorial(true);
@@ -479,6 +517,18 @@ function Facturacion() {
                 </p>
               )}
             </div>
+          </div>
+        </section>
+
+        {/* ── Lo que ha entrado ────────────────────────────────────────── */}
+        <section className="hc-section">
+          <div className="hc-section-head">
+            <TrendingUp size={14} />
+            <h2 className="hc-section-title">Entradas del período</h2>
+            <span className="fa-head-nota">Para el detalle imprimible, el reporte de ingresos</span>
+          </div>
+          <div className="hc-section-body">
+            <GraficaIngresos recargar={documentos.length} />
           </div>
         </section>
 
