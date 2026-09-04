@@ -534,6 +534,8 @@ h6 {
   border-color: var(--brand-border);
 }
 
+/* Solo se pinta cuando hay avisos pendientes: un punto que está siempre no
+   dice nada. Basta con avisar que hay algo; cuántos se ve al abrir. */
 .notif-dot {
   position: absolute;
   top: 7px;
@@ -545,26 +547,6 @@ h6 {
   border: 2px solid var(--brand-surface);
 }
 
-/* El campanario lleva la cuenta de avisos pendientes en vez del punto suelto:
-   saber que hay algo sirve de poco si no se sabe cuánto. */
-.notif-count {
-  position: absolute;
-  top: -3px;
-  right: -3px;
-  min-width: 16px;
-  height: 16px;
-  padding: 0 4px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 999px;
-  background: var(--brand-deep);
-  color: var(--brand-surface);
-  font-size: 10px;
-  font-weight: 600;
-  line-height: 1;
-  border: 2px solid var(--brand-surface);
-}
 
 /* ======================================
    PAGE CONTENT & HEADER
@@ -669,8 +651,34 @@ h6 {
 }
 
 /* ======================================
-   STAT CARDS (Dashboard)
+   STAT CARDS — indicadores de Inicio, Citas y Reportes
 ====================================== */
+.stat-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 20px;
+  margin-bottom: 20px;
+}
+
+/* Cinco indicadores no entran en la rejilla de cuatro sin dejar un hueco */
+.stat-grid-5 {
+  grid-template-columns: repeat(5, 1fr);
+}
+
+@media (max-width: 1200px) {
+  .stat-grid,
+  .stat-grid-5 {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (max-width: 900px) {
+  .stat-grid,
+  .stat-grid-5 {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
 .stat-card {
   background: var(--brand-surface);
   border: 1px solid var(--brand-border-light);
@@ -760,6 +768,12 @@ h6 {
   background: var(--color-warning-bg);
   color: var(--color-warning);
   border: 1px solid rgba(184, 150, 62, 0.2);
+}
+
+.stat-icon-clay {
+  background: var(--color-danger-bg);
+  color: var(--color-danger);
+  border: 1px solid rgba(180, 60, 50, 0.2);
 }
 
 /* ======================================
@@ -3218,46 +3232,12 @@ body.mv-expandido .page-content {
 /* ======================================
    CITAS — agenda plana (semana / día / lista)
 ====================================== */
-.citas-summary {
-  display: grid;
-  grid-template-columns: repeat(5, 1fr);
-  gap: 16px;
-  margin-bottom: 20px;
+/* El resumen de la agenda va debajo del calendario y usa las tarjetas de
+   indicador compartidas (.stat-grid / .stat-card), las mismas del Inicio. */
+.citas-resumen {
+  margin-top: 24px;
+  margin-bottom: 0;
 }
-
-.cita-sum {
-  background: var(--hc-panel);
-  border: 1px solid var(--hc-line);
-  border-left: 3px solid var(--brand-slate);
-  border-radius: 0;
-  padding: 14px 16px;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  box-shadow: none;
-}
-
-.cita-sum-count {
-  font-size: 24px;
-  font-weight: 600;
-  line-height: 1;
-  color: var(--brand-text);
-  letter-spacing: -0.02em;
-}
-
-.cita-sum-label {
-  font-size: 10px;
-  color: var(--brand-text-muted);
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-}
-
-.sum-ok { border-left-color: var(--color-success); }
-.sum-pend { border-left-color: var(--brand-slate); }
-.sum-reag { border-left-color: var(--color-warning); }
-.sum-cancel { border-left-color: var(--color-danger); }
-.sum-total { border-left-color: var(--brand-deep); }
 
 /* Barra de navegación de la agenda */
 .agenda-bar {
@@ -3788,9 +3768,6 @@ body.mv-expandido .page-content {
 }
 
 @media (max-width: 1200px) {
-  .citas-summary {
-    grid-template-columns: repeat(3, 1fr);
-  }
 }
 
 /* ======================================

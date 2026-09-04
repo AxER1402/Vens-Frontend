@@ -144,11 +144,7 @@ function Topbar() {
           onClick={() => setShowNotificaciones(true)}
         >
           <Bell size={16} strokeWidth={2} />
-          {notificaciones.total > 0 && (
-            <span className="notif-count">
-              {notificaciones.total > 9 ? '9+' : notificaciones.total}
-            </span>
-          )}
+          {notificaciones.total > 0 && <span className="notif-dot" />}
         </button>
         <button className="topbar-notif" title="Ajustes">
           <Settings size={16} strokeWidth={2} />

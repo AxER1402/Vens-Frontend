@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import Layout from '../../components/Layout/Layout';
+import StatCard from '../../components/StatCard';
 import {
   Users, Calendar, Stethoscope, Activity, ChevronRight,
   ClipboardList, CalendarX, RefreshCw
@@ -176,16 +177,14 @@ function Dashboard() {
         {/* Indicadores */}
         <div className="stat-grid">
           {stats.map((s, i) => (
-            <Link to={s.to} className="stat-card" key={i} title={`Ir a ${s.label}`}>
-              <div>
-                <div className="stat-label">{s.label}</div>
-                <div className="stat-value">{loading ? '—' : s.value}</div>
-                <div className="stat-change neutral">
-                  <span>{loading ? 'cargando…' : s.detail}</span>
-                </div>
-              </div>
-              <div className="stat-icon stat-icon-rose">{s.icon}</div>
-            </Link>
+            <StatCard
+              key={i}
+              to={s.to}
+              label={s.label}
+              value={loading ? '—' : s.value}
+              detail={loading ? 'cargando…' : s.detail}
+              icon={s.icon}
+            />
           ))}
         </div>
 

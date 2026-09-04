@@ -130,13 +130,11 @@
   padding-right: 38px;
   background: var(--brand-surface);
   border: 1px solid var(--brand-border-light);
-  border-left: 2px solid var(--brand-slate);
   transition: border-color var(--t-fast), background var(--t-fast);
 }
 
 .av-item:hover {
   border-color: var(--brand-border);
-  border-left-color: var(--brand-deep);
   background: var(--brand-surface-alt);
 }
 
