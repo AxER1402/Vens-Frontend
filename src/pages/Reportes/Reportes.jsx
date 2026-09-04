@@ -1,23 +1,24 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Layout from '../../components/Layout/Layout';
+import StatCard from '../../components/StatCard';
 import {
   Activity,
   AlertCircle,
   BarChart3,
-  CalendarDays,
+  Calendar,
   ClipboardList,
   Download,
   Eye,
   FileText,
   FolderOpen,
   HeartPulse,
+  MessageSquare,
   RefreshCw,
   SlidersHorizontal,
   Stethoscope,
   Syringe,
-  TrendingUp,
+  UserCheck,
   Users,
-  Waves,
 } from 'lucide-react';
 
 import {
@@ -59,12 +60,16 @@ import './Reportes.css';
 /* Icono de cada reporte. Vive aquí y no en el catálogo del servidor porque es
    decisión de presentación; un reporte nuevo sin icono declarado sale con el
    genérico en vez de romper la rejilla. */
+/* Los íconos salen del vocabulario del Inicio y de Historia Clínica —Users,
+   Calendar, Stethoscope, Activity, MessageSquare— y no de un repertorio
+   propio: ocho reportes necesitan ocho íconos distintos, pero de la misma
+   familia, o el módulo parece de otra aplicación. */
 const ICONOS = {
   'pacientes-atendidos': Users,
-  'citas': CalendarDays,
-  'productividad-medico': TrendingUp,
+  'citas': Calendar,
+  'productividad-medico': UserCheck,
   'diagnosticos-ceap': Stethoscope,
-  'sintomas-antecedentes': ClipboardList,
+  'sintomas-antecedentes': MessageSquare,
   'tratamientos-indicaciones': Syringe,
   'evolucion-seguimiento': HeartPulse,
   'estudios-ecodoppler': Activity,
@@ -370,7 +375,7 @@ function Reportes() {
         {/* Encabezado */}
         <div className="page-header">
           <div>
-            <h1 className="page-title">Reportes</h1>
+            <h1 className="page-title">Centro de reportes</h1>
             <p className="page-subtitle">
               Documentos imprimibles del sistema: los que resumen un período y los que describen un expediente.
             </p>
@@ -478,30 +483,36 @@ function Reportes() {
 
         {/* Lo que hay en el período elegido, contado sobre los mismos registros
             que entrarán en los documentos */}
-        <div className="rp-resumen">
+        <div className="stat-grid stat-grid-5">
           {[
-            { clave: 'consultas', etiqueta: 'Consultas', icono: ClipboardList },
-            { clave: 'pacientes', etiqueta: 'Pacientes atendidos', icono: Users },
-            { clave: 'citas', etiqueta: 'Citas agendadas', icono: CalendarDays },
-            { clave: 'atendidas', etiqueta: 'Citas atendidas', icono: TrendingUp },
-            { clave: 'estudios', etiqueta: 'Ecodöppler', icono: Activity },
-          ].map(({ clave, etiqueta, icono: Icono }) => (
-            <div className="rp-sum" key={clave}>
-              <span className="rp-sum-icon"><Icono size={16} /></span>
-              <span className="rp-sum-val">
-                {cargandoResumen || !resumen ? '—' : resumen[clave]}
-              </span>
-              <span className="rp-sum-label">{etiqueta}</span>
-            </div>
+            { clave: 'consultas', etiqueta: 'Consultas', icono: ClipboardList, tono: 'rose' },
+            { clave: 'pacientes', etiqueta: 'Pacientes atendidos', icono: Users, tono: 'rose' },
+            { clave: 'citas', etiqueta: 'Citas agendadas', icono: Calendar, tono: 'plum' },
+            { clave: 'atendidas', etiqueta: 'Citas atendidas', icono: Stethoscope, tono: 'sage' },
+            { clave: 'estudios', etiqueta: 'Ecodöppler', icono: Activity, tono: 'amber' },
+          ].map(({ clave, etiqueta, icono: Icono, tono }) => (
+            <StatCard
+              key={clave}
+              label={etiqueta}
+              value={cargandoResumen || !resumen ? '—' : resumen[clave]}
+              icon={<Icono size={20} />}
+              tono={tono}
+            />
           ))}
         </div>
 
         {/* ── Reportes de período ───────────────────────────────────────── */}
-        <div className="section-header rp-seccion">
-          <span className="section-bar" />
-          <span className="section-title">Reportes de período</span>
-          <span className="rp-seccion-count">{catalogo.length} disponible(s)</span>
-        </div>
+        {/* Las dos familias de documentos van encerradas, como las secciones de
+            la historia clínica: se piden de forma distinta —una con el rango de
+            arriba, la otra eligiendo un registro— y el contenedor es lo que
+            deja verlo sin leer las tarjetas. */}
+        <section className="hc-section">
+          <div className="hc-section-head">
+            <BarChart3 size={14} />
+            <h2 className="hc-section-title">Reportes de período</h2>
+            <span className="rp-seccion-count">{catalogo.length} disponible(s)</span>
+          </div>
+          <div className="hc-section-body">
 
         {cargandoCatalogo ? (
           <div className="rp-cargando">
@@ -567,17 +578,22 @@ function Reportes() {
           </div>
         )}
 
+          </div>
+        </section>
+
         {/* ── Informes de expediente ────────────────────────────────────── */}
-        <div className="section-header rp-seccion">
-          <span className="section-bar" />
-          <span className="section-title">Informes de expediente</span>
-          <span className="rp-seccion-count">Requieren elegir el registro</span>
-        </div>
+        <section className="hc-section">
+          <div className="hc-section-head">
+            <FolderOpen size={14} />
+            <h2 className="hc-section-title">Informes de expediente</h2>
+            <span className="rp-seccion-count">Requieren elegir el registro</span>
+          </div>
+          <div className="hc-section-body">
 
         <div className="rp-grid">
           <article className="rp-card">
             <div className="rp-card-head">
-              <span className="rp-card-icon"><FolderOpen size={17} /></span>
+              <span className="rp-card-icon"><ClipboardList size={17} /></span>
               <h3 className="rp-card-title">Historia clínica</h3>
             </div>
             <p className="rp-card-desc">
@@ -601,7 +617,7 @@ function Reportes() {
 
           <article className="rp-card">
             <div className="rp-card-head">
-              <span className="rp-card-icon"><Waves size={17} /></span>
+              <span className="rp-card-icon"><Activity size={17} /></span>
               <h3 className="rp-card-title">Reporte de Ecodöppler</h3>
             </div>
             <p className="rp-card-desc">
@@ -623,6 +639,9 @@ function Reportes() {
             </div>
           </article>
         </div>
+
+          </div>
+        </section>
       </div>
 
       {/* ── Selector de expediente ───────────────────────────────────────── */}
