@@ -1,13 +1,6 @@
 /* Dashboard — retícula plana. Los paneles, tarjetas y tablas
    vienen del sistema compartido .flat-page en index.css */
 
-.stat-grid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 20px;
-  margin-bottom: 20px;
-}
-
 .dashboard-grid {
   display: grid;
   grid-template-columns: 1fr 360px;
@@ -16,10 +9,6 @@
 }
 
 @media (max-width: 1200px) {
-  .stat-grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
-
   .dashboard-grid {
     grid-template-columns: 1fr;
   }

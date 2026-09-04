@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useMemo, Fragment } from 'react';
 import Layout from '../../components/Layout/Layout';
+import StatCard from '../../components/StatCard';
 import {
   CalendarX,
   Eye,
@@ -1077,32 +1078,6 @@ function Citas() {
           </div>
         )}
 
-        {/* Resumen por estado */}
-        <div className="citas-summary">
-          <div className="cita-sum sum-pend">
-            <span className="cita-sum-count">{stats.programadas}</span>
-            <span className="cita-sum-label">Programadas</span>
-          </div>
-          <div className="cita-sum sum-ok">
-            <span className="cita-sum-count">{stats.confirmadas}</span>
-            <span className="cita-sum-label">Confirmadas</span>
-          </div>
-          <div className="cita-sum sum-reag">
-            <span className="cita-sum-count">{stats.reagendadas}</span>
-            <span className="cita-sum-label">Reagendadas</span>
-          </div>
-          <div className="cita-sum sum-cancel">
-            <span className="cita-sum-count">{stats.canceladas}</span>
-            <span className="cita-sum-label">Canceladas</span>
-          </div>
-          <div className="cita-sum sum-total">
-            <span className="cita-sum-count">{stats.total}</span>
-            <span className="cita-sum-label">
-              {view === 'lista' ? 'Total citas' : view === 'dia' ? 'Citas del día' : 'Citas de la semana'}
-            </span>
-          </div>
-        </div>
-
         {/* Navegación de la agenda y selector de vista */}
         <div className="agenda-bar">
           <div className="agenda-nav">
@@ -1489,6 +1464,41 @@ function Citas() {
             })
           )
         )}
+
+        {/* Resumen de lo que se está viendo. Va debajo y no encima porque no es
+            el punto de partida: primero se mira la agenda y después se
+            pregunta cuántas de cada estado había. */}
+        <div className="stat-grid stat-grid-5 citas-resumen">
+          <StatCard
+            label="Programadas"
+            value={stats.programadas}
+            icon={<CalendarIcon size={20} />}
+          />
+          <StatCard
+            label="Confirmadas"
+            value={stats.confirmadas}
+            icon={<CheckCircle2 size={20} />}
+            tono="sage"
+          />
+          <StatCard
+            label="Reagendadas"
+            value={stats.reagendadas}
+            icon={<RefreshCw size={20} />}
+            tono="amber"
+          />
+          <StatCard
+            label="Canceladas"
+            value={stats.canceladas}
+            icon={<CalendarX size={20} />}
+            tono="clay"
+          />
+          <StatCard
+            label={view === 'lista' ? 'Total citas' : view === 'dia' ? 'Citas del día' : 'Citas de la semana'}
+            value={stats.total}
+            icon={<ClipboardList size={20} />}
+            tono="plum"
+          />
+        </div>
 
       {/* ================= MODAL AGENDAR CITA ================= */}
       <Dialog open={showCreateModal} onOpenChange={setShowCreateModal}>
