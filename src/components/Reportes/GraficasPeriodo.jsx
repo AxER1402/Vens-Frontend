@@ -1,15 +1,12 @@
 import BarrasPorEstado from '../graficas/BarrasPorEstado';
 import ColumnasEnElTiempo from '../graficas/ColumnasEnElTiempo';
-import { NOMBRE_PASO, repartir, tramosDelPeriodo } from '../graficas/tramos';
+import { NOMBRE_PASO, quetzalesCortos, repartir, tramosDelPeriodo } from '../graficas/tramos';
 
 /**
- * Las dos lecturas del período que ninguna cifra suelta da: en qué terminaron
- * las citas y en qué tramos se concentró el trabajo clínico.
- *
- * Lo cobrado se dejó fuera a propósito: vive en Facturación, que es donde se
- * cobra y donde alguien hace esa pregunta.
+ * Las tres lecturas del período que ninguna cifra suelta da: en qué terminaron
+ * las citas, en qué tramos se concentró el trabajo clínico y cuánto entró.
  */
-function GraficasPeriodo({ desde, hasta, citasPorEstado, fechasDeConsulta, cargando }) {
+function GraficasPeriodo({ desde, hasta, citasPorEstado, fechasDeConsulta, cobros = [], cargando }) {
   const { paso } = tramosDelPeriodo(desde, hasta);
 
   const consultas = repartir(
@@ -17,6 +14,13 @@ function GraficasPeriodo({ desde, hasta, citasPorEstado, fechasDeConsulta, carga
     fechasDeConsulta,
     (f) => f,
     () => 1
+  );
+
+  const entradas = repartir(
+    tramosDelPeriodo(desde, hasta).tramos,
+    cobros,
+    (c) => c.fecha,
+    (c) => c.monto
   );
 
   return (
@@ -45,6 +49,24 @@ function GraficasPeriodo({ desde, hasta, citasPorEstado, fechasDeConsulta, carga
             datos={consultas}
             vacio="No hubo consultas registradas en el período elegido."
             pie={(total, maximo) => `${total} en total · máximo de ${maximo} en un mismo tramo`}
+          />
+        )}
+      </figure>
+
+      <figure className="gr-figura">
+        <figcaption className="gr-titulo">
+          Entradas por cobros
+          <span className="gr-subtitulo">Lo cobrado {NOMBRE_PASO[paso]}, sin los documentos anulados</span>
+        </figcaption>
+        {cargando ? (
+          <p className="gr-vacio">Sumando…</p>
+        ) : (
+          <ColumnasEnElTiempo
+            datos={entradas}
+            vacio="No se registraron cobros en el período elegido."
+            formatear={quetzalesCortos}
+            pie={(total, maximo) =>
+              `${quetzalesCortos(total)} en total · máximo de ${quetzalesCortos(maximo)} en un mismo tramo`}
           />
         )}
       </figure>

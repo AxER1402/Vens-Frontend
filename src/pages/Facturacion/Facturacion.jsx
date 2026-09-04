@@ -20,7 +20,7 @@ import * as patientService from '../../services/patientService';
 import * as clinicalHistoryService from '../../services/clinicalHistoryService';
 import { reporteDocumentoCobro } from '../../services/reporteService';
 import VistaPreviaReporte from '../../components/Reportes/VistaPreviaReporte';
-import GraficaIngresos from '../../components/Facturacion/GraficaIngresos';
+import ReporteIngresos from '../../components/Facturacion/ReporteIngresos';
 import Paginador from '../../components/Paginador';
 import './Facturacion.css';
 
@@ -96,6 +96,9 @@ function Facturacion() {
   const [vistaPrevia, setVistaPrevia] = useState(null);
   const [pagina, setPagina] = useState(1);
   const [meta, setMeta] = useState(null);
+  // Tipo de documento pendiente de confirmar, o null. Emitir no se deshace:
+  // un documento de cobro entregado ya no se corrige, se anula.
+  const [aEmitir, setAEmitir] = useState(null);
 
   /* ── Carga inicial ────────────────────────────────────────────────────── */
 
@@ -222,6 +225,32 @@ function Facturacion() {
     setItems([renglonVacio()]);
   };
 
+  /**
+   * Antes de emitir se valida y se pregunta. Un documento de cobro no se
+   * deshace: si se emitió de más, hay que anularlo y el número queda gastado.
+   */
+  const pedirConfirmacion = (tipo) => {
+    setError('');
+    setAviso('');
+
+    if (!form.patient_id) return setError('Elija el paciente al que se le cobra.');
+    if (renglonesValidos().length === 0) {
+      return setError('Agregue al menos un renglón con su descripción.');
+    }
+
+    setAEmitir(tipo);
+  };
+
+  const renglonesValidos = () => items
+    .filter((i) => i.descripcion.trim() !== '')
+    .map((i) => ({
+      tipo: i.tipo,
+      descripcion: i.descripcion.trim(),
+      cantidad: aNumero(i.cantidad),
+      precio_unitario: aNumero(i.precio_unitario),
+      descuento: aNumero(i.descuento),
+    }));
+
   const emitir = async (tipo) => {
     setError('');
     setAviso('');
@@ -240,6 +269,7 @@ function Facturacion() {
     if (renglones.length === 0) return setError('Agregue al menos un renglón con su descripción.');
 
     setEmitiendo(tipo);
+    setAEmitir(null);
     const res = await facturacionService.emitirInvoice({
       ...form,
       clinical_history_id: form.clinical_history_id || null,
@@ -502,7 +532,7 @@ function Facturacion() {
                   <button
                     type="button"
                     className="btn btn-secondary"
-                    onClick={() => emitir('recibo')}
+                    onClick={() => pedirConfirmacion('recibo')}
                     disabled={emitiendo !== ''}
                   >
                     <Receipt size={15} />
@@ -511,7 +541,7 @@ function Facturacion() {
                   <button
                     type="button"
                     className="btn btn-primary"
-                    onClick={() => emitir('factura')}
+                    onClick={() => pedirConfirmacion('factura')}
                     disabled={emitiendo !== ''}
                   >
                     <FilePlus size={15} />
@@ -536,11 +566,11 @@ function Facturacion() {
         <section className="hc-section">
           <div className="hc-section-head">
             <TrendingUp size={14} />
-            <h2 className="hc-section-title">Entradas del período</h2>
-            <span className="fa-head-nota">Para el detalle imprimible, el reporte de ingresos</span>
+            <h2 className="hc-section-title">Reporte de ingresos</h2>
+            <span className="fa-head-nota">Cuánto entró en el día, el mes o el rango que elija</span>
           </div>
           <div className="hc-section-body">
-            <GraficaIngresos recargar={documentos.length} />
+            <ReporteIngresos onVistaPrevia={setVistaPrevia} />
           </div>
         </section>
 
@@ -632,6 +662,43 @@ function Facturacion() {
       </div>
 
       <VistaPreviaReporte reporte={vistaPrevia} onCerrar={() => setVistaPrevia(null)} />
+
+      {/* ── Confirmar emisión ──────────────────────────────────────────── */}
+      <AlertDialog open={aEmitir !== null} onOpenChange={(abierto) => { if (!abierto) setAEmitir(null); }}>
+        <AlertDialogContent className="flat-page confirm-box">
+          <div className="confirm-head">
+            <span className="confirm-icon">
+              {aEmitir === 'factura' ? <FilePlus size={17} /> : <Receipt size={17} />}
+            </span>
+            <AlertDialogTitle className="confirm-title">
+              ¿Emitir {aEmitir === 'factura' ? 'la factura' : 'el recibo'}?
+            </AlertDialogTitle>
+          </div>
+
+          <AlertDialogDescription className="confirm-text">
+            Se emitirá por <strong>{quetzales(cuentas.total)}</strong> a nombre de{' '}
+            <strong>{form.nombre_receptor || 'quien indique el documento'}</strong>, con{' '}
+            {items.filter((i) => i.descripcion.trim() !== '').length} renglón(es).
+            <br />
+            El documento toma el siguiente número del correlativo y no se puede
+            corregir después: si sale mal, hay que anularlo y el número queda gastado.
+          </AlertDialogDescription>
+
+          <div className="confirm-actions dialog-sep">
+            <button type="button" className="btn btn-secondary" onClick={() => setAEmitir(null)}>
+              No, revisar
+            </button>
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={() => emitir(aEmitir)}
+              disabled={emitiendo !== ''}
+            >
+              Sí, emitir
+            </button>
+          </div>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* ── Confirmar anulación ────────────────────────────────────────── */}
       <AlertDialog open={aAnular !== null} onOpenChange={(abierto) => { if (!abierto) setAAnular(null); }}>
