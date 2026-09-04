@@ -1,0 +1,193 @@
+/* ======================================
+   GRÁFICAS DEL PERÍODO
+
+   Marcas finas sobre fondo claro, rejilla ausente y un solo color por gráfica:
+   cada una lleva una sola serie, así que el color no distingue nada y no
+   cambia. El número va siempre escrito al lado, de modo que la lectura no
+   depende de comparar largos a ojo ni de ver el color.
+====================================== */
+
+.gr-par {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 28px;
+}
+
+@media (max-width: 1000px) {
+  .gr-par {
+    grid-template-columns: 1fr;
+  }
+}
+
+.gr-figura {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+
+.gr-titulo {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--brand-text);
+}
+
+.gr-subtitulo {
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--brand-text-light);
+}
+
+.gr-vacio {
+  padding: 32px 0;
+  font-size: 12px;
+  color: var(--brand-text-light);
+}
+
+/* ── Barras horizontales ──────────────────────────────────────────────── */
+
+.gr-barras {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.gr-fila {
+  display: grid;
+  grid-template-columns: 92px 1fr 46px;
+  align-items: center;
+  gap: 12px;
+}
+
+.gr-fila-nombre {
+  font-size: 11px;
+  color: var(--brand-text-muted);
+  text-align: right;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* La pista deja ver hasta dónde podría llegar la barra, que es lo que permite
+   leer «pocas» sin tener que buscar el eje. */
+.gr-fila-pista {
+  position: relative;
+  height: 10px;
+  background: var(--brand-surface-deep);
+}
+
+.gr-fila-barra {
+  position: absolute;
+  inset: 0 auto 0 0;
+  display: block;
+  background: var(--brand-slate);
+  border-radius: 0 2px 2px 0;
+  transition: width var(--t-base);
+}
+
+.gr-fila-valor {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--brand-text);
+  font-variant-numeric: tabular-nums;
+  position: relative;
+}
+
+.gr-fila-porcentaje {
+  position: absolute;
+  top: -2px;
+  left: 100%;
+  margin-left: 6px;
+  padding: 2px 6px;
+  background: var(--brand-deep);
+  color: var(--brand-surface);
+  font-size: 10px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+/* ── Columnas ─────────────────────────────────────────────────────────── */
+
+.gr-columnas {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* La línea de base es lo único que se dibuja: una rejilla completa sobre seis
+   barras pesa más de lo que aclara. */
+/* El relleno de arriba es la banda donde cabe el globo de la barra más alta:
+   sin ella, al pasar por encima del máximo el globo se sube al subtítulo. */
+.gr-plano {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 158px;
+  padding-top: 26px;
+  border-bottom: 1px solid var(--brand-border);
+}
+
+.gr-col {
+  position: relative;
+  flex: 1;
+  height: 100%;
+  display: flex;
+  align-items: flex-end;
+  min-width: 0;
+}
+
+/* Sin ancho tope, cinco tramos se convierten en cinco bloques macizos que
+   pesan más de lo que dicen; la barra es una marca, no un panel. Y un tramo
+   sin nada no dibuja nada: un muñón de dos píxeles se lee como «hubo poco»
+   cuando la respuesta es «no hubo». */
+.gr-col-barra {
+  display: block;
+  width: 100%;
+  max-width: 46px;
+  margin: 0 auto;
+  background: var(--brand-slate);
+  border-radius: 2px 2px 0 0;
+  transition: background var(--t-fast);
+}
+
+.gr-col:hover .gr-col-barra {
+  background: var(--brand-deep);
+}
+
+.gr-globo {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 2;
+  padding: 4px 8px;
+  background: var(--brand-deep);
+  color: var(--brand-surface);
+  font-size: 10px;
+  line-height: 1.3;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.gr-eje {
+  display: flex;
+  gap: 2px;
+}
+
+.gr-eje-marca {
+  flex: 1;
+  min-width: 0;
+  font-size: 9px;
+  color: var(--brand-text-light);
+  text-align: center;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.gr-pie {
+  font-size: 11px;
+  color: var(--brand-text-light);
+}

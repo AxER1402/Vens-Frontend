@@ -31,6 +31,7 @@ import {
 import { Combobox } from '@/components/ui/combobox';
 import { DatePicker } from '@/components/ui/date-picker';
 
+import GraficasPeriodo from '../../components/Reportes/GraficasPeriodo';
 import VistaPreviaReporte from '../../components/Reportes/VistaPreviaReporte';
 import { useAuth } from '../../context/AuthContext';
 import * as reporteService from '../../services/reporteService';
@@ -74,6 +75,17 @@ const ICONOS = {
   'evolucion-seguimiento': HeartPulse,
   'estudios-ecodoppler': Activity,
 };
+
+/* Los estados de una cita, en el orden del ciclo de la agenda y no por
+   cantidad: así la gráfica se lee siempre igual aunque cambie el período. */
+const ESTADOS_CITA = [
+  'Programada',
+  'Confirmada',
+  'Reagendada',
+  'Completada',
+  'Cancelada',
+  'No Asistió',
+];
 
 /** Nombre legible de cada filtro, para las etiquetas de las tarjetas. */
 const NOMBRE_FILTRO = {
@@ -247,6 +259,17 @@ function Reportes() {
       estudios: estudios.success ? estudios.data.length : 0,
       pacientes: new Set(listaConsultas.map((c) => c.patient_id)).size,
       atendidas: listaCitas.filter((c) => c.estado === 'Completada').length,
+
+      // Las gráficas se cuentan sobre estas mismas listas y no con una consulta
+      // aparte: si salieran de otro lado, la barra podría contradecir a la cifra
+      // que tiene justo encima.
+      porEstado: ESTADOS_CITA.map((estado) => ({
+        etiqueta: estado,
+        valor: listaCitas.filter((c) => c.estado === estado).length,
+      })),
+      fechasDeConsulta: listaConsultas
+        .map((c) => c.fecha_consulta)
+        .filter(Boolean),
     });
 
     setCargandoResumen(false);
@@ -500,6 +523,24 @@ function Reportes() {
             />
           ))}
         </div>
+
+        {/* Dos lecturas del mismo período que ninguna cifra suelta da: en qué
+            terminaron las citas y cómo se repartió el trabajo en el tiempo. */}
+        <section className="hc-section">
+          <div className="hc-section-head">
+            <Activity size={14} />
+            <h2 className="hc-section-title">Cómo se movió el período</h2>
+          </div>
+          <div className="hc-section-body">
+            <GraficasPeriodo
+              desde={filtros.desde}
+              hasta={filtros.hasta}
+              citasPorEstado={resumen?.porEstado ?? []}
+              fechasDeConsulta={resumen?.fechasDeConsulta ?? []}
+              cargando={cargandoResumen || !resumen}
+            />
+          </div>
+        </section>
 
         {/* ── Reportes de período ───────────────────────────────────────── */}
         {/* Las dos familias de documentos van encerradas, como las secciones de
