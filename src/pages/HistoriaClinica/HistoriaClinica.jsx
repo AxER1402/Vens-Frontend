@@ -3,7 +3,7 @@ import Layout from '../../components/Layout/Layout';
 import {
   User, Folder, MessageSquare, Search, Stethoscope, CheckCircle, Pill, Clock,
   Save, Activity, PenTool, Check, AlertCircle, Plus, RefreshCw, Lock, FileText,
-  Eye
+  Eye, Receipt
 } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import * as patientService from '../../services/patientService';
@@ -1319,6 +1319,27 @@ function HistoriaClinica() {
                     })}
                   >
                     <Eye size={14} /> Vista previa
+                  </button>
+
+                  {/* Cierra el círculo consulta → cobro. Va con la consulta ya
+                      guardada y lleva al mostrador el paciente y el número de
+                      expediente, que es justo lo que si no hay que volver a
+                      teclear —y lo que se teclea mal—. */}
+                  <button
+                    type="button"
+                    className="btn btn-ghost"
+                    disabled={!historiaId}
+                    title={historiaId
+                      ? 'Abrir el cobro de esta consulta con el paciente ya elegido'
+                      : 'Guarde la consulta para poder cobrarla'}
+                    onClick={() => navigate('/facturacion', {
+                      state: {
+                        patientId: String(selectedPatientId),
+                        historiaId: String(historiaId),
+                      },
+                    })}
+                  >
+                    <Receipt size={14} /> Pasar a cobro
                   </button>
 
                   {soloLectura ? (
