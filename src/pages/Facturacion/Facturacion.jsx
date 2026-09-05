@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
   AlertCircle, Ban, ClipboardList, FilePlus, FileText,
-  Plus, Printer, Receipt, RefreshCw, Trash2, TrendingUp, User,
+  Plus, Printer, Receipt, RefreshCw, Tags, Trash2, TrendingUp, User,
 } from 'lucide-react';
 
 import Layout from '../../components/Layout/Layout';
@@ -19,6 +19,7 @@ import { useAuth } from '../../context/AuthContext';
 import * as facturacionService from '../../services/facturacionService';
 import * as patientService from '../../services/patientService';
 import * as clinicalHistoryService from '../../services/clinicalHistoryService';
+import * as servicioService from '../../services/servicioService';
 import { reporteDocumentoCobro } from '../../services/reporteService';
 import VistaPreviaReporte from '../../components/Reportes/VistaPreviaReporte';
 import ReporteIngresos from '../../components/Facturacion/ReporteIngresos';
@@ -89,6 +90,10 @@ function Facturacion() {
   });
   const [items, setItems] = useState([renglonVacio()]);
 
+  // El catálogo de servicios, para no teclear la descripción y el precio en
+  // cada recibo. Se mantiene en Configuración → Servicios y tarifas.
+  const [catalogo, setCatalogo] = useState([]);
+
   const [emitiendo, setEmitiendo] = useState('');
   const [cargandoHistorial, setCargandoHistorial] = useState(false);
   const [error, setError] = useState('');
@@ -126,6 +131,15 @@ function Facturacion() {
         const paciente = lista.find((p) => p.value === prev.patient_id);
         return paciente ? { ...prev, nombre_receptor: paciente.label } : prev;
       });
+    })();
+  }, []);
+
+  // Solo los servicios que se prestan hoy: los retirados siguen explicando los
+  // recibos viejos, pero no tienen por qué aparecer al emitir uno nuevo.
+  useEffect(() => {
+    (async () => {
+      const res = await servicioService.getServicios({ activo: 'true' });
+      if (res.success) setCatalogo(res.data);
     })();
   }, []);
 
@@ -202,6 +216,34 @@ function Facturacion() {
       precio_unitario: sugerencia ? String(sugerencia.precio) : '',
       tipo: sugerencia?.tipo ?? 'S',
     }]);
+
+  /**
+   * Agrega el servicio elegido como un renglón nuevo, con su tarifa puesta.
+   *
+   * Se agrega un renglón en vez de convertir el campo de descripción en un
+   * selector: hay cobros que no están en el catálogo —un material suelto, un
+   * ajuste— y escribirlos a mano tiene que seguir siendo posible. Y la tarifa
+   * se copia, no se enlaza: el precio que se cobró hoy es el de hoy, aunque
+   * mañana suba.
+   */
+  const agregarDelCatalogo = (id) => {
+    const servicio = catalogo.find((s) => String(s.id) === String(id));
+    if (!servicio) return;
+
+    const renglon = {
+      ...renglonVacio(),
+      descripcion: servicio.nombre,
+      precio_unitario: String(servicio.precio),
+    };
+
+    // Si el único renglón está en blanco se reemplaza, en lugar de dejar una
+    // fila vacía encima que luego hay que quitar a mano.
+    setItems((prev) => (
+      prev.length === 1 && !prev[0].descripcion.trim() && !prev[0].precio_unitario
+        ? [renglon]
+        : [...prev, renglon]
+    ));
+  };
 
   const quitarItem = (clave) =>
     setItems((prev) => (prev.length === 1 ? [renglonVacio()] : prev.filter((i) => i.clave !== clave)));
@@ -493,6 +535,24 @@ function Facturacion() {
             </div>
 
             <div className="fa-atajos">
+              {catalogo.length > 0 && (
+                <div className="fa-catalogo">
+                  <Combobox
+                    items={catalogo.map((s) => ({
+                      value: String(s.id),
+                      label: `${s.nombre} — ${quetzales(s.precio)}`,
+                      busqueda: s.descripcion ?? '',
+                    }))}
+                    value=""
+                    onChange={agregarDelCatalogo}
+                    placeholder="Agregar del catálogo…"
+                    searchPlaceholder="Buscar un servicio…"
+                    icon={<Tags size={15} />}
+                    clearable={false}
+                  />
+                </div>
+              )}
+
               <button type="button" className="btn btn-secondary btn-sm" onClick={() => agregarItem()}>
                 <Plus size={14} /> Agregar renglón
               </button>

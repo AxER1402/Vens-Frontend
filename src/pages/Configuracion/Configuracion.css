@@ -296,6 +296,53 @@
   padding-top: 0;
 }
 
+/* ── Catálogo de servicios ──────────────────────────────────────── */
+.config-catalogo-barra {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.config-buscador {
+  flex: 1;
+  min-width: 220px;
+}
+
+.config-filtro-estado {
+  width: 190px;
+}
+
+.config-servicio-nombre {
+  font-weight: 500;
+  color: var(--brand-text);
+}
+
+.config-servicio-detalle {
+  margin-top: 2px;
+  font-size: 12px;
+  color: var(--brand-text-light);
+}
+
+/* Un servicio retirado sigue en la lista para poder devolverlo, pero se ve
+   apagado: no es una opción que se pueda cobrar hoy. */
+.config-fila-retirada .config-servicio-nombre,
+.config-fila-retirada td {
+  color: var(--brand-text-light);
+}
+
+.config-fila-acciones {
+  white-space: nowrap;
+}
+
+.config-grid-dialogo {
+  padding: 4px 0 8px;
+}
+
+.config-campo-completo {
+  grid-column: 1 / -1;
+}
+
 /* ── Requisitos de la contraseña ────────────────────────────────── */
 .config-pie-campos {
   display: flex;
