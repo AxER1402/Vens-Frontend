@@ -122,6 +122,28 @@
   flex-wrap: wrap;
 }
 
+/* El logo se enseña sobre un tablero claro y con su proporción intacta: es
+   apaisado y encajarlo en un cuadro lo deformaría, que es justo lo que no se
+   quiere ver antes de mandarlo a un membrete. */
+.config-logo-marco {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 200px;
+  height: 88px;
+  padding: 10px;
+  background: var(--brand-surface-deep);
+  border: 1px solid var(--brand-border-light);
+  border-radius: 10px;
+  flex-shrink: 0;
+}
+
+.config-logo-marco img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+
 /* ── Campos ─────────────────────────────────────────────────────── */
 .config-grid {
   display: grid;
@@ -171,6 +193,27 @@
   line-height: 1.55;
   color: var(--brand-text-light);
   margin: 0;
+}
+
+/* Una advertencia que hay que leer antes de guardar, no un error. */
+.config-advertencia {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  margin: 0;
+  padding: 11px 14px;
+  font-size: 12px;
+  line-height: 1.55;
+  color: var(--brand-text-muted);
+  background: var(--brand-surface-deep);
+  border-left: 3px solid var(--brand-sand);
+  border-radius: 0 8px 8px 0;
+}
+
+.config-advertencia svg {
+  color: var(--brand-warm);
+  flex-shrink: 0;
+  margin-top: 1px;
 }
 
 /* ── Requisitos de la contraseña ────────────────────────────────── */
