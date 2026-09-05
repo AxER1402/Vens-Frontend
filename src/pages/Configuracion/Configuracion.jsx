@@ -4,12 +4,14 @@ import { useAuth } from '../../context/AuthContext';
 import { SECCIONES, SECCION_POR_DEFECTO } from './secciones';
 import MiCuenta from './MiCuenta';
 import CambiarPassword from './CambiarPassword';
+import DatosClinica from './DatosClinica';
 import './Configuracion.css';
 
 /** Qué componente pinta cada sección. */
 const CONTENIDOS = {
   cuenta: MiCuenta,
   password: CambiarPassword,
+  clinica: DatosClinica,
 };
 
 /**

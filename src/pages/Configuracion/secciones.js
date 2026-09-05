@@ -1,4 +1,4 @@
-import { User, KeyRound } from 'lucide-react';
+import { User, KeyRound, Building2 } from 'lucide-react';
 
 /**
  * Las secciones de la pantalla de configuración.
@@ -32,6 +32,13 @@ export const SECCIONES = [
     titulo: 'Cambiar contraseña',
     descripcion: 'Cambie su contraseña sin salir de la sesión.',
     icono: KeyRound,
+  },
+  {
+    clave: 'clinica',
+    titulo: 'Datos de la clínica',
+    descripcion: 'Membrete, logo, datos fiscales y firma de los informes.',
+    icono: Building2,
+    roles: ['administrador'],
   },
 ];
 
