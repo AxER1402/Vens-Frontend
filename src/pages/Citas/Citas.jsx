@@ -40,6 +40,7 @@ import {
 import { useAuth } from '../../context/AuthContext';
 import * as appointmentService from '../../services/appointmentService';
 import * as blockedDayService from '../../services/blockedDayService';
+import * as ajusteService from '../../services/ajusteService';
 import * as patientService from '../../services/patientService';
 import * as userService from '../../services/userService';
 
@@ -131,8 +132,26 @@ const isSameDay = (a, b) => toISODate(a) === toISODate(b);
 /** 8 -> "08:00" */
 const hourLabel = (h) => `${String(h).padStart(2, '0')}:00`;
 
-/** Duración por defecto de la cita creada desde la agenda: 30 minutos */
-const slotEndTime = (h) => (h >= 23 ? '23:59' : `${String(h).padStart(2, '0')}:30`);
+/** Cuánto dura una cita mientras la clínica no configure otra cosa */
+const DURACION_POR_DEFECTO = 30;
+
+/**
+ * La hora de fin que corresponde a una de inicio.
+ *
+ * Se recorta a las 23:59 en vez de pasar al día siguiente: una cita que
+ * empieza a las once y media de la noche es un dedazo, y arrastrarla a la
+ * madrugada siguiente lo convertiría en una cita perdida en otra fecha en
+ * lugar de en algo que se ve y se corrige.
+ */
+const sumarMinutos = (hora, minutos) => {
+  const [h, m] = String(hora || '').split(':').map(Number);
+  if (Number.isNaN(h) || Number.isNaN(m)) return hora;
+
+  const total = h * 60 + m + minutos;
+  if (total >= 24 * 60) return '23:59';
+
+  return `${String(Math.floor(total / 60)).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}`;
+};
 
 /** Clase de color por estado: st-programada, st-confirmada, … */
 const stateClass = (estado) => `st-${String(estado || 'Programada').toLowerCase()}`;
@@ -243,6 +262,10 @@ function Citas() {
   const [patients, setPatients] = useState([]);
   const [doctors, setDoctors] = useState([]);
   const [blockedDays, setBlockedDays] = useState([]);
+
+  // Cuánto dura una cita en esta clínica. Se configura en Configuración →
+  // Agenda y horarios; aquí solo sirve para proponer la hora de fin.
+  const [duracionCita, setDuracionCita] = useState(DURACION_POR_DEFECTO);
   const [loading, setLoading] = useState(true);
 
   // Messages state
@@ -337,6 +360,15 @@ function Citas() {
     }
   }, []);
 
+  // La duración configurada. Si no se puede leer se sigue con la de siempre:
+  // es una comodidad al teclear, no un dato sin el que la agenda no funcione.
+  const fetchDuracionCita = useCallback(async () => {
+    const res = await ajusteService.getAgenda();
+    if (res.success && res.duracionCita) {
+      setDuracionCita(res.duracionCita);
+    }
+  }, []);
+
   useEffect(() => {
     fetchAppointments();
   }, [fetchAppointments]);
@@ -345,7 +377,8 @@ function Citas() {
     fetchPatients();
     fetchDoctors();
     fetchBlockedDays();
-  }, [fetchPatients, fetchDoctors, fetchBlockedDays]);
+    fetchDuracionCita();
+  }, [fetchPatients, fetchDoctors, fetchBlockedDays, fetchDuracionCita]);
 
   // Patient items formatted for Combobox
   const patientOptions = useMemo(() => {
@@ -376,7 +409,11 @@ function Citas() {
   const handleOpenCreate = () => {
     setAppointmentForm({
       ...EMPTY_APPOINTMENT_FORM,
-      medico_id: doctors.length > 0 ? String(doctors[0].id) : ''
+      medico_id: doctors.length > 0 ? String(doctors[0].id) : '',
+      // También aquí, y no solo al abrir desde una casilla de la agenda: si
+      // no, el formulario que se abre con el botón propondría media hora
+      // aunque la clínica tenga configurada otra duración.
+      hora_fin: sumarMinutos(EMPTY_APPOINTMENT_FORM.hora_inicio, duracionCita)
     });
     setErrorMessage('');
     setShowCreateModal(true);
@@ -389,7 +426,7 @@ function Citas() {
       medico_id: doctors.length > 0 ? String(doctors[0].id) : '',
       fecha: toISODate(date),
       hora_inicio: hourLabel(hour),
-      hora_fin: slotEndTime(hour)
+      hora_fin: sumarMinutos(hourLabel(hour), duracionCita)
     });
     setErrorMessage('');
     setShowCreateModal(true);
@@ -1580,9 +1617,17 @@ function Citas() {
                 <label className="form-label">
                   Hora Inicio <span className="req">*</span>
                 </label>
+                {/* Mover el inicio mueve el fin con la duración configurada.
+                    Solo al agendar: en una cita que ya existe, la hora de fin
+                    la puso alguien a propósito y no es de nadie más
+                    cambiarla. */}
                 <TimePicker
                   value={appointmentForm.hora_inicio}
-                  onChange={(val) => setAppointmentForm(p => ({ ...p, hora_inicio: val }))}
+                  onChange={(val) => setAppointmentForm(p => ({
+                    ...p,
+                    hora_inicio: val,
+                    hora_fin: sumarMinutos(val, duracionCita),
+                  }))}
                 />
               </div>
 
