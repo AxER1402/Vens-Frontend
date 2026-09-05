@@ -216,6 +216,86 @@
   margin-top: 1px;
 }
 
+/* ── Horario semanal ────────────────────────────────────────────── */
+.config-horario {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.config-dia {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding: 10px 12px;
+  border-radius: 8px;
+  transition: background var(--t-fast);
+}
+
+.config-dia:hover {
+  background: var(--brand-surface-deep);
+}
+
+.config-dia-nombre {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 130px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--brand-text-light);
+  cursor: pointer;
+  user-select: none;
+}
+
+/* El día abierto se distingue del cerrado por el peso del nombre, no por un
+   color: la fila ya cambia bastante al aparecer los dos selectores. */
+.config-dia.abierto .config-dia-nombre {
+  color: var(--brand-text);
+}
+
+.config-dia-nombre input {
+  width: 15px;
+  height: 15px;
+  accent-color: var(--brand-slate);
+  cursor: pointer;
+}
+
+.config-dia-horas {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.config-dia-hora {
+  width: 150px;
+}
+
+.config-dia-a {
+  font-size: 12px;
+  color: var(--brand-text-light);
+}
+
+.config-dia-cerrado {
+  font-size: 12px;
+  color: var(--brand-text-light);
+  font-style: italic;
+}
+
+.config-dia-error {
+  flex-basis: 100%;
+  padding-left: 130px;
+}
+
+.config-acciones-izquierda {
+  justify-content: flex-start;
+}
+
+.config-pie-guardar {
+  padding-top: 0;
+}
+
 /* ── Requisitos de la contraseña ────────────────────────────────── */
 .config-pie-campos {
   display: flex;

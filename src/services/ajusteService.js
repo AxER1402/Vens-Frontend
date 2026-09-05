@@ -83,3 +83,49 @@ export const subirLogo = async (archivo) => {
     };
   }
 };
+
+/**
+ * El horario de atención y la duración de una cita.
+ *
+ * Se leen del mismo GET /ajustes que todo lo demás, pero se devuelven aparte
+ * porque no son ajustes de texto: el horario viene ya con los siete días
+ * resueltos, y un horario vacío significa que no se configuró ninguno y la
+ * agenda no restringe nada.
+ */
+export const getAgenda = async () => {
+  try {
+    const response = await api.get('/ajustes');
+    return {
+      success: true,
+      horario: response.data.data.horario,
+      duracionCita: response.data.data.duracion_cita,
+    };
+  } catch (error) {
+    return {
+      success: false,
+      message: error.response?.data?.message || 'No se pudo cargar el horario.',
+    };
+  }
+};
+
+export const actualizarAgenda = async ({ horario, duracionCita }) => {
+  try {
+    const response = await api.put('/ajustes/agenda', {
+      horario,
+      duracion_cita: duracionCita,
+    });
+
+    return {
+      success: true,
+      message: response.data.message || 'El horario de atención se actualizó.',
+      horario: response.data.data.horario,
+      duracionCita: response.data.data.duracion_cita,
+    };
+  } catch (error) {
+    return {
+      success: false,
+      message: error.response?.data?.message || 'No se pudo guardar el horario.',
+      errors: error.response?.data?.errors,
+    };
+  }
+};

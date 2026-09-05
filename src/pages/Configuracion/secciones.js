@@ -1,4 +1,4 @@
-import { User, KeyRound, Building2 } from 'lucide-react';
+import { User, KeyRound, Building2, CalendarClock } from 'lucide-react';
 
 /**
  * Las secciones de la pantalla de configuración.
@@ -39,6 +39,13 @@ export const SECCIONES = [
     descripcion: 'Membrete, logo, datos fiscales y firma de los informes.',
     icono: Building2,
     roles: ['administrador'],
+  },
+  {
+    clave: 'agenda',
+    titulo: 'Agenda y horarios',
+    descripcion: 'Días y horas de atención, y duración de la cita.',
+    icono: CalendarClock,
+    roles: ['administrador', 'medico'],
   },
 ];
 
