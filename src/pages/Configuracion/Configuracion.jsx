@@ -6,6 +6,7 @@ import MiCuenta from './MiCuenta';
 import CambiarPassword from './CambiarPassword';
 import DatosClinica from './DatosClinica';
 import AgendaHorario from './AgendaHorario';
+import ServiciosTarifas from './ServiciosTarifas';
 import './Configuracion.css';
 
 /** Qué componente pinta cada sección. */
@@ -14,6 +15,7 @@ const CONTENIDOS = {
   password: CambiarPassword,
   clinica: DatosClinica,
   agenda: AgendaHorario,
+  servicios: ServiciosTarifas,
 };
 
 /**

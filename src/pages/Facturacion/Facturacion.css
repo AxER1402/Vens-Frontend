@@ -210,3 +210,10 @@
 .fa-anulada .fa-total-fila {
   text-decoration: line-through;
 }
+
+/* El selector del catálogo, junto al botón de agregar renglón. Ancho fijo:
+   suelto en la fila se estiraría hasta empujar al botón fuera de la vista. */
+.fa-catalogo {
+  width: 300px;
+  max-width: 100%;
+}
