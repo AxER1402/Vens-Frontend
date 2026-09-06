@@ -9,11 +9,15 @@
    traslúcidos y con el fondo difuminado, delgados, y sin el filo de color a la
    izquierda —el color ya lo lleva el ícono y con la franja pesaban como una
    fila de tabla—.
+
+   Cuelgan por debajo de la barra superior, no encima: arrancando en el borde
+   de la pantalla tapaban los botones de notificaciones, ajustes y cerrar
+   sesión justo cuando la confirmación decía que la cita quedó agendada.
 ====================================== */
 
 .aviso-pila {
   position: fixed;
-  top: 18px;
+  top: calc(var(--topbar-alto, 64px) + 12px);
   right: 18px;
   z-index: 90;
   display: flex;
@@ -31,7 +35,8 @@
   grid-template-columns: auto 1fr auto;
   align-items: center;
   gap: 10px;
-  padding: 9px 10px 9px 12px;
+  padding: 10px 11px 10px 13px;
+  border-radius: var(--radius, 10px);
   background: var(--brand-surface);
   border: 1px solid var(--brand-border-light);
   box-shadow: 0 10px 30px -14px rgba(36, 55, 87, 0.45);
@@ -41,10 +46,30 @@
 /* El vidrio solo donde el navegador sabe difuminar. Sin el guard, el aviso
    quedaría semitransparente sobre el contenido y sería ilegible. */
 @supports (backdrop-filter: blur(2px)) or (-webkit-backdrop-filter: blur(2px)) {
+  /* Dos capas: el vidrio traslúcido y, encima, el brillo diagonal que hace que
+     se lea como una lámina con volumen y no como un rectángulo con opacidad.
+     Va como fondo y no como ::before para no pasarle por encima al texto.
+
+     62% es el suelo: por debajo, el mensaje empieza a pelearse con lo que haya
+     quedado detrás y el aviso deja de leerse de paso, que es su único trabajo. */
   .aviso-caja {
-    background: color-mix(in srgb, var(--brand-surface) 82%, transparent);
-    -webkit-backdrop-filter: blur(18px) saturate(150%);
-    backdrop-filter: blur(18px) saturate(150%);
+    background:
+      linear-gradient(
+        135deg,
+        rgba(255, 255, 255, 0.55) 0%,
+        rgba(255, 255, 255, 0.12) 45%,
+        rgba(255, 255, 255, 0) 72%
+      ),
+      color-mix(in srgb, var(--brand-surface) 62%, transparent);
+    border-color: color-mix(in srgb, var(--brand-border-light) 55%, rgba(255, 255, 255, 0.8));
+    -webkit-backdrop-filter: blur(26px) saturate(180%);
+    backdrop-filter: blur(26px) saturate(180%);
+    /* El filo claro por dentro es el canto del vidrio; sin él la lámina se ve
+       plana por mucho que el fondo esté difuminado. */
+    box-shadow:
+      0 16px 40px -18px rgba(36, 55, 87, 0.5),
+      inset 0 1px 0 rgba(255, 255, 255, 0.75),
+      inset 0 -1px 0 rgba(255, 255, 255, 0.2);
   }
 }
 
@@ -102,6 +127,7 @@
   justify-content: center;
   width: 20px;
   height: 20px;
+  border-radius: 6px;
   background: transparent;
   border: 1px solid transparent;
   color: var(--brand-text-light);
@@ -110,7 +136,7 @@
 }
 
 .aviso-cerrar:hover {
-  background: var(--brand-surface-deep);
+  background: rgba(255, 255, 255, 0.55);
   border-color: var(--brand-border-light);
   color: var(--brand-text);
 }

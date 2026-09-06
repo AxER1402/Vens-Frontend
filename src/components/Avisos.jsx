@@ -83,7 +83,7 @@ export function AvisosProvider({ children }) {
           const Icono = ICONOS[aviso.tipo] ?? Info;
 
           return (
-            <div key={aviso.id} className={`aviso-caja av-${aviso.tipo}`}>
+            <div key={aviso.id} className={`aviso-caja aviso-${aviso.tipo}`}>
               <span className="aviso-icono"><Icono size={16} /></span>
 
               <div className="aviso-cuerpo">

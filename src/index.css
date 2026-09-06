@@ -81,6 +81,10 @@
   --brand-border: #D6D0C4;
   --brand-border-light: #E2DED6;
 
+  /* Alto de la barra superior. Lo usan la propia barra y todo lo que
+     tiene que quedar por debajo de ella, como los avisos flotantes. */
+  --topbar-alto: 64px;
+
   /* ---- Sidebar (Deep blue) ---- */
   --sidebar-width: 260px;
   --sidebar-bg: #243757;
@@ -1637,6 +1641,32 @@ select.form-control {
   border-color: var(--brand-border-light);
   width: min(calc(100vw - 32px), 30rem);
   max-width: min(calc(100vw - 32px), 30rem);
+}
+
+/* Variante de vidrio, con los mismos números que el panel de notificaciones
+   (.av-fondo y .av-panel): la pantalla se tiñe de azul y se difumina, y el
+   recuadro queda traslúcido encima. Se pide con .confirm-vidrio y
+   overlayClassName="confirm-fondo"; los demás recuadros de confirmación
+   siguen opacos. */
+.confirm-fondo {
+  background: rgba(36, 55, 87, 0.22);
+}
+
+@supports (backdrop-filter: blur(2px)) or (-webkit-backdrop-filter: blur(2px)) {
+  .confirm-fondo {
+    -webkit-backdrop-filter: blur(10px);
+    backdrop-filter: blur(10px);
+  }
+
+  /* 88% y no menos, igual que la lámina del panel: por debajo de eso el texto
+     empieza a pelearse con la pantalla que quedó atrás. Donde no haya
+     backdrop-filter el recuadro se queda opaco, que es preferible a un
+     diálogo transparente e ilegible. */
+  .confirm-vidrio {
+    background: color-mix(in srgb, var(--brand-surface) 88%, transparent);
+    -webkit-backdrop-filter: blur(22px) saturate(140%);
+    backdrop-filter: blur(22px) saturate(140%);
+  }
 }
 
 .confirm-head {
