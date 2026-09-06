@@ -30,14 +30,6 @@ const { quetzales } = facturacionService;
 
 const METODOS_PAGO = ['Efectivo', 'Tarjeta de débito', 'Tarjeta de crédito', 'Transferencia', 'Cheque'];
 
-/** Lo que más se cobra, para no escribirlo cada vez. */
-const SUGERENCIAS = [
-  { descripcion: 'Consulta de flebología', precio: 350 },
-  { descripcion: 'Sesión de escleroterapia', precio: 600 },
-  { descripcion: 'Estudio de Ecodöppler venoso', precio: 450 },
-  { descripcion: 'Medias de compresión', precio: 400, tipo: 'B' },
-];
-
 const renglonVacio = () => ({
   clave: `r-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
   tipo: 'S',
@@ -209,13 +201,7 @@ function Facturacion() {
   const cambiarItem = (clave, campo, valor) =>
     setItems((prev) => prev.map((i) => (i.clave === clave ? { ...i, [campo]: valor } : i)));
 
-  const agregarItem = (sugerencia) =>
-    setItems((prev) => [...prev, {
-      ...renglonVacio(),
-      descripcion: sugerencia?.descripcion ?? '',
-      precio_unitario: sugerencia ? String(sugerencia.precio) : '',
-      tipo: sugerencia?.tipo ?? 'S',
-    }]);
+  const agregarItem = () => setItems((prev) => [...prev, renglonVacio()]);
 
   /**
    * Agrega el servicio elegido como un renglón nuevo, con su tarifa puesta.
@@ -553,20 +539,9 @@ function Facturacion() {
                 </div>
               )}
 
-              <button type="button" className="btn btn-secondary btn-sm" onClick={() => agregarItem()}>
+              <button type="button" className="btn btn-secondary btn-sm" onClick={agregarItem}>
                 <Plus size={14} /> Agregar renglón
               </button>
-              <span className="fa-atajos-sep">o lo de siempre:</span>
-              {SUGERENCIAS.map((s) => (
-                <button
-                  key={s.descripcion}
-                  type="button"
-                  className="btn btn-ghost btn-sm"
-                  onClick={() => agregarItem(s)}
-                >
-                  {s.descripcion}
-                </button>
-              ))}
             </div>
 
             <div className="fa-cuentas">
