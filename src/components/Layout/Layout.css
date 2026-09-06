@@ -208,7 +208,7 @@
 
 /* Top Bar */
 .topbar {
-  height: 64px;
+  height: var(--topbar-alto);
   background: rgba(246, 240, 244, 0.8);
   backdrop-filter: blur(12px);
   border-bottom: 1px solid var(--color-border);
