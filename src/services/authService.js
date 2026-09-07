@@ -9,7 +9,7 @@ const EXPIRACION_KEY = 'token_expires_at';
  * Sin ese dato se borra la marca anterior para no arrastrar un vencimiento
  * viejo de otra sesión.
  */
-const guardarVencimiento = (expiresAt) => {
+export const guardarVencimiento = (expiresAt) => {
   if (expiresAt) {
     localStorage.setItem(EXPIRACION_KEY, expiresAt);
   } else {
