@@ -4,9 +4,9 @@ import {
   Activity, ArrowLeft, Save, Check, Clock, ClipboardList, FileCheck, AlertCircle,
   User, RefreshCw, Lock, PenTool, Eye
 } from 'lucide-react';
-import { useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { useSalida, useAvisarCambiosSinGuardar } from '../../context/CambiosSinGuardar';
+import { useAvisarCambiosSinGuardar } from '../../context/CambiosSinGuardar';
 import { DatePicker } from '@/components/ui/date-picker';
 import * as patientService from '../../services/patientService';
 import * as dopplerReportService from '../../services/dopplerReportService';
@@ -116,7 +116,7 @@ function Segmento({ indice, segmento, onChange }) {
 }
 
 function ReporteDoppler() {
-  const { salirA } = useSalida();
+  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { user } = useAuth();
 
@@ -240,14 +240,14 @@ function ReporteDoppler() {
   /** Regresar a la misma consulta del expediente, no a una pantalla en blanco. */
   const volverAHistoria = () => {
     if (!patientId) {
-      salirA('/historia-clinica', 'volver a la historia clínica');
+      navigate('/historia-clinica');
       return;
     }
     const params = new URLSearchParams({
       patientId: String(patientId),
       ...(historiaId ? { historiaId: String(historiaId) } : {})
     });
-    salirA(`/historia-clinica?${params}`, 'volver a la historia clínica');
+    navigate(`/historia-clinica?${params}`);
   };
 
   const ch = (e) => {

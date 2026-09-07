@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   ArrowLeft, User, RefreshCw, AlertCircle, Check, Save, Lock, PenTool,
   Undo2, Redo2, Trash2, Download, Maximize2, Minimize2, ZoomIn, ZoomOut, Scan, Eye,
 } from 'lucide-react';
 
 import Layout from '../../components/Layout/Layout';
-import { useSalida, useAvisarCambiosSinGuardar } from '../../context/CambiosSinGuardar';
+import { useAvisarCambiosSinGuardar } from '../../context/CambiosSinGuardar';
 import {
   AlertDialog,
   AlertDialogContent,
@@ -66,7 +66,7 @@ const ESTILO_INICIAL = {
 };
 
 function MapeoVenoso() {
-  const { salirA } = useSalida();
+  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { user } = useAuth();
 
@@ -377,14 +377,6 @@ function MapeoVenoso() {
     return () => window.removeEventListener('keydown', alTeclear);
   }, [dialogo, seleccion, bloqueado, deshacer, rehacer, eliminarObjeto]);
 
-  /* Avisar antes de abandonar la página con cambios sin guardar */
-  useEffect(() => {
-    if (limpio) return undefined;
-    const alSalir = (e) => { e.preventDefault(); e.returnValue = ''; };
-    window.addEventListener('beforeunload', alSalir);
-    return () => window.removeEventListener('beforeunload', alSalir);
-  }, [limpio]);
-
   /* ── Guardado ────────────────────────────────────────────────────────── */
 
   const guardarMapeo = async () => {
@@ -449,14 +441,14 @@ function MapeoVenoso() {
   /** Regresar a la misma consulta del expediente, no a una pantalla en blanco. */
   const volverAHistoria = () => {
     if (!patientId) {
-      salirA('/historia-clinica', 'volver a la historia clínica');
+      navigate('/historia-clinica');
       return;
     }
     const params = new URLSearchParams({
       patientId: String(patientId),
       ...(historiaId ? { historiaId: String(historiaId) } : {}),
     });
-    salirA(`/historia-clinica?${params}`, 'volver a la historia clínica');
+    navigate(`/historia-clinica?${params}`);
   };
 
   const editorProps = {

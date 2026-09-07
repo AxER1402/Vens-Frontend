@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { Link, NavLink, useNavigate } from 'react-router-dom';
 import { LayoutDashboard, Users, Calendar, Clipboard, BarChart3, Bell, Receipt, LogOut, UserCog } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
-import { useSalida } from '../../context/CambiosSinGuardar';
 import { useNotificaciones } from '@/hooks/useNotificaciones';
 import PanelNotificaciones from './PanelNotificaciones';
 import MenuAjustes from './MenuAjustes';
@@ -39,7 +38,6 @@ const navItems = [
 
 function AppSidebar() {
   const { user } = useAuth();
-  const { salirA, hayCambios } = useSalida();
 
   const roleLabels = {
     administrador: 'Administrador',
@@ -78,16 +76,6 @@ function AppSidebar() {
                   <NavLink
                     to={item.to}
                     className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}
-                    onClick={(evento) => {
-                      /* Cambiar de módulo con una consulta a medias la borraba
-                         sin decir nada. Si no hay nada pendiente el enlace
-                         funciona como siempre; si lo hay, el guardián pregunta
-                         y es él quien navega después. */
-                      if (!hayCambios()) return;
-
-                      evento.preventDefault();
-                      salirA(item.to, `ir a ${item.label}`);
-                    }}
                   >
                     <span className="nav-item-icon"><item.icon size={18} /></span>
                     <span className="nav-item-text">{item.label}</span>
