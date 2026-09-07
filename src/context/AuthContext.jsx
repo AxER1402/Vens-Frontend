@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import * as authService from '../services/authService';
-import { SESION_VENCIDA_EVENT } from '../services/api';
+import { SESION_VENCIDA_EVENT, SESION_RENOVADA_EVENT } from '../services/api';
+import * as borradorLocal from '../services/borradorLocal';
 
 const AuthContext = createContext(null);
 
@@ -120,6 +121,26 @@ export function AuthProvider({ children }) {
     return () => window.removeEventListener(SESION_VENCIDA_EVENT, alRechazarToken);
   }, [vencerSesion]);
 
+  /*
+     Cada petición corre el vencimiento hacia adelante, porque la sesión se
+     cierra por inactividad y no a plazo fijo. El backend anuncia la hora nueva
+     en cada respuesta y aquí se reprograma el cierre con ella.
+
+     Sin esto, la aplicación se quedaba con la hora que le dieron al entrar y
+     sacaba al usuario a los sesenta minutos aunque llevara toda la tarde
+     trabajando: el reloj del navegador iba por su cuenta y el del servidor por
+     la suya. Quien estuviera escribiendo una consulta la perdía entera.
+  */
+  useEffect(() => {
+    const alRenovar = (evento) => {
+      authService.guardarVencimiento(evento.detail);
+      programarVencimiento(authService.getSessionExpiry());
+    };
+
+    window.addEventListener(SESION_RENOVADA_EVENT, alRenovar);
+    return () => window.removeEventListener(SESION_RENOVADA_EVENT, alRenovar);
+  }, [programarVencimiento]);
+
   const loginUser = async (email, password) => {
     const res = await authService.login(email, password);
     if (res.success) {
@@ -150,6 +171,13 @@ export function AuthProvider({ children }) {
   const logoutUser = async () => {
     cancelarTemporizador();
     await authService.logout();
+
+    // Las copias locales de lo que no llegó al servidor se borran al salir a
+    // propósito: quien cierra sesión está dejando el equipo, y el aviso de
+    // cerrar sesión ya advierte de que se pierde lo que no se guardó. Cuando la
+    // sesión vence sola no se borran, porque ahí nadie decidió nada.
+    borradorLocal.olvidarTodos();
+
     setUser(null);
     setToken(null);
     setSesionExpirada(false);

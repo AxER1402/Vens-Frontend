@@ -12,8 +12,16 @@ import * as dopplerReportService from '../../services/dopplerReportService';
 import VistaPreviaReporte from '../../components/Reportes/VistaPreviaReporte';
 import { reporteHistoriaClinica } from '../../services/reporteService';
 import { Combobox } from '@/components/ui/combobox';
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { DatePicker } from '@/components/ui/date-picker';
 import { useAvisarCambiosSinGuardar } from '../../context/CambiosSinGuardar';
+import { useAuth } from '../../context/AuthContext';
+import * as borradorLocal from '../../services/borradorLocal';
 import {
   Dialog,
   DialogContent,
@@ -58,6 +66,20 @@ const formatearFecha = (fecha) => {
   if (!anio || !mes || !dia) return String(fecha);
   return new Date(Number(anio), Number(mes) - 1, Number(dia))
     .toLocaleDateString('es-CR', { day: '2-digit', month: 'short', year: 'numeric' });
+};
+
+/* Momento (ISO 8601) con día y hora: la copia local se identifica por cuándo se
+   dejó, que es lo que permite reconocerla —«lo de ayer por la tarde»—. */
+const formatearFechaHora = (momento) => {
+  if (!momento) return 'una sesión anterior';
+
+  const fecha = new Date(momento);
+
+  return Number.isNaN(fecha.getTime())
+    ? 'una sesión anterior'
+    : fecha.toLocaleString('es-GT', {
+      day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit',
+    });
 };
 
 /* Bloque de sección: título en versalitas separado por una línea, sin tarjeta */
@@ -137,6 +159,7 @@ function OptCheck({ value, label, list, onToggle }) {
 
 function HistoriaClinica() {
   const navigate = useNavigate();
+  const { user } = useAuth();
 
   const [searchParams, setSearchParams] = useSearchParams();
 
@@ -303,6 +326,64 @@ function HistoriaClinica() {
     hayCambios,
     () => guardarHistoria(estadoHistoria === 'Finalizada' ? 'Finalizada' : 'Borrador'),
   );
+
+  /* ── Copia local de lo que todavía no llegó al servidor ─────────────────
+   *
+   * Si la sesión vence con la consulta a medias no hay a quién pedirle lo
+   * escrito: el token ya no vale y ni siquiera se puede intentar guardarlo
+   * antes de salir. La copia queda en el navegador y se ofrece al volver.
+   */
+  const claveBorrador = selectedPatientId
+    ? `${selectedPatientId}:${historiaId ?? 'nueva'}`
+    : null;
+
+  // Copia pendiente de decidir qué hacer con ella, o null.
+  const [borradorHallado, setBorradorHallado] = useState(null);
+
+  useEffect(() => {
+    if (!claveBorrador) return;
+
+    if (hayCambios) {
+      borradorLocal.guardar(user?.id, 'historia', claveBorrador, form);
+    } else {
+      // Lo que ya está en el servidor no necesita copia.
+      borradorLocal.olvidar(user?.id, 'historia', claveBorrador);
+    }
+  }, [form, hayCambios, claveBorrador, user?.id]);
+
+  /* Al abrir una consulta se mira si quedó una copia de la vez anterior. Solo
+     se ofrece si dice algo distinto de lo que acaba de traer el servidor: una
+     copia idéntica no tiene nada que recuperar. */
+  useEffect(() => {
+    if (!claveBorrador || soloLectura || loadingHistorias) return;
+
+    const copia = borradorLocal.leer(user?.id, 'historia', claveBorrador);
+
+    if (!copia) return;
+
+    if (JSON.stringify(copia.datos) === formLimpioRef.current) {
+      borradorLocal.olvidar(user?.id, 'historia', claveBorrador);
+      return;
+    }
+
+    setBorradorHallado(copia);
+    // Se consulta al abrir la consulta, no en cada tecleo: en cuanto se empieza
+    // a escribir, la copia que se guarda es la de ahora.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [claveBorrador, soloLectura, loadingHistorias, historiaId]);
+
+  const recuperarBorrador = () => {
+    setForm(borradorHallado.datos);
+    setBorradorHallado(null);
+    setSaved(false);
+    setSaveMessage('');
+    setAvisoConsulta('Se recuperó lo que quedó sin guardar. Revíselo y guárdelo.');
+  };
+
+  const descartarBorrador = () => {
+    borradorLocal.olvidar(user?.id, 'historia', claveBorrador);
+    setBorradorHallado(null);
+  };
 
   // Cualquier edición deja la historia como "sin guardar" y limpia el aviso previo
   const marcarModificado = () => {
@@ -618,6 +699,11 @@ function HistoriaClinica() {
 
     // Lo guardado pasa a ser el punto de partida: desde aquí, salir ya no avisa.
     recordarLimpio(form);
+
+    // Una consulta que acaba de nacer deja de ser «nueva», y su copia local
+    // quedaría bajo una clave que ya no describe nada. Sin esto, reaparecería
+    // la próxima vez que se empiece una consulta de este paciente.
+    borradorLocal.olvidar(user?.id, 'historia', `${selectedPatientId}:nueva`);
     setSaved(true);
     setSaveMessage(mensaje);
     setSaving(false);
@@ -1463,6 +1549,40 @@ function HistoriaClinica() {
 
         {/* Único punto de emisión del expediente. Qué partes lleva el informe
             se marca dentro del visor, y el documento se rehace al momento. */}
+
+      {/* ── Recuperar lo que quedó sin guardar ──────────────────────────── */}
+      <AlertDialog
+        open={borradorHallado !== null}
+        onOpenChange={(abierto) => { if (!abierto) setBorradorHallado(null); }}
+      >
+        <AlertDialogContent className="flat-page confirm-box">
+          <div className="confirm-head">
+            <span className="confirm-icon"><RefreshCw size={17} /></span>
+            <AlertDialogTitle className="confirm-title">
+              Quedó una consulta sin guardar
+            </AlertDialogTitle>
+          </div>
+
+          <AlertDialogDescription className="confirm-text">
+            De este expediente hay algo escrito el{' '}
+            <strong>{formatearFechaHora(borradorHallado?.guardadoEn)}</strong> que nunca
+            llegó a guardarse: la sesión pudo haber vencido o la pestaña haberse
+            cerrado antes de tiempo.
+            <br />
+            Si la recupera, sustituye a lo que está ahora en pantalla y podrá revisarla
+            antes de guardar.
+          </AlertDialogDescription>
+
+          <div className="confirm-actions dialog-sep">
+            <button type="button" className="btn btn-ghost" onClick={descartarBorrador}>
+              Descartarla
+            </button>
+            <button type="button" className="btn btn-primary" onClick={recuperarBorrador}>
+              Recuperarla
+            </button>
+          </div>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <VistaPreviaReporte
           reporte={vistaPrevia}

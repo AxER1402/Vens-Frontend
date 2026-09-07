@@ -28,10 +28,40 @@ api.interceptors.request.use(
  */
 export const SESION_VENCIDA_EVENT = 'vens:sesion-vencida';
 
+/**
+ * Aviso de que el backend corrió la hora de vencimiento hacia adelante.
+ *
+ * La sesión no vence a plazo fijo sino por inactividad, así que cada petición
+ * la renueva y el backend anuncia la hora nueva en una cabecera. Sin escucharla,
+ * la aplicación se quedaba con la hora que le dieron al entrar y cerraba la
+ * sesión a los sesenta minutos aunque el usuario llevara toda la tarde
+ * trabajando —y con la consulta a medias en pantalla—.
+ */
+export const SESION_RENOVADA_EVENT = 'vens:sesion-renovada';
+
+const CABECERA_VENCIMIENTO = 'x-session-expires-at';
+
+/** Recoger de una respuesta la hora nueva de vencimiento, si viene. */
+const anunciarVencimiento = (response) => {
+  const vencimiento = response?.headers?.[CABECERA_VENCIMIENTO];
+
+  if (!vencimiento) return;
+
+  window.dispatchEvent(new CustomEvent(SESION_RENOVADA_EVENT, { detail: vencimiento }));
+};
+
 // Response Interceptor: Handle global errors (e.g. 401 unauthenticated)
 api.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    anunciarVencimiento(response);
+
+    return response;
+  },
   (error) => {
+    // También en el error: un 422 de validación es una petición que el token
+    // autenticó, así que renueva la sesión igual que una que salió bien.
+    anunciarVencimiento(error.response);
+
     if (error.response && error.response.status === 401) {
       // Un 401 sin token guardado es un login con credenciales incorrectas,
       // no una sesión que se venció: ahí no hay nada que avisar.

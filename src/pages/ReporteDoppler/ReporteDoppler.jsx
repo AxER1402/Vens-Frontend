@@ -7,6 +7,13 @@ import {
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useAvisarCambiosSinGuardar } from '../../context/CambiosSinGuardar';
+import * as borradorLocal from '../../services/borradorLocal';
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { DatePicker } from '@/components/ui/date-picker';
 import * as patientService from '../../services/patientService';
 import * as dopplerReportService from '../../services/dopplerReportService';
@@ -39,6 +46,20 @@ const formatearFecha = (fecha) => {
   if (!anio || !mes || !dia) return String(fecha);
   return new Date(Number(anio), Number(mes) - 1, Number(dia))
     .toLocaleDateString('es-CR', { day: '2-digit', month: 'short', year: 'numeric' });
+};
+
+/* Momento (ISO 8601) con día y hora: la copia local se identifica por cuándo se
+   dejó, que es lo que permite reconocerla. */
+const formatearFechaHora = (momento) => {
+  if (!momento) return 'una sesión anterior';
+
+  const fecha = new Date(momento);
+
+  return Number.isNaN(fecha.getTime())
+    ? 'una sesión anterior'
+    : fecha.toLocaleString('es-GT', {
+      day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit',
+    });
 };
 
 /* Bloque de sección: mismo panel plano que la historia clínica */
@@ -346,6 +367,59 @@ function ReporteDoppler() {
     () => guardarReporte(estadoReporte === 'Finalizada' ? 'Finalizada' : 'Borrador'),
   );
 
+  /* ── Copia local de lo que todavía no llegó al servidor ─────────────────
+   *
+   * Un estudio se llena segmento por segmento y tarda; si la sesión vence a
+   * media exploración el token ya no vale y no hay forma de salvarlo. La copia
+   * queda en el navegador y se ofrece al volver.
+   */
+  const claveBorrador = patientId
+    ? `${patientId}:${historiaId ?? 'sin-consulta'}`
+    : null;
+
+  const [borradorHallado, setBorradorHallado] = useState(null);
+
+  useEffect(() => {
+    if (!claveBorrador) return;
+
+    if (hayCambios) {
+      borradorLocal.guardar(user?.id, 'doppler', claveBorrador, form);
+    } else {
+      borradorLocal.olvidar(user?.id, 'doppler', claveBorrador);
+    }
+  }, [form, hayCambios, claveBorrador, user?.id]);
+
+  /* Se mira una vez al abrir el estudio, y solo se ofrece si dice algo distinto
+     de lo que acaba de traer el servidor. */
+  useEffect(() => {
+    if (!claveBorrador || bloqueado || formLimpioRef.current === null) return;
+
+    const copia = borradorLocal.leer(user?.id, 'doppler', claveBorrador);
+
+    if (!copia) return;
+
+    if (JSON.stringify(copia.datos) === formLimpioRef.current) {
+      borradorLocal.olvidar(user?.id, 'doppler', claveBorrador);
+      return;
+    }
+
+    setBorradorHallado(copia);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [claveBorrador, bloqueado, reporteId]);
+
+  const recuperarBorrador = () => {
+    setForm(borradorHallado.datos);
+    setBorradorHallado(null);
+    setSaved(false);
+    setSaveMessage('');
+    setAvisoReporte('Se recuperó lo que quedó sin guardar. Revíselo y guárdelo.');
+  };
+
+  const descartarBorrador = () => {
+    borradorLocal.olvidar(user?.id, 'doppler', claveBorrador);
+    setBorradorHallado(null);
+  };
+
   const handleSave = (e) => {
     e.preventDefault();
     guardarReporte('Finalizada');
@@ -614,6 +688,40 @@ function ReporteDoppler() {
         </form>
 
         <VistaPreviaReporte reporte={vistaPrevia} onCerrar={() => setVistaPrevia(null)} />
+
+        {/* ── Recuperar lo que quedó sin guardar ────────────────────────── */}
+        <AlertDialog
+          open={borradorHallado !== null}
+          onOpenChange={(abierto) => { if (!abierto) setBorradorHallado(null); }}
+        >
+          <AlertDialogContent className="flat-page confirm-box">
+            <div className="confirm-head">
+              <span className="confirm-icon"><RefreshCw size={17} /></span>
+              <AlertDialogTitle className="confirm-title">
+                Quedó un estudio sin guardar
+              </AlertDialogTitle>
+            </div>
+
+            <AlertDialogDescription className="confirm-text">
+              De esta consulta hay algo escrito el{' '}
+              <strong>{formatearFechaHora(borradorHallado?.guardadoEn)}</strong> que nunca
+              llegó a guardarse: la sesión pudo haber vencido o la pestaña haberse
+              cerrado antes de tiempo.
+              <br />
+              Si lo recupera, sustituye a lo que está ahora en pantalla y podrá revisarlo
+              antes de guardar.
+            </AlertDialogDescription>
+
+            <div className="confirm-actions dialog-sep">
+              <button type="button" className="btn btn-ghost" onClick={descartarBorrador}>
+                Descartarlo
+              </button>
+              <button type="button" className="btn btn-primary" onClick={recuperarBorrador}>
+                Recuperarlo
+              </button>
+            </div>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </Layout>
   );
