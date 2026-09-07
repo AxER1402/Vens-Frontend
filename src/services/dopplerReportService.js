@@ -101,9 +101,24 @@ const camposLado = (lado) => ({
   [campoForm(lado, 'segmentos')]: segmentosIniciales(),
 });
 
+/**
+ * Hoy, en la fecha del reloj de quien lo escribe.
+ *
+ * No sirve toISOString(), que pasa a UTC: en Guatemala son seis horas más, así
+ * que desde las seis de la tarde devolvía la fecha de mañana y el estudio se
+ * archivaba con un día de más.
+ */
+export const hoy = () => {
+  const ahora = new Date();
+  const mes = String(ahora.getMonth() + 1).padStart(2, '0');
+  const dia = String(ahora.getDate()).padStart(2, '0');
+
+  return `${ahora.getFullYear()}-${mes}-${dia}`;
+};
+
 /** Estado inicial del formulario de Ecodöppler. */
 export const createEmptyForm = () => ({
-  fecha: new Date().toISOString().split('T')[0],
+  fecha: hoy(),
   ...camposLado('der'),
   ...camposLado('izq'),
   conclusion: '',
