@@ -71,6 +71,21 @@ function ReporteIngresos({ onVistaPrevia }) {
     })();
   }, []);
 
+  /*
+     Cuál de los atajos describe el rango que hay puesto, si es que alguno.
+
+     Se deduce de las fechas y no de la última pulsación: así el atajo aparece
+     marcado ya al abrir —el bloque arranca en «Este mes»— y se apaga solo en
+     cuanto se cambia una fecha a mano, que es cuando deja de describirlo.
+  */
+  const atajoActivo = ATAJOS.find(
+    ({ calcular }) => {
+      const { desde, hasta } = calcular();
+
+      return desde === rango.desde && hasta === rango.hasta;
+    }
+  )?.clave ?? null;
+
   const reporte = catalogo.find((r) => r.clave === 'ingresos');
 
   // Sin el reporte en el catálogo, el usuario no tiene permiso para emitirlo.
@@ -121,7 +136,8 @@ function ReporteIngresos({ onVistaPrevia }) {
             <button
               key={clave}
               type="button"
-              className="btn btn-secondary btn-sm"
+              className={`btn btn-sm ${atajoActivo === clave ? 'btn-primary' : 'btn-secondary'}`}
+              aria-pressed={atajoActivo === clave}
               onClick={() => setRango(calcular())}
             >
               {etiqueta}
