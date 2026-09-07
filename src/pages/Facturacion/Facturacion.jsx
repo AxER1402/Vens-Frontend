@@ -558,20 +558,20 @@ function Facturacion() {
                 <>
                   <button
                     type="button"
-                    className="btn btn-secondary"
+                    className="btn btn-secondary btn-sm"
                     onClick={() => pedirConfirmacion('recibo')}
                     disabled={emitiendo !== ''}
                   >
-                    <Receipt size={15} />
+                    <Receipt size={14} />
                     {emitiendo === 'recibo' ? 'Emitiendo…' : 'Emitir recibo'}
                   </button>
                   <button
                     type="button"
-                    className="btn btn-primary"
+                    className="btn btn-primary btn-sm"
                     onClick={() => pedirConfirmacion('factura')}
                     disabled={emitiendo !== ''}
                   >
-                    <FilePlus size={15} />
+                    <FilePlus size={14} />
                     {emitiendo === 'factura' ? 'Emitiendo…' : 'Emitir factura'}
                   </button>
                   <p className="fa-nota-fel">
