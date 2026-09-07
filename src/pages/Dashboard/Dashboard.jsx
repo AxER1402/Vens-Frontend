@@ -110,6 +110,13 @@ function Dashboard() {
     return () => { isMounted = false; };
   }, [todayISO, tomorrowISO, today]);
 
+  /* La tarjeta de arriba sigue contando hoy: es una cifra del día, y sumarle
+     mañana la volvería incomparable con «citas del mes». */
+  const todayAppointments = useMemo(
+    () => agendaAppointments.filter(a => String(a.fecha_hora_inicio || '').startsWith(todayISO)),
+    [agendaAppointments, todayISO]
+  );
+
   const stats = useMemo(() => {
     const activos = patients.filter(p => Boolean(p.activo)).length;
     const seguimiento = patients.filter(p => p.estado === 'Seguimiento').length;
@@ -151,13 +158,6 @@ function Dashboard() {
   const recentPatients = useMemo(
     () => [...patients].sort((a, b) => Number(b.id) - Number(a.id)).slice(0, 5),
     [patients]
-  );
-
-  /* La tarjeta de arriba sigue contando hoy: es una cifra del día, y sumarle
-     mañana la volvería incomparable con «citas del mes». */
-  const todayAppointments = useMemo(
-    () => agendaAppointments.filter(a => String(a.fecha_hora_inicio || '').startsWith(todayISO)),
-    [agendaAppointments, todayISO]
   );
 
   const porDia = useMemo(() => {
