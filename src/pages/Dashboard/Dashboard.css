@@ -14,6 +14,32 @@
   }
 }
 
+/* Rótulo del día dentro del panel de la agenda. El panel lleva dos jornadas,
+   y sin una banda que las separe las horas se leen como una sola lista: las
+   ocho de la mañana de mañana parecerían anteriores a las cinco de hoy. */
+.dash-dia {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 9px 20px;
+  background: var(--brand-surface-deep);
+  border-bottom: 1px solid var(--hc-line);
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--brand-text-muted);
+}
+
+.dash-dia-cuenta {
+  font-size: 10px;
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--brand-text-light);
+}
+
 /* Fila de cita del panel lateral */
 .appt-row {
   display: flex;
