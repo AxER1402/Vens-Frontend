@@ -11,7 +11,8 @@ import {
   Phone,
   Mail,
   Power,
-  ShieldCheck
+  ShieldCheck,
+  Trash2
 } from 'lucide-react';
 import {
   Dialog,
@@ -22,6 +23,13 @@ import {
   DialogFooter
 } from '@/components/ui/dialog';
 import { Combobox } from '@/components/ui/combobox';
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { useAuth } from '../../context/AuthContext';
 import {
   UserFormFields,
   EMPTY_USER_FORM,
@@ -38,6 +46,7 @@ const ESTADO_FILTER_OPTIONS = [
 
 function Usuarios() {
   const avisos = useAvisos();
+  const { user: usuarioEnSesion } = useAuth();
 
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -51,6 +60,12 @@ function Usuarios() {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDeactivateModal, setShowDeactivateModal] = useState(false);
+
+  // Cuenta pendiente de borrar, o null. Borrar no se deshace: se pregunta, y
+  // el motivo del backend —si se niega— se enseña en el mismo diálogo.
+  const [aEliminar, setAEliminar] = useState(null);
+  const [eliminando, setEliminando] = useState(false);
+  const [errorEliminar, setErrorEliminar] = useState('');
   const [selectedUser, setSelectedUser] = useState(null);
 
   // Form states
@@ -172,6 +187,29 @@ function Usuarios() {
       }
     }
     setIsSubmitting(false);
+  };
+
+  const eliminarUsuario = async () => {
+    setEliminando(true);
+    setErrorEliminar('');
+
+    const res = await userService.eliminarUsuario(aEliminar.id);
+
+    if (res.success) {
+      avisos.exito(res.message);
+      setAEliminar(null);
+
+      // Si era el último de la página, se retrocede una: quedarse en una
+      // página que ya no existe deja la tabla en blanco sin explicar nada.
+      if (users.length === 1 && pagina > 1) setPagina(pagina - 1);
+      else fetchUsers();
+    } else {
+      // El motivo lo da el backend —tiene registros, es el último
+      // administrador, es su propia cuenta— y se enseña sin resumirlo.
+      setErrorEliminar(res.message);
+    }
+
+    setEliminando(false);
   };
 
   // Confirmar Desactivación o Reactivación
@@ -385,6 +423,19 @@ function Usuarios() {
                               {isUserActive ? 'Desactivar' : 'Activar'}
                             </span>
                           </button>
+
+                          {/* La propia cuenta no se ofrece borrar: el backend
+                              la rechaza igual, y un botón que solo sirve para
+                              recibir un no es un botón de más. */}
+                          {u.id !== usuarioEnSesion?.id && (
+                            <button
+                              className="btn btn-ghost btn-sm flex items-center gap-1"
+                              title="Eliminar definitivamente"
+                              onClick={() => { setAEliminar(u); setErrorEliminar(''); }}
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -557,6 +608,57 @@ function Usuarios() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+
+        {/* ── Borrado definitivo de una cuenta ──────────────────────────── */}
+        <AlertDialog
+          open={aEliminar !== null}
+          onOpenChange={(abierto) => { if (!abierto && !eliminando) setAEliminar(null); }}
+        >
+          <AlertDialogContent className="flat-page confirm-box">
+            <div className="confirm-head">
+              <span className="confirm-icon"><Trash2 size={17} /></span>
+              <AlertDialogTitle className="confirm-title">Eliminar usuario</AlertDialogTitle>
+            </div>
+
+            <AlertDialogDescription className="confirm-text">
+              La cuenta de <strong>{aEliminar?.name}</strong> desaparece del sistema y su
+              correo queda libre. No se puede deshacer.
+              <br />
+              Solo se pueden borrar cuentas que no tengan nada registrado a su nombre. Si
+              esta persona levantó consultas, emitió recibos o tiene citas asignadas, use
+              <strong> Desactivar</strong>: deja de entrar al sistema y su nombre sigue al
+              pie de lo que firmó.
+            </AlertDialogDescription>
+
+            {errorEliminar && (
+              <div className="notice notice-danger">
+                <span className="notice-body">
+                  <AlertCircle size={16} />
+                  {errorEliminar}
+                </span>
+              </div>
+            )}
+
+            <div className="confirm-actions dialog-sep">
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={() => setAEliminar(null)}
+                disabled={eliminando}
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                className="btn btn-danger"
+                onClick={eliminarUsuario}
+                disabled={eliminando}
+              >
+                {eliminando ? 'Eliminando…' : 'Sí, eliminar'}
+              </button>
+            </div>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </Layout>
   );
