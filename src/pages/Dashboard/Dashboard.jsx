@@ -54,13 +54,23 @@ const getPatientName = (appointment, patients) => {
 
 function Dashboard() {
   const [patients, setPatients] = useState([]);
-  const [todayAppointments, setTodayAppointments] = useState([]);
+  const [agendaAppointments, setAgendaAppointments] = useState([]);
   const [monthAppointments, setMonthAppointments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
 
   const today = useMemo(() => new Date(), []);
   const todayISO = toISODate(today);
+
+  /* Mañana también entra en el panel: la pregunta de quien abre el sistema por
+     la tarde no es solo qué queda hoy, sino qué viene mañana —y una cita que se
+     reagenda al día siguiente desaparecía de la vista sin dejar rastro—. */
+  const tomorrowISO = useMemo(() => {
+    const manana = new Date(today);
+    manana.setDate(manana.getDate() + 1);
+
+    return toISODate(manana);
+  }, [today]);
 
   const todayFormatted = today.toLocaleDateString('es-GT', {
     weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'
@@ -73,9 +83,11 @@ function Dashboard() {
       setLoading(true);
       setLoadError('');
 
-      const [patientsRes, todayRes, monthRes] = await Promise.all([
+      // Los dos días van en una sola llamada: el API filtra por rango y pedir
+      // dos veces lo mismo solo duplicaría el viaje.
+      const [patientsRes, agendaRes, monthRes] = await Promise.all([
         patientService.getPatients(),
-        appointmentService.getAppointments({ date: todayISO }),
+        appointmentService.getAppointments({ from_date: todayISO, to_date: tomorrowISO }),
         appointmentService.getAppointments({
           year: today.getFullYear(),
           month: today.getMonth() + 1
@@ -85,10 +97,10 @@ function Dashboard() {
       if (!isMounted) return;
 
       if (patientsRes.success) setPatients(patientsRes.data || []);
-      if (todayRes.success) setTodayAppointments(todayRes.data || []);
+      if (agendaRes.success) setAgendaAppointments(agendaRes.data || []);
       if (monthRes.success) setMonthAppointments(monthRes.data || []);
 
-      if (!patientsRes.success || !todayRes.success || !monthRes.success) {
+      if (!patientsRes.success || !agendaRes.success || !monthRes.success) {
         setLoadError('No se pudieron cargar todos los datos del resumen.');
       }
       setLoading(false);
@@ -96,7 +108,7 @@ function Dashboard() {
 
     load();
     return () => { isMounted = false; };
-  }, [todayISO, today]);
+  }, [todayISO, tomorrowISO, today]);
 
   const stats = useMemo(() => {
     const activos = patients.filter(p => Boolean(p.activo)).length;
@@ -141,12 +153,29 @@ function Dashboard() {
     [patients]
   );
 
-  const sortedTodayAppointments = useMemo(
-    () => [...todayAppointments].sort((a, b) =>
-      String(a.fecha_hora_inicio || '').localeCompare(String(b.fecha_hora_inicio || ''))
-    ),
-    [todayAppointments]
+  /* La tarjeta de arriba sigue contando hoy: es una cifra del día, y sumarle
+     mañana la volvería incomparable con «citas del mes». */
+  const todayAppointments = useMemo(
+    () => agendaAppointments.filter(a => String(a.fecha_hora_inicio || '').startsWith(todayISO)),
+    [agendaAppointments, todayISO]
   );
+
+  const porDia = useMemo(() => {
+    const ordenar = (lista) => [...lista].sort((a, b) =>
+      String(a.fecha_hora_inicio || '').localeCompare(String(b.fecha_hora_inicio || ''))
+    );
+
+    return [
+      { clave: todayISO, etiqueta: 'Hoy', citas: ordenar(todayAppointments) },
+      {
+        clave: tomorrowISO,
+        etiqueta: 'Mañana',
+        citas: ordenar(agendaAppointments.filter(
+          a => String(a.fecha_hora_inicio || '').startsWith(tomorrowISO)
+        )),
+      },
+    ];
+  }, [agendaAppointments, todayAppointments, todayISO, tomorrowISO]);
 
   return (
     <Layout breadcrumb="Dashboard">
@@ -257,14 +286,14 @@ function Dashboard() {
             )}
           </div>
 
-          {/* Citas de hoy */}
+          {/* Citas de hoy y mañana */}
           <div className="panel">
             <div className="panel-head">
               <span className="panel-title">
                 <Calendar size={14} />
-                Citas de hoy
+                Citas de hoy y mañana
                 <span className="panel-sub">
-                  {loading ? '—' : `${sortedTodayAppointments.length} agendadas`}
+                  {loading ? '—' : `${agendaAppointments.length} agendadas`}
                 </span>
               </span>
             </div>
@@ -273,20 +302,36 @@ function Dashboard() {
               <div className="panel-empty flex items-center justify-center gap-2">
                 <RefreshCw size={14} className="animate-spin" /> Cargando agenda…
               </div>
-            ) : sortedTodayAppointments.length === 0 ? (
+            ) : agendaAppointments.length === 0 ? (
               <div className="panel-empty flex flex-col items-center gap-2">
                 <CalendarX size={28} className="text-brand-text-light" />
-                No hay citas programadas para hoy.
+                No hay citas programadas para hoy ni para mañana.
               </div>
             ) : (
-              sortedTodayAppointments.map(a => (
-                <div className="appt-row" key={a.id}>
-                  <span className="appt-hour">{parseTime(a.fecha_hora_inicio) || '—'}</span>
-                  <div className="appt-main">
-                    <div className="appt-name">{getPatientName(a, patients)}</div>
-                    <div className="appt-motivo">{a.motivo || 'Sin motivo'}</div>
+              /* Los dos días llevan su rótulo aunque uno esté vacío: un panel
+                 que solo enseña «Mañana» se lee como si hoy no se hubiera
+                 cargado, y no como que hoy ya no queda nada. */
+              porDia.map(dia => (
+                <div key={dia.clave}>
+                  <div className="dash-dia">
+                    {dia.etiqueta}
+                    <span className="dash-dia-cuenta">
+                      {dia.citas.length === 0
+                        ? 'sin citas'
+                        : `${dia.citas.length} cita${dia.citas.length === 1 ? '' : 's'}`}
+                    </span>
                   </div>
-                  <span className={`tag ${APPT_TAG[a.estado] || 'tag-info'}`}>{a.estado}</span>
+
+                  {dia.citas.map(a => (
+                    <div className="appt-row" key={a.id}>
+                      <span className="appt-hour">{parseTime(a.fecha_hora_inicio) || '—'}</span>
+                      <div className="appt-main">
+                        <div className="appt-name">{getPatientName(a, patients)}</div>
+                        <div className="appt-motivo">{a.motivo || 'Sin motivo'}</div>
+                      </div>
+                      <span className={`tag ${APPT_TAG[a.estado] || 'tag-info'}`}>{a.estado}</span>
+                    </div>
+                  ))}
                 </div>
               ))
             )}
