@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AvisosProvider } from './components/Avisos';
 import { AuthProvider } from './context/AuthContext';
 import { ProtectedRoute } from './components/ProtectedRoute';
+import { ProveedorCambiosSinGuardar } from './context/CambiosSinGuardar';
 import { AdminRoute } from './components/AdminRoute';
 
 import Login           from './pages/Login/Login';
@@ -26,6 +27,10 @@ function App() {
       <AuthProvider>
         <TooltipProvider>
           <BrowserRouter>
+            {/* Va dentro del Router porque navega, y por fuera de las rutas
+                porque el aviso de cambios sin guardar tiene que sobrevivir al
+                cambio de pantalla que está intentando frenar. */}
+            <ProveedorCambiosSinGuardar>
             <Routes>
               <Route path="/"                  element={<Navigate to="/dashboard" replace />} />
               <Route path="/login"             element={<Login />} />
@@ -52,6 +57,7 @@ function App() {
 
               <Route path="*"                  element={<Navigate to="/dashboard" replace />} />
             </Routes>
+            </ProveedorCambiosSinGuardar>
           </BrowserRouter>
         </TooltipProvider>
       </AuthProvider>

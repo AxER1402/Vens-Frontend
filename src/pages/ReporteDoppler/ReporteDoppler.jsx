@@ -1,11 +1,13 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Layout from '../../components/Layout/Layout';
 import {
   Activity, ArrowLeft, Save, Check, Clock, ClipboardList, FileCheck, AlertCircle,
   User, RefreshCw, Lock, PenTool, Eye
 } from 'lucide-react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { useSalida, useAvisarCambiosSinGuardar } from '../../context/CambiosSinGuardar';
+import { DatePicker } from '@/components/ui/date-picker';
 import * as patientService from '../../services/patientService';
 import * as dopplerReportService from '../../services/dopplerReportService';
 import VistaPreviaReporte from '../../components/Reportes/VistaPreviaReporte';
@@ -29,8 +31,6 @@ const SECTIONS = [
   { id: 'izq', icon: <Activity size={14} />, label: 'Miembro inf. izquierdo' },
   { id: 'conclusion', icon: <FileCheck size={14} />, label: 'Conclusión' },
 ];
-
-const hoy = () => new Date().toISOString().split('T')[0];
 
 /* Fecha (YYYY-MM-DD) en formato legible, sin desfase de zona horaria */
 const formatearFecha = (fecha) => {
@@ -116,11 +116,22 @@ function Segmento({ indice, segmento, onChange }) {
 }
 
 function ReporteDoppler() {
-  const navigate = useNavigate();
+  const { salirA } = useSalida();
   const [searchParams] = useSearchParams();
   const { user } = useAuth();
 
   const [form, setForm] = useState(dopplerReportService.createEmptyForm);
+
+  /* El estudio tal como se cargó o se guardó por última vez. Comparar contra
+     esto es lo que distingue «no he tocado nada» de «llevo media exploración
+     escrita», que es la diferencia entre avisar y molestar. */
+  const formLimpioRef = useRef(null);
+
+  const recordarLimpio = (formulario) => {
+    formLimpioRef.current = JSON.stringify(formulario);
+  };
+
+  if (formLimpioRef.current === null) recordarLimpio(form);
   const [active, setActive] = useState('estudio');
   const [saved, setSaved] = useState(false);
   const [saveMessage, setSaveMessage] = useState('');
@@ -202,7 +213,10 @@ function ReporteDoppler() {
       const reporte = res.data[0];
 
       if (reporte) {
-        setForm(dopplerReportService.mapDopplerReportToForm(reporte));
+        const cargado = dopplerReportService.mapDopplerReportToForm(reporte);
+
+        setForm(cargado);
+        recordarLimpio(cargado);
         setReporteId(reporte.id);
         setEstadoReporte(reporte.estado_registro);
         setSoloLectura(reporte.estado_registro === 'Finalizada');
@@ -226,14 +240,14 @@ function ReporteDoppler() {
   /** Regresar a la misma consulta del expediente, no a una pantalla en blanco. */
   const volverAHistoria = () => {
     if (!patientId) {
-      navigate('/historia-clinica');
+      salirA('/historia-clinica', 'volver a la historia clínica');
       return;
     }
     const params = new URLSearchParams({
       patientId: String(patientId),
       ...(historiaId ? { historiaId: String(historiaId) } : {})
     });
-    navigate(`/historia-clinica?${params}`);
+    salirA(`/historia-clinica?${params}`, 'volver a la historia clínica');
   };
 
   const ch = (e) => {
@@ -281,7 +295,7 @@ function ReporteDoppler() {
     if (!patientId) {
       setSaved(false);
       setSaveMessage('Abra el reporte desde la historia clínica de un paciente para poder guardarlo.');
-      return;
+      return false;
     }
 
     setSaving(true);
@@ -297,7 +311,7 @@ function ReporteDoppler() {
       setSaved(false);
       setSaveMessage([res.message, detalle].filter(Boolean).join(' '));
       setSaving(false);
-      return;
+      return false;
     }
 
     setReporteId(res.data?.id || reporteId);
@@ -309,17 +323,33 @@ function ReporteDoppler() {
       setAvisoReporte(`Estudio del ${formatearFecha(res.data?.fecha_estudio || form.fecha)} finalizado.`);
     }
 
+    // Lo guardado pasa a ser el punto de partida: desde aquí, salir no avisa.
+    recordarLimpio(form);
     setSaved(true);
     setSaveMessage(res.message);
     setSaving(false);
+
+    return true;
   };
+
+  /*
+     Un estudio abierto en solo lectura no tiene cambios: no se puede escribir
+     en él. Uno ya finalizado no puede volver a borrador, así que al salir
+     desde él se guarda como lo que es.
+  */
+  const bloqueado = soloLectura || !canEdit || loadingReporte;
+
+  const hayCambios = !bloqueado && JSON.stringify(form) !== formLimpioRef.current;
+
+  useAvisarCambiosSinGuardar(
+    hayCambios,
+    () => guardarReporte(estadoReporte === 'Finalizada' ? 'Finalizada' : 'Borrador'),
+  );
 
   const handleSave = (e) => {
     e.preventDefault();
     guardarReporte('Finalizada');
   };
-
-  const bloqueado = soloLectura || !canEdit || loadingReporte;
 
   return (
     <Layout breadcrumb="Reporte Ecodöppler">
@@ -407,14 +437,13 @@ function ReporteDoppler() {
                 <Section id="estudio" icon={<ClipboardList size={14} />} title="Datos del Estudio">
                   <div className="hc-grid-2">
                     <InputField label="Fecha del estudio">
-                      {/* El API no acepta estudios con fecha futura */}
-                      <input
-                        name="fecha"
-                        type="date"
-                        className="form-control"
-                        max={hoy()}
+                      {/* El API no acepta estudios con fecha futura, así que
+                          el calendario apaga los días de después de hoy. */}
+                      <DatePicker
                         value={form.fecha}
-                        onChange={ch}
+                        onChange={(valor) => ch({ target: { name: 'fecha', value: valor } })}
+                        max={dopplerReportService.hoy()}
+                        placeholder="Fecha del estudio"
                       />
                     </InputField>
                     <div className="hc-field">

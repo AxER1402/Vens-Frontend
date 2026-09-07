@@ -40,6 +40,7 @@ const CAMPOS_ANTECEDENTES = [
 export const createEmptyForm = () => ({
   consultaPor: '',
   zonasPierna: [],
+  zonasPiernaOtro: '',
   sintomas: [],
   sintomasAumentan: [],
   sintomasDisminuyen: [],
@@ -139,6 +140,7 @@ export const buildClinicalHistoryPayload = (form, patientId, estadoRegistro = 'F
 
   // Interrogatorio y síntomas
   consulta_por: texto(form.consultaPor),
+  zonas_pierna_otro: texto(form.zonasPiernaOtro),
   disminuyen_otros: texto(form.disminuyenOtros),
 
   // Antecedentes
@@ -197,6 +199,7 @@ export const mapClinicalHistoryToForm = (historia) => {
   return {
     consultaPor: valor(historia.consulta_por),
     zonasPierna: lista('zonas_pierna'),
+    zonasPiernaOtro: valor(historia.zonas_pierna_otro),
     sintomas: lista('sintomas'),
     sintomasAumentan: lista('sintomas_aumentan'),
     sintomasDisminuyen: lista('sintomas_disminuyen'),
