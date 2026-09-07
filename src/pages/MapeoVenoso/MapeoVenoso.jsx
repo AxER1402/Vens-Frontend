@@ -1,11 +1,18 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import {
   ArrowLeft, User, RefreshCw, AlertCircle, Check, Save, Lock, PenTool,
   Undo2, Redo2, Trash2, Download, Maximize2, Minimize2, ZoomIn, ZoomOut, Scan, Eye,
 } from 'lucide-react';
 
 import Layout from '../../components/Layout/Layout';
+import { useSalida, useAvisarCambiosSinGuardar } from '../../context/CambiosSinGuardar';
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import MapeoVenosoEditor from '../../components/MapeoVenoso/MapeoVenosoEditor';
 import BarraHerramientas from '../../components/MapeoVenoso/BarraHerramientas';
 import PanelAnotaciones from '../../components/MapeoVenoso/PanelAnotaciones';
@@ -59,7 +66,7 @@ const ESTILO_INICIAL = {
 };
 
 function MapeoVenoso() {
-  const navigate = useNavigate();
+  const { salirA } = useSalida();
   const [searchParams] = useSearchParams();
   const { user } = useAuth();
 
@@ -210,12 +217,22 @@ function MapeoVenoso() {
     marcarSucio();
   }, [aplicar, marcarSucio]);
 
+  // Pendiente de confirmar el vaciado del lienzo. El confirm() del navegador
+  // servía, pero se ve como una alerta de una página cualquiera y no dice de
+  // qué sistema viene.
+  const [aLimpiar, setALimpiar] = useState(false);
+
   const limpiarTodo = () => {
     if (!objetos.length) return;
-    if (!window.confirm('¿Borrar todos los trazos, marcadores y anotaciones del mapeo?')) return;
+
+    setALimpiar(true);
+  };
+
+  const confirmarLimpieza = () => {
     aplicar([]);
     setSeleccion(null);
     marcarSucio();
+    setALimpiar(false);
   };
 
   /* ── Diálogos de anotación y texto ───────────────────────────────────── */
@@ -374,7 +391,7 @@ function MapeoVenoso() {
     if (!historiaId) {
       setGuardado(false);
       setMensaje('Guarde primero la consulta en la historia clínica: el mapeo se archiva dentro de ella.');
-      return;
+      return false;
     }
 
     setGuardando(true);
@@ -394,7 +411,7 @@ function MapeoVenoso() {
         const detalle = res.errors ? Object.values(res.errors).flat().slice(0, 3).join(' ') : '';
         setGuardado(false);
         setMensaje([res.message, detalle].filter(Boolean).join(' '));
-        return;
+        return false;
       }
 
       const mapeo = clinicalHistoryService.mapClinicalHistoryToMapeo(res.data);
@@ -402,13 +419,21 @@ function MapeoVenoso() {
       marcarGuardado();
       setGuardado(true);
       setMensaje(res.message);
+
+      return true;
     } catch (error) {
       setGuardado(false);
       setMensaje(error.message || 'No se pudo generar la imagen del mapeo.');
+
+      return false;
     } finally {
       setGuardando(false);
     }
   };
+
+  // El mapeo de una consulta bloqueada no se puede tocar, así que no tiene
+  // nada pendiente por definición.
+  useAvisarCambiosSinGuardar(!limpio && !bloqueado, guardarMapeo);
 
   const descargar = async () => {
     try {
@@ -423,17 +448,15 @@ function MapeoVenoso() {
 
   /** Regresar a la misma consulta del expediente, no a una pantalla en blanco. */
   const volverAHistoria = () => {
-    if (!limpio && !window.confirm('El mapeo tiene cambios sin guardar. ¿Salir de todos modos?')) return;
-
     if (!patientId) {
-      navigate('/historia-clinica');
+      salirA('/historia-clinica', 'volver a la historia clínica');
       return;
     }
     const params = new URLSearchParams({
       patientId: String(patientId),
       ...(historiaId ? { historiaId: String(historiaId) } : {}),
     });
-    navigate(`/historia-clinica?${params}`);
+    salirA(`/historia-clinica?${params}`, 'volver a la historia clínica');
   };
 
   const editorProps = {
@@ -752,6 +775,36 @@ function MapeoVenoso() {
       />
 
       <VistaPreviaReporte reporte={vistaPrevia} onCerrar={() => setVistaPrevia(null)} />
+
+      {/* ── Vaciar el lienzo ─────────────────────────────────────────────── */}
+      <AlertDialog
+        open={aLimpiar}
+        onOpenChange={(abierto) => { if (!abierto) setALimpiar(false); }}
+      >
+        <AlertDialogContent className="flat-page confirm-box">
+          <div className="confirm-head">
+            <span className="confirm-icon"><Trash2 size={17} /></span>
+            <AlertDialogTitle className="confirm-title">Vaciar el mapeo</AlertDialogTitle>
+          </div>
+
+          <AlertDialogDescription className="confirm-text">
+            Se quitan del lienzo los {objetos.length} elemento(s) del mapeo: trazos,
+            marcadores y anotaciones.
+            <br />
+            El mapeo que ya esté guardado no se toca hasta que vuelva a guardar, y
+            mientras tanto puede deshacerlo con Ctrl+Z.
+          </AlertDialogDescription>
+
+          <div className="confirm-actions dialog-sep">
+            <button type="button" className="btn btn-secondary" onClick={() => setALimpiar(false)}>
+              Cancelar
+            </button>
+            <button type="button" className="btn btn-danger" onClick={confirmarLimpieza}>
+              Sí, vaciar
+            </button>
+          </div>
+        </AlertDialogContent>
+      </AlertDialog>
     </Layout>
   );
 }

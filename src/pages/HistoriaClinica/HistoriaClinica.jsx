@@ -5,13 +5,15 @@ import {
   Save, Activity, PenTool, Check, AlertCircle, Plus, RefreshCw, Lock, FileText,
   Eye, Receipt
 } from 'lucide-react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import * as patientService from '../../services/patientService';
 import * as clinicalHistoryService from '../../services/clinicalHistoryService';
 import * as dopplerReportService from '../../services/dopplerReportService';
 import VistaPreviaReporte from '../../components/Reportes/VistaPreviaReporte';
 import { reporteHistoriaClinica } from '../../services/reporteService';
 import { Combobox } from '@/components/ui/combobox';
+import { DatePicker } from '@/components/ui/date-picker';
+import { useSalida, useAvisarCambiosSinGuardar } from '../../context/CambiosSinGuardar';
 import {
   Dialog,
   DialogContent,
@@ -20,12 +22,6 @@ import {
   DialogDescription,
   DialogFooter
 } from '@/components/ui/dialog';
-import {
-  AlertDialog,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
 
 const SECTIONS = [
   { id: 'interrogatorio', icon: <MessageSquare size={14} />, label: 'Interrogatorio y Síntomas' },
@@ -140,8 +136,6 @@ function OptCheck({ value, label, list, onToggle }) {
 }
 
 function HistoriaClinica() {
-  const navigate = useNavigate();
-
   const [searchParams, setSearchParams] = useSearchParams();
 
   // Patients state
@@ -158,15 +152,17 @@ function HistoriaClinica() {
   const [active, setActive] = useState('interrogatorio');
   const [saved, setSaved] = useState(false);
 
+  const { salirA } = useSalida();
+
   /**
-   * Salida pendiente de confirmar cuando hay cambios sin guardar.
+   * El formulario tal como quedó la última vez que se cargó o se guardó.
    *
-   * El Ecodöppler y el mapeo venoso se llenan en otra pantalla y vuelven a
-   * esta; si se sale con la consulta a medias, lo escrito se pierde sin que
-   * nadie lo diga. Se guarda a dónde iba para poder llevarlo ahí si decide
-   * salir de todas formas.
+   * Sirve para saber si de verdad hay algo sin guardar. Antes se usaba el
+   * indicador `saved`, que nace en falso: abrir un borrador y salir al
+   * Ecodöppler sin tocar nada avisaba igual de cambios que no existían, y un
+   * aviso que sale siempre deja de leerse.
    */
-  const [salidaPendiente, setSalidaPendiente] = useState(null);
+  const formLimpioRef = useRef(null);
 
 
   const [saveMessage, setSaveMessage] = useState('');
@@ -184,20 +180,6 @@ function HistoriaClinica() {
   const [historiaId, setHistoriaId] = useState(null);
   const [estadoHistoria, setEstadoHistoria] = useState(null);
   const [soloLectura, setSoloLectura] = useState(false);
-
-  /**
-   * Ir a otra pantalla, avisando antes si la consulta tiene cambios sin
-   * guardar. `destino` es a dónde se va y `motivo` lo que se está por hacer,
-   * para que el aviso diga de qué salida se trata.
-   */
-  const salirA = (destino, motivo) => {
-    if (soloLectura || saved) {
-      navigate(destino);
-      return;
-    }
-
-    setSalidaPendiente({ destino, motivo });
-  };
 
 
   // Estudio de Ecodöppler adjunto a la consulta abierta. Solo se consulta para
@@ -301,6 +283,27 @@ function HistoriaClinica() {
 
   const [form, setForm] = useState(clinicalHistoryService.createEmptyForm);
 
+  /** Dar por guardado el formulario tal como está. */
+  const recordarLimpio = (formulario) => {
+    formLimpioRef.current = JSON.stringify(formulario);
+  };
+
+  // Primer repintado: lo que hay puesto es el punto de partida, no un cambio.
+  if (formLimpioRef.current === null) recordarLimpio(form);
+
+  /*
+     Hay cambios cuando el formulario ya no es el que se cargó. Una consulta
+     abierta en solo lectura nunca los tiene: no se puede escribir en ella.
+  */
+  const hayCambios = !soloLectura && JSON.stringify(form) !== formLimpioRef.current;
+
+  /* Una consulta ya finalizada no puede volver a borrador, así que al salir
+     desde ella se guarda como lo que es. */
+  useAvisarCambiosSinGuardar(
+    hayCambios,
+    () => guardarHistoria(estadoHistoria === 'Finalizada' ? 'Finalizada' : 'Borrador'),
+  );
+
   // Cualquier edición deja la historia como "sin guardar" y limpia el aviso previo
   const marcarModificado = () => {
     setSaved(false);
@@ -357,7 +360,10 @@ function HistoriaClinica() {
 
   /** Dejar el formulario sin ninguna consulta cargada (expediente desvinculado). */
   const limpiarConsulta = () => {
-    setForm(clinicalHistoryService.createEmptyForm());
+    const vacio = clinicalHistoryService.createEmptyForm();
+
+    setForm(vacio);
+    recordarLimpio(vacio);
     setHistoriaId(null);
     setEstadoHistoria(null);
     setSoloLectura(false);
@@ -369,7 +375,10 @@ function HistoriaClinica() {
 
   /** Cargar una consulta existente. Las finalizadas se abren bloqueadas. */
   const abrirConsulta = (historia, patientId = selectedPatientId) => {
-    setForm(clinicalHistoryService.mapClinicalHistoryToForm(historia));
+    const cargado = clinicalHistoryService.mapClinicalHistoryToForm(historia);
+
+    setForm(cargado);
+    recordarLimpio(cargado);
     setHistoriaId(historia.id);
     setEstadoHistoria(historia.estado_registro);
     setSoloLectura(historia.estado_registro === 'Finalizada');
@@ -390,7 +399,10 @@ function HistoriaClinica() {
 
   /** Empezar una consulta nueva heredando los antecedentes de la más reciente. */
   const iniciarConsultaNueva = (previa = null, patientId = selectedPatientId) => {
-    setForm(clinicalHistoryService.buildFormForNewConsulta(previa));
+    const nuevo = clinicalHistoryService.buildFormForNewConsulta(previa);
+
+    setForm(nuevo);
+    recordarLimpio(nuevo);
     setHistoriaId(null);
     setEstadoHistoria(null);
     setSoloLectura(false);
@@ -604,6 +616,8 @@ function HistoriaClinica() {
 
     await refrescarHistorias();
 
+    // Lo guardado pasa a ser el punto de partida: desde aquí, salir ya no avisa.
+    recordarLimpio(form);
     setSaved(true);
     setSaveMessage(mensaje);
     setSaving(false);
@@ -696,7 +710,7 @@ function HistoriaClinica() {
                 <button
                   type="button"
                   className="btn btn-ghost btn-sm"
-                  onClick={() => { setIsModalOpen(false); navigate('/pacientes'); }}
+                  onClick={() => { setIsModalOpen(false); salirA('/pacientes', 'ir a registrar un paciente'); }}
                 >
                   <Plus size={14} /> Registrar nuevo
                 </button>
@@ -790,7 +804,7 @@ function HistoriaClinica() {
                       </button>
                     </>
                   ) : (
-                    <button type="button" className="btn btn-ghost btn-sm" onClick={() => navigate('/pacientes')}>
+                    <button type="button" className="btn btn-ghost btn-sm" onClick={() => salirA('/pacientes', 'ir a registrar un paciente')}>
                       <Plus size={14} /> Registrar nuevo
                     </button>
                   )}
@@ -896,6 +910,19 @@ function HistoriaClinica() {
                         <ChipCheck key={o} value={o} list={form.zonasPierna} onToggle={v => toggleArr('zonasPierna', v)} />
                       ))}
                     </div>
+                    {/* Marcar 'Otro' sin poder decir cuál guarda que hay otra
+                        zona pero no cuál es, que es el dato por el que se
+                        marca. Igual que 'Otros' en las enfermedades. */}
+                    {form.zonasPierna.includes('Otro') && (
+                      <input
+                        name="zonasPiernaOtro"
+                        className="form-control"
+                        style={{ marginTop: 12 }}
+                        placeholder="¿Qué otra zona? Especifique…"
+                        value={form.zonasPiernaOtro}
+                        onChange={ch}
+                      />
+                    )}
                   </Field>
                 </div>
 
@@ -991,12 +1018,13 @@ function HistoriaClinica() {
                     </div>
                     <div className="hc-grid-2" style={{ marginTop: 20 }}>
                       <InputField label="Última menstruación" small>
-                        <input
-                          name="ultimaMenstruacion"
-                          type="date"
-                          className="form-control"
+                        {/* El mismo calendario que el resto de la aplicación:
+                            el <input type="date"> del navegador pinta uno
+                            distinto en cada equipo y en inglés. */}
+                        <DatePicker
                           value={form.ultimaMenstruacion}
-                          onChange={ch}
+                          onChange={(valor) => setValor('ultimaMenstruacion', valor)}
+                          placeholder="Sin fecha"
                         />
                       </InputField>
                       <InputField label="Uso de hormonas / anticonceptivos" small>
@@ -1383,7 +1411,7 @@ function HistoriaClinica() {
                     title={historiaId
                       ? 'Abrir el cobro de esta consulta con el paciente ya elegido'
                       : 'Guarde la consulta para poder cobrarla'}
-                    onClick={() => navigate('/facturacion', {
+                    onClick={() => salirA('/facturacion', 'pasar la consulta a cobro', {
                       state: {
                         patientId: String(selectedPatientId),
                         historiaId: String(historiaId),
@@ -1437,70 +1465,6 @@ function HistoriaClinica() {
 
         {/* Único punto de emisión del expediente. Qué partes lleva el informe
             se marca dentro del visor, y el documento se rehace al momento. */}
-        {/* ── Salir con la consulta a medias ─────────────────────────────── */}
-      {/* El Ecodöppler y el mapeo se llenan en otra pantalla. Salir sin
-          guardar pierde lo escrito y nadie lo diría, así que se avisa antes
-          y se ofrece guardar el borrador sin perder el viaje. */}
-      <AlertDialog
-        open={salidaPendiente !== null}
-        onOpenChange={(abierto) => { if (!abierto) setSalidaPendiente(null); }}
-      >
-        <AlertDialogContent className="flat-page confirm-box">
-          <div className="confirm-head">
-            <span className="confirm-icon"><AlertCircle size={17} /></span>
-            <AlertDialogTitle className="confirm-title">
-              La consulta tiene cambios sin guardar
-            </AlertDialogTitle>
-          </div>
-
-          <AlertDialogDescription className="confirm-text">
-            Está por {salidaPendiente?.motivo ?? 'salir de esta pantalla'} y lo escrito
-            en la consulta todavía no está guardado. Si sale ahora se pierde.
-            <br />
-            Puede guardar el borrador y seguir: la consulta queda como está y podrá
-            terminarla al volver.
-          </AlertDialogDescription>
-
-          <div className="confirm-actions dialog-sep">
-            <button
-              type="button"
-              className="btn btn-secondary"
-              onClick={() => setSalidaPendiente(null)}
-            >
-              Seguir aquí
-            </button>
-            <button
-              type="button"
-              className="btn btn-ghost"
-              onClick={() => {
-                const destino = salidaPendiente.destino;
-                setSalidaPendiente(null);
-                navigate(destino);
-              }}
-            >
-              Salir sin guardar
-            </button>
-            <button
-              type="button"
-              className="btn btn-primary"
-              disabled={saving || !selectedPatientId}
-              onClick={async () => {
-                const destino = salidaPendiente.destino;
-                const guardada = await guardarHistoria('Borrador');
-
-                // Si el guardado falló, el diálogo se queda abierto con el
-                // mensaje del error: salir ahora perdería lo que se quiso salvar.
-                if (!guardada) return;
-
-                setSalidaPendiente(null);
-                navigate(destino);
-              }}
-            >
-              {saving ? 'Guardando…' : 'Guardar y salir'}
-            </button>
-          </div>
-        </AlertDialogContent>
-      </AlertDialog>
 
       <VistaPreviaReporte
           reporte={vistaPrevia}
