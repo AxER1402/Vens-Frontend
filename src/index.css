@@ -4520,8 +4520,17 @@ body.mv-expandido .page-content {
   transition: background var(--t-fast), color var(--t-fast);
 }
 
-.cal-day:hover {
+.cal-day:hover:not(:disabled) {
   background: var(--brand-surface-alt);
+}
+
+/* Un día que el formulario no admite —una fecha futura donde se pide una
+   pasada— se apaga en vez de desaparecer: el calendario sigue teniendo el mes
+   completo y se ve por qué no se puede elegir. */
+.cal-day:disabled {
+  color: var(--brand-text-light);
+  opacity: 0.4;
+  cursor: not-allowed;
 }
 
 .cal-day.is-today {

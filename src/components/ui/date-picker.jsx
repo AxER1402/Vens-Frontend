@@ -7,7 +7,12 @@ const MONTH_NAMES = [
 ];
 const WEEKDAYS = ['Lu', 'Ma', 'Mi', 'Ju', 'Vi', 'Sá', 'Do'];
 
-export function DatePicker({ value, onChange, placeholder = "Seleccionar fecha…" }) {
+/**
+ * `max` (YYYY-MM-DD, opcional) es el último día elegible. Lo pide la historia
+ * clínica: ni la última menstruación ni un Ecodöppler pueden ser de mañana, y
+ * el API los rechaza. Apagar el día en el calendario lo dice antes de teclear.
+ */
+export function DatePicker({ value, onChange, placeholder = "Seleccionar fecha…", max = null }) {
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef(null);
 
@@ -69,7 +74,11 @@ export function DatePicker({ value, onChange, placeholder = "Seleccionar fecha�
     return `${viewYear}-${monthStr}-${dayStr}`;
   };
 
+  const fueraDeRango = (iso) => Boolean(max) && iso > max;
+
   const handleSelectDay = (dayNum) => {
+    if (fueraDeRango(dateStrFor(dayNum))) return;
+
     onChange(dateStrFor(dayNum));
     setIsOpen(false);
   };
@@ -90,6 +99,8 @@ export function DatePicker({ value, onChange, placeholder = "Seleccionar fecha�
   };
 
   const handleToday = () => {
+    if (fueraDeRango(todayStr)) return;
+
     onChange(todayStr);
     setIsOpen(false);
   };
@@ -142,11 +153,13 @@ export function DatePicker({ value, onChange, placeholder = "Seleccionar fecha�
               const iso = dateStrFor(dayNum);
               const selected = value === iso;
               const today = todayStr === iso;
+              const vetado = fueraDeRango(iso);
 
               return (
                 <button
                   key={dayNum}
                   type="button"
+                  disabled={vetado}
                   onClick={() => handleSelectDay(dayNum)}
                   className={`cal-day${selected ? ' is-selected' : ''}${today && !selected ? ' is-today' : ''}`}
                 >
@@ -157,7 +170,12 @@ export function DatePicker({ value, onChange, placeholder = "Seleccionar fecha�
           </div>
 
           <div className="picker-foot">
-            <button type="button" className="btn btn-secondary btn-sm" onClick={handleToday}>
+            <button
+              type="button"
+              className="btn btn-secondary btn-sm"
+              disabled={fueraDeRango(todayStr)}
+              onClick={handleToday}
+            >
               Hoy
             </button>
             {value && (
