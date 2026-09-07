@@ -146,3 +146,26 @@ export const deactivateUser = async (id) => {
     };
   }
 };
+
+/**
+ * Borrar una cuenta del sistema, sin vuelta atrás (Solo Admin).
+ * Endpoint: DELETE /users/{id}/definitivo
+ *
+ * El backend se niega si la cuenta tiene registros a su nombre, si es la de
+ * quien la pide o si es el último administrador activo; en esos casos vuelve
+ * con el motivo, que es lo que hay que enseñar.
+ */
+export const eliminarUsuario = async (id) => {
+  try {
+    const response = await api.delete(`/users/${id}/definitivo`);
+    return {
+      success: true,
+      message: response.data.message || 'Usuario eliminado del sistema.',
+    };
+  } catch (error) {
+    return {
+      success: false,
+      message: error.response?.data?.message || 'No se pudo eliminar el usuario.',
+    };
+  }
+};
