@@ -1,8 +1,14 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Tags, Plus, Pencil, Power, Search, AlertCircle } from 'lucide-react';
+import { Tags, Plus, Pencil, Power, Search, AlertCircle, Trash2 } from 'lucide-react';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
 } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Combobox } from '@/components/ui/combobox';
 import { useAvisos } from '../../components/Avisos';
 import Paginador from '../../components/Paginador';
@@ -38,6 +44,10 @@ export default function ServiciosTarifas() {
   const [form, setForm] = useState(VACIO);
   const [errores, setErrores] = useState({});
   const [guardando, setGuardando] = useState(false);
+
+  // Servicio pendiente de borrar, o null. Borrar no se deshace: se pregunta.
+  const [aEliminar, setAEliminar] = useState(null);
+  const [eliminando, setEliminando] = useState(false);
 
   const cargar = useCallback(async () => {
     setCargando(true);
@@ -126,6 +136,26 @@ export default function ServiciosTarifas() {
     } else {
       avisos.error(res.message);
     }
+  };
+
+  const eliminar = async () => {
+    setEliminando(true);
+
+    const res = await servicioService.eliminarServicio(aEliminar.id);
+
+    if (res.success) {
+      avisos.exito(res.message);
+      setAEliminar(null);
+
+      // Si era el último de su página, se retrocede una: quedarse en una
+      // página que ya no existe deja la tabla en blanco sin explicar nada.
+      if (servicios.length === 1 && pagina > 1) setPagina(pagina - 1);
+      else cargar();
+    } else {
+      avisos.error(res.message);
+    }
+
+    setEliminando(false);
   };
 
   return (
@@ -218,6 +248,14 @@ export default function ServiciosTarifas() {
                         onClick={() => alternar(s)}
                       >
                         <Power size={14} />
+                      </button>
+                      <button
+                        type="button"
+                        className="btn btn-ghost btn-sm"
+                        title="Eliminar definitivamente"
+                        onClick={() => setAEliminar(s)}
+                      >
+                        <Trash2 size={14} />
                       </button>
                     </td>
                   </tr>
@@ -326,6 +364,51 @@ export default function ServiciosTarifas() {
           </form>
         </DialogContent>
       </Dialog>
+
+      {/* ── Confirmar el borrado definitivo ──────────────────────────── */}
+      <AlertDialog
+        open={aEliminar !== null}
+        onOpenChange={(abierto) => { if (!abierto) setAEliminar(null); }}
+      >
+        <AlertDialogContent className="flat-page confirm-box">
+          <div className="confirm-head">
+            <span className="confirm-icon"><Trash2 size={17} /></span>
+            <AlertDialogTitle className="confirm-title">Eliminar servicio</AlertDialogTitle>
+          </div>
+
+          <AlertDialogDescription className="confirm-text">
+            <strong>{aEliminar?.nombre}</strong> desaparece del catálogo y de la
+            base. No se puede deshacer, y su nombre queda libre para volver a
+            usarse.
+            <br />
+            Los recibos que ya lo cobraron no cambian: cada renglón guarda su
+            descripción y su precio desde que se emitió.
+            <br />
+            Si el servicio se prestó y solo quiere dejar de ofrecerlo, use
+            <strong> Retirar del catálogo</strong>: sale del selector al cobrar,
+            pero sigue en la lista y se puede devolver.
+          </AlertDialogDescription>
+
+          <div className="confirm-actions dialog-sep">
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={() => setAEliminar(null)}
+              disabled={eliminando}
+            >
+              Cancelar
+            </button>
+            <button
+              type="button"
+              className="btn btn-danger"
+              onClick={eliminar}
+              disabled={eliminando}
+            >
+              {eliminando ? 'Eliminando…' : 'Sí, eliminar'}
+            </button>
+          </div>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }

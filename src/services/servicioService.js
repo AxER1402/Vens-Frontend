@@ -82,3 +82,25 @@ export const retirarServicio = async (id) => {
     };
   }
 };
+
+/**
+ * Borrado definitivo: la fila desaparece de la base.
+ *
+ * No toca nada de lo ya cobrado. Los renglones de un recibo copian la
+ * descripción y el precio en el momento de emitirlo, así que no dependen del
+ * catálogo para seguir entendiéndose.
+ */
+export const eliminarServicio = async (id) => {
+  try {
+    const response = await api.delete(`/services/${id}/definitivo`);
+    return {
+      success: true,
+      message: response.data.message || 'Servicio eliminado del catálogo.',
+    };
+  } catch (error) {
+    return {
+      success: false,
+      message: error.response?.data?.message || 'No se pudo eliminar el servicio.',
+    };
+  }
+};
