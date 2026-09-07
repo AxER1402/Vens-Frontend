@@ -54,7 +54,7 @@
 }
 
 .appt-hour {
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-family: var(--font-mono);
   font-size: 12px;
   font-weight: 600;
   color: var(--brand-text);
