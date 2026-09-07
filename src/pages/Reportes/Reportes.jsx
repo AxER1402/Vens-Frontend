@@ -402,6 +402,25 @@ function Reportes() {
     [filtros.desde, filtros.hasta]
   );
 
+  /*
+     Cuál de los atajos describe el rango que hay puesto, si es que alguno.
+
+     Se deduce de las fechas y no de la última pulsación, que sería lo directo
+     pero mentiría en los tres casos que importan: al abrir la pantalla —que ya
+     empieza en «Este mes» sin que nadie lo haya pulsado—, al tocar una fecha a
+     mano —el atajo deja de describir el rango y tiene que apagarse— y al pulsar
+     «Restablecer», que vuelve al mes en curso.
+  */
+  const atajoActivo = useMemo(() => {
+    const coincide = ATAJOS.find((atajo) => {
+      const [desde, hasta] = atajo.rango();
+
+      return desde === filtros.desde && hasta === filtros.hasta;
+    });
+
+    return coincide?.id ?? null;
+  }, [filtros.desde, filtros.hasta]);
+
   const filtrosActivos = [
     filtros.patient_id && pacientes.find((p) => p.value === String(filtros.patient_id))?.label,
     filtros.medico_id && medicos.find((m) => m.value === String(filtros.medico_id))?.label,
@@ -498,7 +517,8 @@ function Reportes() {
                 <button
                   key={atajo.id}
                   type="button"
-                  className="hc-chip"
+                  className={`hc-chip${atajoActivo === atajo.id ? ' on' : ''}`}
+                  aria-pressed={atajoActivo === atajo.id}
                   onClick={() => aplicarAtajo(atajo)}
                 >
                   {atajo.etiqueta}
