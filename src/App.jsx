@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { createBrowserRouter, RouterProvider, Navigate, Outlet } from 'react-router-dom';
 import { AvisosProvider } from './components/Avisos';
 import { AuthProvider } from './context/AuthContext';
 import { ProtectedRoute } from './components/ProtectedRoute';
@@ -21,44 +21,61 @@ import Configuracion   from './pages/Configuracion/Configuracion';
 
 import { TooltipProvider } from '@/components/ui/tooltip';
 
+/**
+ * Lo que envuelve a todas las rutas y necesita estar dentro del router.
+ *
+ * El guardián de cambios sin guardar frena la navegación con useBlocker, que
+ * solo existe dentro del router y solo en su forma de datos: por eso las rutas
+ * se declaran con createBrowserRouter en lugar del <BrowserRouter> con <Routes>
+ * de antes. Sin él, las flechas de atrás y adelante del navegador se saltaban
+ * el aviso y se llevaban por delante la consulta a medias.
+ */
+function Raiz() {
+  return (
+    <ProveedorCambiosSinGuardar>
+      <Outlet />
+    </ProveedorCambiosSinGuardar>
+  );
+}
+
+const router = createBrowserRouter([
+  {
+    element: <Raiz />,
+    children: [
+      { path: '/',      element: <Navigate to="/dashboard" replace /> },
+      { path: '/login', element: <Login /> },
+
+      // Recuperación de contraseña (públicas)
+      { path: '/recuperar-contrasena',   element: <RecuperarPassword /> },
+      { path: '/restablecer-contrasena', element: <RestablecerPassword /> },
+
+      // Rutas protegidas de la aplicación
+      { path: '/dashboard',        element: <ProtectedRoute><Dashboard /></ProtectedRoute> },
+      { path: '/pacientes',        element: <ProtectedRoute><Pacientes /></ProtectedRoute> },
+      { path: '/citas',            element: <ProtectedRoute><Citas /></ProtectedRoute> },
+      { path: '/historia-clinica', element: <ProtectedRoute><HistoriaClinica /></ProtectedRoute> },
+      { path: '/reportes',         element: <ProtectedRoute><Reportes /></ProtectedRoute> },
+      { path: '/facturacion',      element: <ProtectedRoute><Facturacion /></ProtectedRoute> },
+      { path: '/reporte-doppler',  element: <ProtectedRoute><ReporteDoppler /></ProtectedRoute> },
+      { path: '/mapeo-venoso',     element: <ProtectedRoute><MapeoVenoso /></ProtectedRoute> },
+      { path: '/usuarios',         element: <AdminRoute><Usuarios /></AdminRoute> },
+
+      // Configuración: protegida, no restringida a administrador. Su cuenta la
+      // gestiona cada quien; las secciones de administración se filtran dentro
+      // de la pantalla y las cierra el backend.
+      { path: '/configuracion',    element: <ProtectedRoute><Configuracion /></ProtectedRoute> },
+
+      { path: '*', element: <Navigate to="/dashboard" replace /> },
+    ],
+  },
+]);
+
 function App() {
   return (
     <AvisosProvider>
       <AuthProvider>
         <TooltipProvider>
-          <BrowserRouter>
-            {/* Va dentro del Router porque navega, y por fuera de las rutas
-                porque el aviso de cambios sin guardar tiene que sobrevivir al
-                cambio de pantalla que está intentando frenar. */}
-            <ProveedorCambiosSinGuardar>
-            <Routes>
-              <Route path="/"                  element={<Navigate to="/dashboard" replace />} />
-              <Route path="/login"             element={<Login />} />
-
-              {/* Recuperación de contraseña (públicas) */}
-              <Route path="/recuperar-contrasena"   element={<RecuperarPassword />} />
-              <Route path="/restablecer-contrasena" element={<RestablecerPassword />} />
-
-              {/* Protected Application Routes */}
-              <Route path="/dashboard"         element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-              <Route path="/pacientes"         element={<ProtectedRoute><Pacientes /></ProtectedRoute>} />
-              <Route path="/citas"             element={<ProtectedRoute><Citas /></ProtectedRoute>} />
-              <Route path="/historia-clinica"  element={<ProtectedRoute><HistoriaClinica /></ProtectedRoute>} />
-              <Route path="/reportes"          element={<ProtectedRoute><Reportes /></ProtectedRoute>} />
-              <Route path="/facturacion"       element={<ProtectedRoute><Facturacion /></ProtectedRoute>} />
-              <Route path="/reporte-doppler"   element={<ProtectedRoute><ReporteDoppler /></ProtectedRoute>} />
-              <Route path="/mapeo-venoso"      element={<ProtectedRoute><MapeoVenoso /></ProtectedRoute>} />
-              <Route path="/usuarios"          element={<AdminRoute><Usuarios /></AdminRoute>} />
-
-              {/* Configuración: protegida, no restringida a administrador. Su
-                  cuenta la gestiona cada quien; las secciones de administración
-                  se filtran dentro de la pantalla y las cierra el backend. */}
-              <Route path="/configuracion"     element={<ProtectedRoute><Configuracion /></ProtectedRoute>} />
-
-              <Route path="*"                  element={<Navigate to="/dashboard" replace />} />
-            </Routes>
-            </ProveedorCambiosSinGuardar>
-          </BrowserRouter>
+          <RouterProvider router={router} />
         </TooltipProvider>
       </AuthProvider>
     </AvisosProvider>

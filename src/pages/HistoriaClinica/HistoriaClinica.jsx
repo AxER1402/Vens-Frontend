@@ -5,7 +5,7 @@ import {
   Save, Activity, PenTool, Check, AlertCircle, Plus, RefreshCw, Lock, FileText,
   Eye, Receipt
 } from 'lucide-react';
-import { useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import * as patientService from '../../services/patientService';
 import * as clinicalHistoryService from '../../services/clinicalHistoryService';
 import * as dopplerReportService from '../../services/dopplerReportService';
@@ -13,7 +13,7 @@ import VistaPreviaReporte from '../../components/Reportes/VistaPreviaReporte';
 import { reporteHistoriaClinica } from '../../services/reporteService';
 import { Combobox } from '@/components/ui/combobox';
 import { DatePicker } from '@/components/ui/date-picker';
-import { useSalida, useAvisarCambiosSinGuardar } from '../../context/CambiosSinGuardar';
+import { useAvisarCambiosSinGuardar } from '../../context/CambiosSinGuardar';
 import {
   Dialog,
   DialogContent,
@@ -136,6 +136,8 @@ function OptCheck({ value, label, list, onToggle }) {
 }
 
 function HistoriaClinica() {
+  const navigate = useNavigate();
+
   const [searchParams, setSearchParams] = useSearchParams();
 
   // Patients state
@@ -151,8 +153,6 @@ function HistoriaClinica() {
 
   const [active, setActive] = useState('interrogatorio');
   const [saved, setSaved] = useState(false);
-
-  const { salirA } = useSalida();
 
   /**
    * El formulario tal como quedó la última vez que se cargó o se guardó.
@@ -710,7 +710,7 @@ function HistoriaClinica() {
                 <button
                   type="button"
                   className="btn btn-ghost btn-sm"
-                  onClick={() => { setIsModalOpen(false); salirA('/pacientes', 'ir a registrar un paciente'); }}
+                  onClick={() => { setIsModalOpen(false); navigate('/pacientes'); }}
                 >
                   <Plus size={14} /> Registrar nuevo
                 </button>
@@ -795,7 +795,7 @@ function HistoriaClinica() {
                       <button
                         type="button"
                         className="btn btn-ghost btn-sm"
-                        onClick={() => salirA('/pacientes', 'ir al expediente')}
+                        onClick={() => navigate('/pacientes')}
                       >
                         Ver expediente
                       </button>
@@ -804,7 +804,7 @@ function HistoriaClinica() {
                       </button>
                     </>
                   ) : (
-                    <button type="button" className="btn btn-ghost btn-sm" onClick={() => salirA('/pacientes', 'ir a registrar un paciente')}>
+                    <button type="button" className="btn btn-ghost btn-sm" onClick={() => navigate('/pacientes')}>
                       <Plus size={14} /> Registrar nuevo
                     </button>
                   )}
@@ -1294,12 +1294,11 @@ function HistoriaClinica() {
                     type="button"
                     className={`btn ${reporteDoppler ? 'btn-primary' : 'btn-secondary'}`}
                     disabled={!selectedPatientId}
-                    onClick={() => salirA(
+                    onClick={() => navigate(
                       `/reporte-doppler?${new URLSearchParams({
                         patientId: String(selectedPatientId),
                         ...(historiaId ? { historiaId: String(historiaId) } : {})
-                      })}`,
-                      'abrir el reporte de Ecodöppler'
+                      })}`
                     )}
                   >
                     {reporteDoppler ? <FileText size={14} /> : <Activity size={14} />}
@@ -1341,12 +1340,11 @@ function HistoriaClinica() {
                     type="button"
                     className={`btn ${tieneMapeo ? 'btn-primary' : 'btn-secondary'}`}
                     disabled={!selectedPatientId}
-                    onClick={() => salirA(
+                    onClick={() => navigate(
                       `/mapeo-venoso?${new URLSearchParams({
                         patientId: String(selectedPatientId),
                         ...(historiaId ? { historiaId: String(historiaId) } : {})
-                      })}`,
-                      'abrir el mapeo venoso'
+                      })}`
                     )}
                   >
                     <PenTool size={14} />
@@ -1411,7 +1409,7 @@ function HistoriaClinica() {
                     title={historiaId
                       ? 'Abrir el cobro de esta consulta con el paciente ya elegido'
                       : 'Guarde la consulta para poder cobrarla'}
-                    onClick={() => salirA('/facturacion', 'pasar la consulta a cobro', {
+                    onClick={() => navigate('/facturacion', {
                       state: {
                         patientId: String(selectedPatientId),
                         historiaId: String(historiaId),
