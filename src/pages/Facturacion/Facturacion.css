@@ -171,7 +171,45 @@
   font-weight: 600;
 }
 
+/* Consulta que ya tiene documento: el aviso va pegado al selector que la
+   eligió, no arriba con los errores, para que se lea donde está la causa. */
+.fa-ya-cobrada {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin-top: 6px;
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--color-warning);
+}
+
+.fa-ya-cobrada svg {
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.fa-ya-cobrada strong {
+  font-weight: 600;
+}
+
 /* ── Historial ────────────────────────────────────────────────────────── */
+
+/* Barra de día del historial: flechas a los días vecinos, selector para
+   saltar a cualquiera y la vuelta a hoy. */
+.fa-dia {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+}
+
+/* El selector no se estira: al lado de las flechas tiene que leerse como un
+   control más de la barra y no como un campo de formulario. */
+.fa-dia-selector {
+  width: 190px;
+  flex: 0 0 auto;
+}
 
 /* Los dos botones de la fila, juntos y a la derecha */
 .fa-acciones {

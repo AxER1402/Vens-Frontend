@@ -401,9 +401,9 @@ function Usuarios() {
                         </span>
                       </td>
                       <td>
-                        <div className="flex items-center justify-end gap-2">
+                        <div className="tabla-acciones">
                           <button
-                            className="btn btn-secondary btn-sm flex items-center gap-1"
+                            className="btn btn-secondary btn-sm accion accion-ancha flex items-center gap-1"
                             title="Editar usuario"
                             onClick={() => handleOpenEdit(u)}
                           >
@@ -412,7 +412,7 @@ function Usuarios() {
                           </button>
 
                           <button
-                            className={`btn btn-sm flex items-center gap-1 ${
+                            className={`btn btn-sm accion accion-ancha flex items-center gap-1 ${
                               isUserActive ? 'btn-danger' : 'btn-success'
                             }`}
                             title={isUserActive ? 'Desactivar usuario' : 'Activar usuario'}
@@ -426,15 +426,21 @@ function Usuarios() {
 
                           {/* La propia cuenta no se ofrece borrar: el backend
                               la rechaza igual, y un botón que solo sirve para
-                              recibir un no es un botón de más. */}
-                          {u.id !== usuarioEnSesion?.id && (
+                              recibir un no es un botón de más. El hueco sí se
+                              queda, para que las demás acciones de esta fila no
+                              se corran respecto a las del resto de la tabla. */}
+                          {u.id !== usuarioEnSesion?.id ? (
                             <button
-                              className="btn btn-ghost btn-sm flex items-center gap-1"
+                              className="btn btn-ghost btn-sm accion flex items-center gap-1"
                               title="Eliminar definitivamente"
                               onClick={() => { setAEliminar(u); setErrorEliminar(''); }}
                             >
                               <Trash2 size={14} />
                             </button>
+                          ) : (
+                            <span className="btn btn-ghost btn-sm accion accion-hueca" aria-hidden="true">
+                              <Trash2 size={14} />
+                            </span>
                           )}
                         </div>
                       </td>

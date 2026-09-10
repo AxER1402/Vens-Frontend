@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
-  AlertCircle, Ban, ClipboardList, FilePlus, FileText,
+  AlertCircle, Ban, ChevronLeft, ChevronRight, ClipboardList, FilePlus, FileText,
   Plus, Printer, Receipt, RefreshCw, Tags, Trash2, TrendingUp, User,
 } from 'lucide-react';
 
 import Layout from '../../components/Layout/Layout';
 import { Combobox } from '@/components/ui/combobox';
+import { DatePicker } from '@/components/ui/date-picker';
 import {
   AlertDialog,
   AlertDialogContent,
@@ -42,6 +43,23 @@ const renglonVacio = () => ({
 const aNumero = (valor) => {
   const n = Number(String(valor).replace(',', '.'));
   return Number.isFinite(n) ? n : 0;
+};
+
+/* Fecha de calendario en YYYY-MM-DD, tomada en la zona del navegador: con
+   toISOString() el «hoy» del mostrador se adelanta al día siguiente cada tarde. */
+const aISO = (fecha) => {
+  const y = fecha.getFullYear();
+  const m = String(fecha.getMonth() + 1).padStart(2, '0');
+  const d = String(fecha.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+};
+
+const hoyISO = () => aISO(new Date());
+
+/** El día vecino de uno dado, para las flechas del historial. */
+const diaVecino = (iso, salto) => {
+  const [y, m, d] = String(iso).slice(0, 10).split('-').map(Number);
+  return aISO(new Date(y, m - 1, d + salto));
 };
 
 const formatearFecha = (valor) => {
@@ -94,6 +112,16 @@ function Facturacion() {
   const [vistaPrevia, setVistaPrevia] = useState(null);
   const [pagina, setPagina] = useState(1);
   const [meta, setMeta] = useState(null);
+
+  /* El historial se lee por día y no entero. Con todo lo emitido en una sola
+     lista, buscar el recibo de esta mañana era ir pasando páginas de meses
+     viejos; y lo que se consulta desde el mostrador es casi siempre lo de hoy. */
+  const [dia, setDia] = useState(hoyISO);
+
+  /* Documentos vigentes del paciente elegido, indexados por la consulta que
+     cobran. Es lo que permite decir «esta consulta ya se cobró» antes de
+     emitir, en vez de que lo diga el servidor cuando ya se intentó. */
+  const [cobrosPorConsulta, setCobrosPorConsulta] = useState({});
   // Tipo de documento pendiente de confirmar, o null. Emitir no se deshace:
   // un documento de cobro entregado ya no se corrige, se anula.
   const [aEmitir, setAEmitir] = useState(null);
@@ -151,6 +179,8 @@ function Facturacion() {
     setCargandoHistorial(true);
     const res = await facturacionService.getInvoices({
       incluir_anuladas: 1,
+      from_date: dia,
+      to_date: dia,
       page: pagina,
       per_page: 30,
     });
@@ -160,22 +190,56 @@ function Facturacion() {
       setMeta(res.meta);
     }
     setCargandoHistorial(false);
-  }, [pagina]);
+  }, [pagina, dia]);
+
+  /** Ir a otro día del historial. Cambiar de día siempre vuelve a la página 1. */
+  const verDia = (iso) => {
+    setDia(iso);
+    setPagina(1);
+  };
 
   useEffect(() => { cargarHistorial(); }, [cargarHistorial]);
 
-  /* Las consultas del paciente elegido: son las que se pueden cobrar. */
+  /**
+   * Qué consultas del paciente ya están cobradas.
+   *
+   * Solo cuentan los documentos vigentes: anular es justamente lo que vuelve a
+   * dejar libre una consulta, así que un anulado no debe seguir marcándola.
+   */
+  const cargarCobrosDelPaciente = useCallback(async (patientId) => {
+    if (!patientId) {
+      setCobrosPorConsulta({});
+      return;
+    }
+
+    const cobros = await facturacionService.getInvoices({ patient_id: patientId });
+    const porConsulta = {};
+
+    if (cobros.success) {
+      for (const doc of cobros.data) {
+        if (doc.clinical_history_id) porConsulta[String(doc.clinical_history_id)] = doc;
+      }
+    }
+
+    setCobrosPorConsulta(porConsulta);
+  }, []);
+
+  /* Las consultas del paciente elegido: son las que se pueden cobrar, y se
+     traen junto con el estado de cobro de cada una. */
   useEffect(() => {
     if (!form.patient_id) {
       setConsultas([]);
+      setCobrosPorConsulta({});
       return;
     }
 
     (async () => {
-      const res = await clinicalHistoryService.getClinicalHistoriesByPatient(form.patient_id);
-      setConsultas(res.success ? res.data : []);
+      const historias = await clinicalHistoryService.getClinicalHistoriesByPatient(form.patient_id);
+      setConsultas(historias.success ? historias.data : []);
     })();
-  }, [form.patient_id]);
+
+    cargarCobrosDelPaciente(form.patient_id);
+  }, [form.patient_id, cargarCobrosDelPaciente]);
 
   /* ── Cuentas ──────────────────────────────────────────────────────────── */
 
@@ -310,6 +374,9 @@ function Facturacion() {
     avisos.exito(res.message);
     limpiar();
     setPagina(1);
+    // El historial se lee por día: si se estaba mirando otro, el documento
+    // recién emitido no aparecería en él. Se salta al suyo.
+    setDia(String(res.data.fecha_emision).slice(0, 10));
     cargarHistorial();
 
     // Se abre solo: emitir un recibo y tener que ir a buscarlo al historial
@@ -327,15 +394,30 @@ function Facturacion() {
     if (res.success) {
       avisos.exito(res.message);
       cargarHistorial();
+      // Anular libera la consulta que ese documento cobraba: el selector tiene
+      // que dejar de marcarla sin obligar a volver a elegir al paciente.
+      cargarCobrosDelPaciente(form.patient_id);
     } else {
       setError(res.message);
     }
   };
 
-  const opcionesConsulta = consultas.map((c) => ({
-    value: String(c.id),
-    label: `Consulta del ${formatearFecha(c.fecha_consulta)}`,
-  }));
+  const opcionesConsulta = consultas.map((c) => {
+    const cobro = cobrosPorConsulta[String(c.id)];
+
+    return {
+      value: String(c.id),
+      label: cobro
+        ? `Consulta del ${formatearFecha(c.fecha_consulta)} · ya cobrada (${cobro.serie}-${cobro.numero})`
+        : `Consulta del ${formatearFecha(c.fecha_consulta)}`,
+    };
+  });
+
+  /* El cobro que ya tiene la consulta elegida, si lo tiene. Mientras esté, no
+     se emite: una consulta se cobra una vez y el servidor rechaza la segunda. */
+  const cobroDeLaConsulta = form.clinical_history_id
+    ? cobrosPorConsulta[String(form.clinical_history_id)] ?? null
+    : null;
 
   return (
     <Layout breadcrumb="Facturación">
@@ -394,6 +476,15 @@ function Facturacion() {
                   searchPlaceholder="Buscar consulta…"
                   icon={<ClipboardList size={15} />}
                 />
+                {cobroDeLaConsulta && (
+                  <p className="fa-ya-cobrada">
+                    <AlertCircle size={14} />
+                    Esta consulta ya se cobró con el documento{' '}
+                    <strong>{cobroDeLaConsulta.serie}-{cobroDeLaConsulta.numero}</strong> por{' '}
+                    <strong>{quetzales(cobroDeLaConsulta.total)}</strong>. Para volver a cobrarla hay que
+                    anular ese documento.
+                  </p>
+                )}
               </div>
 
               <div className="hc-field">
@@ -560,7 +651,8 @@ function Facturacion() {
                     type="button"
                     className="btn btn-secondary btn-sm"
                     onClick={() => pedirConfirmacion('recibo')}
-                    disabled={emitiendo !== ''}
+                    disabled={emitiendo !== '' || cobroDeLaConsulta !== null}
+                    title={cobroDeLaConsulta ? 'La consulta elegida ya está cobrada' : undefined}
                   >
                     <Receipt size={14} />
                     {emitiendo === 'recibo' ? 'Emitiendo…' : 'Emitir recibo'}
@@ -569,7 +661,8 @@ function Facturacion() {
                     type="button"
                     className="btn btn-primary btn-sm"
                     onClick={() => pedirConfirmacion('factura')}
-                    disabled={emitiendo !== ''}
+                    disabled={emitiendo !== '' || cobroDeLaConsulta !== null}
+                    title={cobroDeLaConsulta ? 'La consulta elegida ya está cobrada' : undefined}
                   >
                     <FilePlus size={14} />
                     {emitiendo === 'factura' ? 'Emitiendo…' : 'Emitir factura'}
@@ -606,11 +699,52 @@ function Facturacion() {
           <div className="hc-section-head">
             <FileText size={14} />
             <h2 className="hc-section-title">Documentos emitidos</h2>
-            <span className="fa-head-nota">{meta?.total ?? documentos.length}</span>
+            <span className="fa-head-nota">
+              {meta?.total ?? documentos.length} el {formatearFecha(dia)}
+            </span>
           </div>
           <div className="hc-section-body">
+            {/* El historial se mira un día a la vez: las flechas recorren los
+                días vecinos y el selector salta a cualquier fecha. */}
+            <div className="fa-dia">
+              <button
+                type="button"
+                className="btn btn-secondary btn-sm"
+                title="Día anterior"
+                onClick={() => verDia(diaVecino(dia, -1))}
+              >
+                <ChevronLeft size={15} />
+              </button>
+
+              <div className="fa-dia-selector">
+                <DatePicker value={dia} onChange={(v) => verDia(v || hoyISO())} placeholder="Elija el día" />
+              </div>
+
+              <button
+                type="button"
+                className="btn btn-secondary btn-sm"
+                title="Día siguiente"
+                onClick={() => verDia(diaVecino(dia, 1))}
+              >
+                <ChevronRight size={15} />
+              </button>
+
+              <button
+                type="button"
+                className="btn btn-ghost btn-sm"
+                disabled={dia === hoyISO()}
+                onClick={() => verDia(hoyISO())}
+              >
+                Hoy
+              </button>
+            </div>
+
             {documentos.length === 0 ? (
-              <p className="hc-empty">Todavía no se ha emitido ningún documento.</p>
+              <p className="hc-empty">
+                {cargandoHistorial
+                  ? 'Cargando documentos…'
+                  : `No se emitió ningún documento el ${formatearFecha(dia)}.`}
+              </p>
             ) : (
               <div className="table-wrap">
                 <table className="data-table">

@@ -898,6 +898,40 @@ h6 {
   border-bottom: none;
 }
 
+/* Acciones de una fila.
+   Los botones van en huecos de ancho fijo y no pegados unos a otros: si cada
+   uno midiera lo que mide su texto, «Activar» dejaría la columna más corta que
+   «Desactivar» y una fila sin la papelera correría las demás. Al recorrer la
+   lista con la vista el botón cambiaba de sitio en cada renglón, que es como se
+   pulsa el que no era. Con los huecos fijos, cada acción cae siempre en la
+   misma vertical y el hueco en blanco marca la que esa fila no ofrece. */
+.tabla-acciones {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.tabla-acciones .accion {
+  flex: 0 0 auto;
+  min-width: 34px;
+  justify-content: center;
+}
+
+/* El hueco de una acción que esta fila no ofrece: ocupa sitio y no se ve. */
+.tabla-acciones .accion-hueca {
+  visibility: hidden;
+  pointer-events: none;
+}
+
+/* A partir de sm los botones enseñan su texto (`hidden sm:inline`), así que el
+   hueco crece a lo que mide la etiqueta más larga. */
+@media (min-width: 640px) {
+  .tabla-acciones .accion-ancha {
+    min-width: 108px;
+  }
+}
+
 /* ======================================
    BADGES
 ====================================== */
