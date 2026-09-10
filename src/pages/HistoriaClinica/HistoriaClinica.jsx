@@ -3,13 +3,15 @@ import Layout from '../../components/Layout/Layout';
 import {
   User, Folder, MessageSquare, Search, Stethoscope, CheckCircle, Pill, Clock,
   Save, Activity, PenTool, Check, AlertCircle, Plus, RefreshCw, Lock, FileText,
-  Eye, Receipt
+  Eye, Receipt, UserPlus
 } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import * as patientService from '../../services/patientService';
 import * as clinicalHistoryService from '../../services/clinicalHistoryService';
 import * as dopplerReportService from '../../services/dopplerReportService';
 import VistaPreviaReporte from '../../components/Reportes/VistaPreviaReporte';
+import { PatientFormFields, EMPTY_PATIENT_FORM } from '../../components/forms/PatientFormFields';
+import { useAvisos } from '../../components/Avisos';
 import { reporteHistoriaClinica } from '../../services/reporteService';
 import { Combobox } from '@/components/ui/combobox';
 import {
@@ -160,6 +162,7 @@ function OptCheck({ value, label, list, onToggle }) {
 function HistoriaClinica() {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const avisos = useAvisos();
 
   const [searchParams, setSearchParams] = useSearchParams();
 
@@ -173,6 +176,16 @@ function HistoriaClinica() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalSearch, setModalSearch] = useState('');
   const [tempSelectedId, setTempSelectedId] = useState('');
+
+  /* Alta rápida de paciente, la misma que ofrece la agenda al citar a alguien
+     que todavía no está en la base. Antes «Registrar nuevo» llevaba a
+     /pacientes, y volver de allí costaba perder la consulta a medio escribir:
+     el expediente se abre desde aquí y aquí se vuelve, ya con el paciente
+     vinculado. */
+  const [showRegisterPatientModal, setShowRegisterPatientModal] = useState(false);
+  const [patientForm, setPatientForm] = useState(EMPTY_PATIENT_FORM);
+  const [registrandoPaciente, setRegistrandoPaciente] = useState(false);
+  const [errorRegistro, setErrorRegistro] = useState('');
 
   const [active, setActive] = useState('interrogatorio');
   const [saved, setSaved] = useState(false);
@@ -302,6 +315,65 @@ function HistoriaClinica() {
   const handleConfirmSelection = () => {
     handleSelectPatient(tempSelectedId);
     setIsModalOpen(false);
+  };
+
+  /**
+   * Abrir el alta rápida. Lo que se llevaba escrito en el buscador del selector
+   * se aprovecha como nombre o teléfono según cómo esté escrito: se buscó a
+   * alguien, no apareció, y volver a teclearlo sería el segundo trabajo.
+   */
+  const handleOpenRegisterPatient = (prefill = '') => {
+    const texto = prefill.trim();
+    const esTelefono = texto !== '' && /^[0-9+ -]+$/.test(texto);
+
+    setPatientForm({
+      ...EMPTY_PATIENT_FORM,
+      nombre: esTelefono ? '' : texto,
+      telefono: esTelefono ? texto.replace(/\D/g, '') : '',
+    });
+    setErrorRegistro('');
+    setShowRegisterPatientModal(true);
+  };
+
+  /**
+   * Registrar al paciente y dejarlo vinculado a esta historia clínica.
+   *
+   * El expediente nuevo se mete en la lista local además de seleccionarlo: la
+   * recarga de pacientes va por su cuenta y hasta que llegue, un `selectedPatientId`
+   * que no está en `patients` deja la barra en «Sin paciente vinculado».
+   */
+  const handleQuickRegisterPatient = async (e) => {
+    e.preventDefault();
+    setErrorRegistro('');
+
+    if (!patientForm.nombre.trim()) {
+      setErrorRegistro('El nombre del paciente es obligatorio.');
+      return;
+    }
+    if (!patientForm.telefono.trim()) {
+      setErrorRegistro('El teléfono del paciente es obligatorio.');
+      return;
+    }
+
+    setRegistrandoPaciente(true);
+    const res = await patientService.createPatient(patientForm);
+
+    if (res.success && res.data) {
+      const nuevo = res.data;
+      setPatients(prev => [nuevo, ...prev.filter(p => String(p.id) !== String(nuevo.id))]);
+      setPatientError('');
+      setShowRegisterPatientModal(false);
+      setIsModalOpen(false);
+      setTempSelectedId(String(nuevo.id));
+      handleSelectPatient(String(nuevo.id));
+      avisos.exito(`Paciente "${nuevo.nombre}" registrado y vinculado a la consulta.`);
+    } else if (res.errors) {
+      setErrorRegistro(Object.values(res.errors)[0]?.[0] || res.message);
+    } else {
+      setErrorRegistro(res.message || 'Error al registrar el paciente.');
+    }
+
+    setRegistrandoPaciente(false);
   };
 
   const [form, setForm] = useState(clinicalHistoryService.createEmptyForm);
@@ -796,7 +868,7 @@ function HistoriaClinica() {
                 <button
                   type="button"
                   className="btn btn-ghost btn-sm"
-                  onClick={() => { setIsModalOpen(false); navigate('/pacientes'); }}
+                  onClick={() => handleOpenRegisterPatient(modalSearch)}
                 >
                   <Plus size={14} /> Registrar nuevo
                 </button>
@@ -817,6 +889,50 @@ function HistoriaClinica() {
             </DialogContent>
           </Dialog>
         )}
+
+        {/* Alta rápida de paciente: el mismo formulario que usa la agenda, para
+            que un paciente dado de alta desde la consulta y otro dado de alta
+            desde una cita se registren con los mismos campos. */}
+        <Dialog open={showRegisterPatientModal} onOpenChange={setShowRegisterPatientModal}>
+          <DialogContent className="flat-page sm:max-w-lg rounded-none bg-brand-surface">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2 text-brand-text">
+                <UserPlus className="text-brand-slate" size={22} />
+                Registrar Nuevo Paciente
+              </DialogTitle>
+              <DialogDescription className="text-muted">
+                Registre al paciente para vincularlo de inmediato a esta historia clínica.
+              </DialogDescription>
+            </DialogHeader>
+
+            {errorRegistro && (
+              <div className="notice notice-danger notice-flush">
+                <span className="notice-body">
+                  <AlertCircle size={16} />
+                  {errorRegistro}
+                </span>
+              </div>
+            )}
+
+            <form onSubmit={handleQuickRegisterPatient} className="flex flex-col gap-4 py-2">
+              <PatientFormFields form={patientForm} setForm={setPatientForm} showEstado={false} />
+
+              <DialogFooter className="dialog-sep flex flex-row justify-between gap-3 sm:justify-between">
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={() => setShowRegisterPatientModal(false)}
+                  disabled={registrandoPaciente}
+                >
+                  Cancelar
+                </button>
+                <button type="submit" className="btn btn-primary" disabled={registrandoPaciente}>
+                  {registrandoPaciente ? 'Guardando…' : 'Guardar y Vincular'}
+                </button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
 
         <form onSubmit={handleSave} id="form-historia-clinica">
           <div className="hc-layout">
@@ -890,7 +1006,7 @@ function HistoriaClinica() {
                       </button>
                     </>
                   ) : (
-                    <button type="button" className="btn btn-ghost btn-sm" onClick={() => navigate('/pacientes')}>
+                    <button type="button" className="btn btn-ghost btn-sm" onClick={() => handleOpenRegisterPatient('')}>
                       <Plus size={14} /> Registrar nuevo
                     </button>
                   )}

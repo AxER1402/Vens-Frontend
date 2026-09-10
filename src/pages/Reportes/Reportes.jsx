@@ -19,6 +19,7 @@ import {
   Stethoscope,
   Syringe,
   UserCheck,
+  UserCog,
   Users,
 } from 'lucide-react';
 
@@ -65,18 +66,18 @@ import './Reportes.css';
    genérico en vez de romper la rejilla. */
 /* Los íconos salen del vocabulario del Inicio y de Historia Clínica —Users,
    Calendar, Stethoscope, Activity, MessageSquare— y no de un repertorio
-   propio: ocho reportes necesitan ocho íconos distintos, pero de la misma
-   familia, o el módulo parece de otra aplicación. */
+   propio: cada reporte necesita el suyo, pero todos de la misma familia, o el
+   módulo parece de otra aplicación. */
 const ICONOS = {
   'ingresos': Receipt,
   'pacientes-atendidos': Users,
   'citas': Calendar,
   'productividad-medico': UserCheck,
-  'diagnosticos-ceap': Stethoscope,
   'sintomas-antecedentes': MessageSquare,
   'tratamientos-indicaciones': Syringe,
   'evolucion-seguimiento': HeartPulse,
   'estudios-ecodoppler': Activity,
+  'usuarios': UserCog,
 };
 
 /* Los estados de una cita, en el orden del ciclo de la agenda y no por
