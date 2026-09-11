@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
   AlertCircle, Ban, ChevronLeft, ChevronRight, ClipboardList, FilePlus, FileText,
-  Plus, Printer, Receipt, RefreshCw, Tags, Trash2, TrendingUp, User,
+  Plus, Printer, Receipt, RefreshCw, Tags, Trash2, TrendingUp, User, Wallet,
 } from 'lucide-react';
 
 import Layout from '../../components/Layout/Layout';
@@ -521,13 +521,17 @@ function Facturacion() {
 
               <div className="hc-field">
                 <label className="hc-field-label">Método de pago</label>
-                <select
-                  className="form-control"
+                {/* Sin poder vaciarlo: el documento no se emite sin decir cómo
+                    se pagó, y dejar limpiar la casilla solo consigue que el
+                    formulario se rechace al guardar. */}
+                <Combobox
+                  items={METODOS_PAGO}
                   value={form.metodo_pago}
-                  onChange={(e) => setForm((p) => ({ ...p, metodo_pago: e.target.value }))}
-                >
-                  {METODOS_PAGO.map((m) => <option key={m} value={m}>{m}</option>)}
-                </select>
+                  onChange={(v) => setForm((p) => ({ ...p, metodo_pago: v }))}
+                  placeholder="Seleccione cómo se pagó…"
+                  icon={<Wallet size={15} />}
+                  clearable={false}
+                />
               </div>
             </div>
           </div>
