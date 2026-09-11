@@ -245,7 +245,7 @@ function Dashboard() {
                     <tr>
                       <th>Paciente</th>
                       <th>Teléfono</th>
-                      <th>Residencia</th>
+                      <th className="col-secundaria">Residencia</th>
                       <th>Estado</th>
                       <th className="text-right">Acciones</th>
                     </tr>
@@ -263,7 +263,7 @@ function Dashboard() {
                           </div>
                         </td>
                         <td className="text-muted">{p.telefono || '—'}</td>
-                        <td className="text-muted">{p.lugar_residencia || '—'}</td>
+                        <td className="text-muted col-secundaria">{p.lugar_residencia || '—'}</td>
                         <td>
                           <span className={`tag ${PATIENT_TAG[p.estado] || 'tag-info'}`}>
                             {p.estado || 'Activo'}

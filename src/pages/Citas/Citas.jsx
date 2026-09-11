@@ -272,7 +272,17 @@ function Citas() {
   const [errorMessage, setErrorMessage] = useState('');
 
   // Vista de agenda: 'dia' | 'semana' | 'lista'
-  const [view, setView] = useState('semana');
+  // La rejilla semanal necesita 800px de ancho para no apelotonar siete
+  // columnas, así que en un teléfono se entra por el día —que es además lo que
+  // se consulta de pie, entre paciente y paciente. Las tres vistas siguen
+  // disponibles en el conmutador.
+  //
+  // Se mira window y no useIsMobile porque este devuelve false en el primer
+  // render (su estado arranca en undefined) y para cuando se corrige la vista
+  // ya está fijada.
+  const [view, setView] = useState(
+    () => (typeof window !== 'undefined' && window.innerWidth < 768 ? 'dia' : 'semana')
+  );
   const [anchorDate, setAnchorDate] = useState(() => new Date());
 
   // Filters state
@@ -1169,7 +1179,7 @@ function Citas() {
 
             {view === 'lista' && (
               <>
-                <div style={{ width: 190 }}>
+                <div className="filtro" style={{ '--filtro-ancho': '190px' }}>
                   <DatePicker
                     value={filterDate}
                     onChange={(val) => {
@@ -1183,7 +1193,7 @@ function Citas() {
                   />
                 </div>
 
-                <div style={{ width: 130 }}>
+                <div className="filtro" style={{ '--filtro-ancho': '130px' }}>
                   <Combobox
                     items={YEAR_OPTIONS}
                     value={filterYear}
@@ -1195,7 +1205,7 @@ function Citas() {
                   />
                 </div>
 
-                <div style={{ width: 160 }}>
+                <div className="filtro" style={{ '--filtro-ancho': '160px' }}>
                   <Combobox
                     items={MONTH_OPTIONS}
                     value={filterMonth}
@@ -1210,7 +1220,7 @@ function Citas() {
               </>
             )}
 
-            <div style={{ width: 175 }}>
+            <div className="filtro" style={{ '--filtro-ancho': '175px' }}>
               <Combobox
                 items={ESTADOS_CITA}
                 value={filterEstado}
@@ -1219,7 +1229,7 @@ function Citas() {
               />
             </div>
 
-            <div style={{ width: 210 }}>
+            <div className="filtro" style={{ '--filtro-ancho': '210px' }}>
               <Combobox
                 items={patientOptions}
                 value={filterPatientId}

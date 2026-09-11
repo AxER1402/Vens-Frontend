@@ -804,6 +804,11 @@ h6 {
   font-size: 13px;
 }
 
+/* Columna que se retira en el teléfono. Se marca en el <th> y en su <td>, y
+   solo se pone donde el dato se puede consultar abriendo la ficha: una tabla de
+   nueve columnas en 375px es un desplazamiento lateral, no una tabla.
+   La regla que la esconde está en el bloque móvil del final. */
+
 .data-table thead {
   background: var(--brand-surface-deep);
 }
@@ -3898,6 +3903,20 @@ body.mv-expandido .page-content {
   align-items: center;
 }
 
+/* Un filtro de la barra de herramientas. El ancho lo pone quien lo monta con
+   --filtro-ancho, porque no todos piden lo mismo (un año son cuatro cifras y un
+   paciente un nombre entero), pero ninguno pasa del sitio que hay: los anchos
+   iban en línea y en un teléfono no había forma de rebajarlos. */
+.filtro {
+  width: var(--filtro-ancho, 190px);
+  max-width: 100%;
+}
+
+/* El buscador pide más sitio —los nombres son largos— pero nunca más del que hay */
+.search-wrap-ancho {
+  min-width: min(320px, 100%);
+}
+
 .search-icon-inner {
   position: absolute;
   left: 12px;
@@ -4694,5 +4713,115 @@ body.mv-expandido .page-content {
 
   .login-form-side {
     padding: 28px 20px 40px;
+  }
+
+  /* ---------- Tablas y filtros, en todas las pantallas ---------- */
+
+  .col-secundaria {
+    display: none;
+  }
+
+  /* Un filtro por línea: en 343px de ancho, dos no caben y medio tampoco */
+  .filtro {
+    width: 100%;
+  }
+
+  .toolbar {
+    gap: 10px;
+  }
+
+  /* ---------- Rejillas de formulario ---------- */
+
+  /* .grid-2/3/4 son las de los modales de Pacientes, Citas y Usuarios, y eran
+     las únicas rejillas del sistema sin punto de quiebre: dos columnas de 150px
+     con un icono dentro de cada campo no se pueden ni leer ni rellenar. */
+  .grid-2,
+  .grid-3,
+  .grid-4 {
+    grid-template-columns: 1fr;
+  }
+
+  /* ---------- Inicio ---------- */
+
+  /* Los indicadores se quedan en dos columnas, pero sin el icono: es adorno, y
+     esos 40px son la diferencia entre que el rótulo quepa en dos líneas o en
+     cuatro. La cifra baja de tamaño por lo mismo. */
+  .stat-card {
+    padding: 14px;
+    gap: 10px;
+  }
+
+  .stat-icon {
+    display: none;
+  }
+
+  .stat-value {
+    font-size: 26px;
+  }
+
+  /* ---------- Citas ---------- */
+
+  /* La fila de navegación de la agenda —dos flechas, el rango y "Hoy"— sumaba
+     más de 375px ella sola, y no envolvía porque el rango reservaba 230px fijos */
+  .agenda-nav {
+    flex-wrap: wrap;
+  }
+
+  .agenda-range {
+    min-width: 0;
+    flex: 1 1 auto;
+  }
+
+  /* ---------- Historia Clínica y Ecodöppler ---------- */
+
+  /* Las secciones pasan de columna lateral a cinta horizontal, igual que ya hace
+     la navegación de Configuración. Se queda pegada bajo la barra superior: son
+     ocho secciones y un formulario muy largo, y volver arriba a cada salto es
+     la mitad del trabajo. */
+  .hc-nav {
+    position: sticky;
+    top: 56px;
+    z-index: 20;
+  }
+
+  .hc-nav-head {
+    display: none;
+  }
+
+  .hc-nav-list {
+    flex-direction: row;
+    overflow-x: auto;
+    padding: 0;
+  }
+
+  .hc-nav-btn {
+    width: auto;
+    white-space: nowrap;
+    border-left: 0;
+    border-bottom: 2px solid transparent;
+    padding: 10px 12px;
+  }
+
+  .hc-nav-btn.active {
+    border-left-color: transparent;
+    border-bottom-color: var(--brand-slate);
+  }
+
+  /* El último tramo que faltaba: a 1100px estas bajaron a 3 y 2 columnas, que
+     en un teléfono siguen siendo campos numéricos de 90px con su rótulo encima. */
+  .hc-grid-6 {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .hc-vitals,
+  .hc-grid-4 {
+    grid-template-columns: 1fr;
+  }
+
+  /* La tabla de segmentos ya se apilaba en tarjetas de dos columnas a 1100px;
+     aquí termina de abrirse, que los campos van sin recuadro y pegados no se
+     distingue dónde acaba uno */
+  .dop-seg {
+    grid-template-columns: 1fr;
   }
 }
