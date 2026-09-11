@@ -3,6 +3,7 @@ import {
   Building2, Save, Image as ImagenIcono, Upload, Receipt, Stethoscope, AlertCircle,
 } from 'lucide-react';
 import { useAvisos } from '../../components/Avisos';
+import { useAuth } from '../../context/AuthContext';
 import { soloDigitos, TELEFONO_MAXIMO } from '../../lib/telefono';
 import * as ajusteService from '../../services/ajusteService';
 
@@ -15,9 +16,19 @@ const MAXIMO_BYTES = 2 * 1024 * 1024;
  * De aquí salen el membrete de los informes clínicos, los datos fiscales de
  * los recibos y la firma de los documentos. Antes vivían en el .env, así que
  * corregir un NIT obligaba a editar un archivo y volver a desplegar.
+ *
+ * La mantienen la administración y el médico: en esta clínica quien atiende es
+ * quien la dirige, y el membrete y el colegiado que firman los informes son
+ * suyos. Recepción la ve en solo lectura —de aquí salen el NIT y la serie de
+ * los recibos— y entonces no se le pintan los botones de guardar: el backend
+ * rechazaría el PUT igual, y un botón que solo sirve para recibir un no es un
+ * botón de más.
  */
 export default function DatosClinica() {
   const avisos = useAvisos();
+  const { user } = useAuth();
+
+  const puedeEditar = user?.rol === 'administrador' || user?.rol === 'medico';
 
   const [valores, setValores] = useState(null);
   const [originales, setOriginales] = useState(null);
@@ -126,6 +137,7 @@ export default function DatosClinica() {
         className="form-control"
         value={valores[clave] ?? ''}
         onChange={extras.onChange ?? set(clave)}
+        readOnly={!puedeEditar}
         {...extras.input}
       />
       {extras.ayuda && <span className="form-hint">{extras.ayuda}</span>}
@@ -137,6 +149,16 @@ export default function DatosClinica() {
 
   return (
     <form onSubmit={guardar}>
+      {!puedeEditar && (
+        <p className="config-advertencia">
+          <AlertCircle size={15} />
+          <span>
+            Estos datos se muestran para consulta: son los que encabezan y firman
+            los informes y los recibos. Los mantienen la administración y el médico.
+          </span>
+        </p>
+      )}
+
       {/* ── Logo ─────────────────────────────────────────────────────── */}
       <section className="hc-section">
         <div className="hc-section-head">
@@ -162,17 +184,19 @@ export default function DatosClinica() {
                 incrusta el generador de PDF, y ese formato no le entra.
               </p>
 
-              <div className="config-foto-acciones">
-                <button
-                  type="button"
-                  className="btn btn-secondary"
-                  onClick={() => selectorLogo.current?.click()}
-                  disabled={subiendoLogo}
-                >
-                  <Upload size={15} />
-                  {subiendoLogo ? 'Subiendo…' : 'Cambiar logo'}
-                </button>
-              </div>
+              {puedeEditar && (
+                <div className="config-foto-acciones">
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    onClick={() => selectorLogo.current?.click()}
+                    disabled={subiendoLogo}
+                  >
+                    <Upload size={15} />
+                    {subiendoLogo ? 'Subiendo…' : 'Cambiar logo'}
+                  </button>
+                </div>
+              )}
 
               <input
                 ref={selectorLogo}
@@ -266,16 +290,18 @@ export default function DatosClinica() {
             firma con el usuario que registró la consulta.
           </span>
 
-          <div className="config-acciones">
-            <button
-              type="submit"
-              className="btn btn-primary"
-              disabled={guardando || sinCambios}
-            >
-              <Save size={15} />
-              {guardando ? 'Guardando…' : 'Guardar cambios'}
-            </button>
-          </div>
+          {puedeEditar && (
+            <div className="config-acciones">
+              <button
+                type="submit"
+                className="btn btn-primary"
+                disabled={guardando || sinCambios}
+              >
+                <Save size={15} />
+                {guardando ? 'Guardando…' : 'Guardar cambios'}
+              </button>
+            </div>
+          )}
         </div>
       </section>
     </form>

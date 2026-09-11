@@ -11,6 +11,13 @@ import { User, KeyRound, Building2, CalendarClock, Tags } from 'lucide-react';
  * `roles` ausente significa que la sección es para todo el personal. El backend
  * vuelve a comprobar el permiso en cada endpoint: esta lista acomoda la
  * interfaz, no la protege.
+ *
+ * Ver y mantener son cosas distintas, y aquí se notan: el médico entra a «Datos
+ * de la clínica» y a «Servicios y tarifas» porque necesita saber con qué
+ * membrete se firman sus informes y a qué precio se cobra lo que indica, pero
+ * las dos pantallas se le abren en solo lectura. El backend ya lo tenía así
+ * —`GET /ajustes` y `GET /services` están abiertos, y solo escribir pide
+ * administrador—; lo que faltaba era que la interfaz lo dejara entrar a mirar.
  */
 /** Cómo se nombra cada rol de cara al usuario. */
 export const ETIQUETAS_ROL = {
@@ -38,7 +45,7 @@ export const SECCIONES = [
     titulo: 'Datos de la clínica',
     descripcion: 'Membrete, logo, datos fiscales y firma de los informes.',
     icono: Building2,
-    roles: ['administrador'],
+    roles: ['administrador', 'medico'],
   },
   {
     clave: 'agenda',
@@ -52,7 +59,7 @@ export const SECCIONES = [
     titulo: 'Servicios y tarifas',
     descripcion: 'El catálogo con el que se llenan los recibos.',
     icono: Tags,
-    roles: ['administrador'],
+    roles: ['administrador', 'medico'],
   },
 ];
 

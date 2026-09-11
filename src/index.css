@@ -932,6 +932,21 @@ h6 {
   }
 }
 
+/* Campo que solo se puede leer. No es lo mismo que deshabilitado: el texto
+   tiene que seguir leyéndose con comodidad y poder copiarse, así que cambia el
+   fondo y el cursor pero no se atenúa. */
+.form-control[readonly] {
+  background: var(--brand-surface-alt);
+  border-color: var(--brand-border-light);
+  color: var(--brand-text-muted);
+  cursor: default;
+}
+
+.form-control[readonly]:focus {
+  border-color: var(--brand-border-light);
+  box-shadow: none;
+}
+
 /* ======================================
    BADGES
 ====================================== */
