@@ -11,6 +11,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Combobox } from '@/components/ui/combobox';
 import { useAvisos } from '../../components/Avisos';
+import { useAuth } from '../../context/AuthContext';
 import Paginador from '../../components/Paginador';
 import { quetzales } from '../../services/facturacionService';
 import * as servicioService from '../../services/servicioService';
@@ -28,9 +29,18 @@ const FILTRO_ESTADO = [
  * Los renglones de un recibo se escribían a mano cada vez, con el precio
  * tecleado de memoria: el mismo servicio acababa escrito de tres formas y a
  * tres precios distintos según quién cobrara.
+ *
+ * Lo mantienen la administración y el médico, que son quienes ponen el precio.
+ * Recepción lo ve en solo lectura: necesita saber a qué se cobra cada cosa para
+ * emitir el recibo, pero una tarifa no se corrige en el mostrador con un
+ * paciente delante. A quien solo mira se le quitan los botones que el servidor
+ * le rechazaría.
  */
 export default function ServiciosTarifas() {
   const avisos = useAvisos();
+  const { user } = useAuth();
+
+  const puedeEditar = user?.rol === 'administrador' || user?.rol === 'medico';
 
   const [servicios, setServicios] = useState([]);
   const [meta, setMeta] = useState(null);
@@ -173,6 +183,16 @@ export default function ServiciosTarifas() {
             emitido: cada uno guarda el precio con el que se cobró.
           </p>
 
+          {!puedeEditar && (
+            <p className="config-advertencia">
+              <AlertCircle size={15} />
+              <span>
+                El catálogo se muestra para consulta, con los precios vigentes.
+                Las tarifas las fijan la administración y el médico.
+              </span>
+            </p>
+          )}
+
           <div className="config-catalogo-barra">
             <div className="search-wrap config-buscador">
               <span className="search-icon-inner"><Search size={15} /></span>
@@ -193,10 +213,12 @@ export default function ServiciosTarifas() {
               />
             </div>
 
-            <button type="button" className="btn btn-primary" onClick={abrirNuevo}>
-              <Plus size={15} />
-              Nuevo servicio
-            </button>
+            {puedeEditar && (
+              <button type="button" className="btn btn-primary" onClick={abrirNuevo}>
+                <Plus size={15} />
+                Nuevo servicio
+              </button>
+            )}
           </div>
 
           <div className="table-wrap">
@@ -205,20 +227,22 @@ export default function ServiciosTarifas() {
                 <tr>
                   <th>Servicio</th>
                   <th className="fa-num">Precio</th>
-                  <th />
+                  {puedeEditar && <th />}
                 </tr>
               </thead>
               <tbody>
                 {cargando && (
-                  <tr><td colSpan={3} className="hc-field-hint">Cargando…</td></tr>
+                  <tr><td colSpan={puedeEditar ? 3 : 2} className="hc-field-hint">Cargando…</td></tr>
                 )}
 
                 {!cargando && servicios.length === 0 && (
                   <tr>
-                    <td colSpan={3} className="hc-field-hint">
+                    <td colSpan={puedeEditar ? 3 : 2} className="hc-field-hint">
                       {busqueda
                         ? 'Ningún servicio coincide con esa búsqueda.'
-                        : 'El catálogo está vacío. Agregue el primer servicio.'}
+                        : puedeEditar
+                          ? 'El catálogo está vacío. Agregue el primer servicio.'
+                          : 'El catálogo está vacío.'}
                     </td>
                   </tr>
                 )}
@@ -232,32 +256,34 @@ export default function ServiciosTarifas() {
                       )}
                     </td>
                     <td className="fa-num">{quetzales(s.precio)}</td>
-                    <td className="fa-num config-fila-acciones">
-                      <button
-                        type="button"
-                        className="btn btn-ghost btn-sm"
-                        title="Editar"
-                        onClick={() => abrirEdicion(s)}
-                      >
-                        <Pencil size={14} />
-                      </button>
-                      <button
-                        type="button"
-                        className="btn btn-ghost btn-sm"
-                        title={s.activo ? 'Retirar del catálogo' : 'Devolver al catálogo'}
-                        onClick={() => alternar(s)}
-                      >
-                        <Power size={14} />
-                      </button>
-                      <button
-                        type="button"
-                        className="btn btn-ghost btn-sm"
-                        title="Eliminar definitivamente"
-                        onClick={() => setAEliminar(s)}
-                      >
-                        <Trash2 size={14} />
-                      </button>
-                    </td>
+                    {puedeEditar && (
+                      <td className="fa-num config-fila-acciones">
+                        <button
+                          type="button"
+                          className="btn btn-ghost btn-sm"
+                          title="Editar"
+                          onClick={() => abrirEdicion(s)}
+                        >
+                          <Pencil size={14} />
+                        </button>
+                        <button
+                          type="button"
+                          className="btn btn-ghost btn-sm"
+                          title={s.activo ? 'Retirar del catálogo' : 'Devolver al catálogo'}
+                          onClick={() => alternar(s)}
+                        >
+                          <Power size={14} />
+                        </button>
+                        <button
+                          type="button"
+                          className="btn btn-ghost btn-sm"
+                          title="Eliminar definitivamente"
+                          onClick={() => setAEliminar(s)}
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </td>
+                    )}
                   </tr>
                 ))}
               </tbody>

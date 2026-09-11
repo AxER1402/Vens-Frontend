@@ -389,10 +389,15 @@ function Citas() {
   }, [patients]);
 
   // Doctor items formatted for Combobox
+  /* Solo el nombre. El rol sobraba —la lista ya son todos médicos— y el «Dr.»
+     de delante lo ponía el sistema sin saber a quién: en una clínica dirigida
+     por una doctora, el selector la trataba de «Dr.» y encima repetía el
+     tratamiento que muchos nombres ya traen escrito. El campo se llama «Médico
+     tratante»; con el nombre basta. */
   const doctorOptions = useMemo(() => {
     return doctors.map(d => ({
       value: String(d.id),
-      label: `Dr. ${d.name} (${d.rol || 'Médico'})`
+      label: d.name
     }));
   }, [doctors]);
 
