@@ -268,7 +268,7 @@ function Pacientes() {
       {/* Toolbar / Filtros */}
       <div className="toolbar">
         <div className="toolbar-left flex flex-wrap gap-3">
-          <div className="search-wrap" style={{ minWidth: 320 }}>
+          <div className="search-wrap search-wrap-ancho">
             <span className="search-icon-inner">
               <Search size={16} />
             </span>
@@ -282,7 +282,7 @@ function Pacientes() {
             />
           </div>
 
-          <div style={{ width: 190 }}>
+          <div className="filtro">
             <Combobox
               items={ESTADO_PATIENT_OPTIONS}
               value={filterEstado}
@@ -292,7 +292,7 @@ function Pacientes() {
             />
           </div>
 
-          <div style={{ width: 190 }}>
+          <div className="filtro">
             <Combobox
               items={ACTIVACION_FILTER_OPTIONS}
               value={filterActivo}
@@ -315,14 +315,14 @@ function Pacientes() {
         <table className="data-table">
           <thead>
             <tr>
-              <th>ID</th>
+              <th className="col-secundaria">ID</th>
               <th>Paciente</th>
               <th>Edad</th>
               <th>Teléfono</th>
-              <th>Lugar de Residencia</th>
-              <th>Est. Civil / Religión</th>
+              <th className="col-secundaria">Lugar de Residencia</th>
+              <th className="col-secundaria">Est. Civil / Religión</th>
               <th>Estado Clínico</th>
-              <th>Activación</th>
+              <th className="col-secundaria">Activación</th>
               <th className="text-right">Acciones</th>
             </tr>
           </thead>
@@ -355,7 +355,7 @@ function Pacientes() {
                 const isPatientActive = Boolean(p.activo);
                 return (
                   <tr key={p.id} className={!isPatientActive ? 'row-off' : ''}>
-                    <td>
+                    <td className="col-secundaria">
                       <span className="id-chip">#{p.id}</span>
                     </td>
                     <td>
@@ -370,10 +370,10 @@ function Pacientes() {
                     <td className="text-muted text-sm font-mono">
                       {p.telefono || '—'}
                     </td>
-                    <td className="text-muted text-sm">
+                    <td className="text-muted text-sm col-secundaria">
                       {p.lugar_residencia || '—'}
                     </td>
-                    <td className="text-muted text-sm">
+                    <td className="text-muted text-sm col-secundaria">
                       {p.estado_civil || '—'} / {p.religion || '—'}
                     </td>
                     <td>
@@ -381,7 +381,7 @@ function Pacientes() {
                         {p.estado}
                       </span>
                     </td>
-                    <td>
+                    <td className="col-secundaria">
                       <span className="state-inline">
                         <span className={`dot ${isPatientActive ? 'dot-on' : 'dot-off'}`}></span>
                         {isPatientActive ? 'Activo' : 'Inactivo'}
