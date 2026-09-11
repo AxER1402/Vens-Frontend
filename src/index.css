@@ -4666,4 +4666,33 @@ body.mv-expandido .page-content {
   .page-title {
     font-size: 24px;
   }
+
+  /* ---------- Login ---------- */
+
+  /* Era un 50/50 sin un solo punto de quiebre: en un teléfono quedaban dos
+     columnas de 187px, la mitad para un logotipo y la otra para el formulario.
+     Apiladas, el panel azul hace de cabecera y el formulario queda entero. */
+  .login-page {
+    flex-direction: column;
+  }
+
+  .login-panel {
+    width: 100%;
+    padding: 32px 20px 28px;
+  }
+
+  .login-panel-logo {
+    max-width: 230px;
+    margin-bottom: 18px;
+  }
+
+  /* Tres bondades del sistema empujaban el formulario fuera de la pantalla.
+     Quien entra desde el teléfono ya sabe a qué entra. */
+  .login-features {
+    display: none;
+  }
+
+  .login-form-side {
+    padding: 28px 20px 40px;
+  }
 }
