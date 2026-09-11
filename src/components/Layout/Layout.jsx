@@ -18,6 +18,7 @@ import {
   SidebarMenuItem,
   SidebarProvider,
   SidebarInset,
+  SidebarTrigger,
 } from '@/components/ui/sidebar';
 import {
   AlertDialog,
@@ -53,7 +54,16 @@ function AppSidebar() {
   const displayRole = roleLabels[user?.rol] || user?.rol || 'Personal';
 
   return (
-    <Sidebar collapsible="none" className="sticky top-0 h-screen border-none">
+    /* offcanvas y no none: con "none" el Sidebar de shadcn devuelve una
+       columna fija antes siquiera de mirar si estamos en un teléfono, y esos
+       260px se comían el ancho útil de la pantalla. Con "offcanvas" el
+       escritorio se ve igual que siempre y el teléfono recibe la barra dentro
+       de un Sheet, que abre el botón de la topbar.
+
+       El className ya no lleva posición: en este modo cae sobre un contenedor
+       que shadcn posiciona por su cuenta (fixed inset-y-0 h-svh), y dos
+       posiciones en la misma caja es pedir un desajuste. */
+    <Sidebar collapsible="offcanvas" className="border-none">
       <SidebarHeader className="p-0 border-none">
         <Link to="/dashboard" className="sidebar-logo">
           <span
@@ -134,7 +144,13 @@ function Topbar() {
 
   return (
     <header className="topbar">
-      <div className="topbar-left"></div>
+      <div className="topbar-left">
+        {/* En el teléfono la barra lateral está replegada y este es el único
+            modo de sacarla. En escritorio sobra —la barra no se va nunca—, así
+            que se esconde a partir de 768px, el mismo corte que usa
+            useIsMobile y que el resto del sistema. */}
+        <SidebarTrigger className="md:hidden" />
+      </div>
       <div className="topbar-right">
         <span className="topbar-date">{today}</span>
         <button

@@ -4652,3 +4652,44 @@ body.mv-expandido .page-content {
   justify-content: center;
   color: var(--brand-slate);
 }
+
+/* ======================================
+   MÓVIL (≤767px)
+
+   Todo lo que hace falta para que el sistema se pueda consultar desde un
+   teléfono vive aquí abajo y solo aquí. La razón de agruparlo es que ni una
+   sola regla de escritorio cambie de valor: por encima de 768px este bloque
+   no existe, así que lo que se vea raro en un monitor no puede venir de aquí.
+
+   El corte son 767px porque 768 es el que ya usan useIsMobile (hooks/use-mobile.js)
+   y el prefijo md: de Tailwind. Un solo número para el CSS y para el JavaScript,
+   o antes o después se contradicen.
+====================================== */
+@media (max-width: 767px) {
+
+  /* ---------- Armazón ---------- */
+
+  /* Los 36px de respiro a los lados eran la mitad del ancho de un teléfono */
+  .topbar {
+    padding: 0 12px;
+    gap: 8px;
+  }
+
+  /* La fecha larga en español —"vie, 10 de septiembre de 2026"— no cabe junto
+     al tirador del menú y la campana, y es el dato más prescindible de los tres */
+  .topbar-date {
+    display: none;
+  }
+
+  .page-content {
+    padding: 20px 16px;
+  }
+
+  .page-header {
+    margin-bottom: 20px;
+  }
+
+  .page-title {
+    font-size: 24px;
+  }
+}
