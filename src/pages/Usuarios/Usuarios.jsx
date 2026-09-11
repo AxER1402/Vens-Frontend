@@ -284,7 +284,7 @@ function Usuarios() {
         {/* Toolbar / Filtros */}
         <div className="toolbar">
           <div className="toolbar-left flex flex-wrap gap-3">
-            <div className="search-wrap" style={{ minWidth: 300 }}>
+            <div className="search-wrap search-wrap-ancho">
               <span className="search-icon-inner">
                 <Search size={16} />
               </span>
@@ -298,7 +298,7 @@ function Usuarios() {
               />
             </div>
 
-            <div style={{ width: 190 }}>
+            <div className="filtro">
               <Combobox
                 items={ROLE_FILTER_OPTIONS}
                 value={filterRole}
@@ -308,7 +308,7 @@ function Usuarios() {
               />
             </div>
 
-            <div style={{ width: 190 }}>
+            <div className="filtro">
               <Combobox
                 items={ESTADO_FILTER_OPTIONS}
                 value={filterStatus}

@@ -11,6 +11,15 @@ import './graficas.css';
 
 function ColumnasEnElTiempo({ datos, vacio, formatear = (v) => v, pie }) {
   const [encima, setEncima] = useState(null);
+
+  // El globo solo salía al pasar el ratón por encima, y un dedo no pasa por
+  // encima de nada. Con muchos tramos el rótulo del eje se omite y el globo es
+  // la única forma de saber qué tramo se mira: en el teléfono no había ninguna.
+  const alTocar = (evento, indice) => {
+    if (evento.pointerType === 'mouse') return;
+    setEncima((previo) => (previo === indice ? null : indice));
+  };
+
   const maximo = Math.max(1, ...datos.map((d) => d.valor));
   const total = datos.reduce((suma, d) => suma + d.valor, 0);
 
@@ -33,6 +42,7 @@ function ColumnasEnElTiempo({ datos, vacio, formatear = (v) => v, pie }) {
             key={d.clave}
             onMouseEnter={() => setEncima(i)}
             onMouseLeave={() => setEncima(null)}
+            onPointerUp={(evento) => alTocar(evento, i)}
           >
             {encima === i && (
               <span className="gr-globo">

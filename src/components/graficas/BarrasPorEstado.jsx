@@ -3,6 +3,16 @@ import './graficas.css';
 
 function BarrasPorEstado({ datos }) {
   const [encima, setEncima] = useState(null);
+
+  // El porcentaje solo salía al pasar el ratón por encima, y un dedo no pasa
+  // por encima de nada: en el teléfono el dato era sencillamente inalcanzable.
+  // Con el dedo se toca y se queda —se vuelve a tocar y se va—; con el ratón,
+  // todo sigue exactamente igual.
+  const alTocar = (evento, clave) => {
+    if (evento.pointerType === 'mouse') return;
+    setEncima((previo) => (previo === clave ? null : clave));
+  };
+
   const maximo = Math.max(1, ...datos.map((d) => d.valor));
   const total = datos.reduce((suma, d) => suma + d.valor, 0);
 
@@ -18,6 +28,7 @@ function BarrasPorEstado({ datos }) {
           key={d.etiqueta}
           onMouseEnter={() => setEncima(d.etiqueta)}
           onMouseLeave={() => setEncima(null)}
+          onPointerUp={(evento) => alTocar(evento, d.etiqueta)}
         >
           <span className="gr-fila-nombre">{d.etiqueta}</span>
           <span className="gr-fila-pista">
