@@ -85,8 +85,9 @@
      tiene que quedar por debajo de ella, como los avisos flotantes. */
   --topbar-alto: 64px;
 
-  /* ---- Sidebar (Deep blue) ---- */
-  --sidebar-width: 260px;
+  /* ---- Sidebar (Deep blue) ----
+     Sin anchura: la fija el propio componente de la barra, que la necesita en
+     dos valores distintos (escritorio y el Sheet del teléfono). */
   --sidebar-bg: #243757;
   --sidebar-text: rgba(245, 243, 238, 0.7);
   --sidebar-text-active: #F5F3EE;
@@ -283,38 +284,11 @@ h6 {
 }
 
 /* ======================================
-   LAYOUT
-====================================== */
-.layout {
-  display: flex;
-  min-height: 100vh;
-}
-
-.main-content {
-  flex: 1;
-  margin-left: var(--sidebar-width);
-  display: flex;
-  flex-direction: column;
-  min-height: 100vh;
-  background: var(--brand-surface-alt);
-}
-
-/* ======================================
    SIDEBAR — Deep blue, warm accents
-====================================== */
-.sidebar {
-  width: var(--sidebar-width);
-  min-height: 100vh;
-  background: var(--sidebar-bg);
-  display: flex;
-  flex-direction: column;
-  position: fixed;
-  top: 0;
-  left: 0;
-  z-index: 100;
-  border-right: 1px solid var(--sidebar-border);
-}
 
+   La caja y la posición las pone el componente de shadcn; aquí solo va lo de
+   dentro (logotipo, navegación, pie).
+====================================== */
 .sidebar-logo {
   padding: 24px 20px;
   display: flex;
