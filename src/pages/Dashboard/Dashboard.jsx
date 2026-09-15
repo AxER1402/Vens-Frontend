@@ -184,7 +184,7 @@ function Dashboard() {
           <div>
             <h1 className="page-title">Inicio</h1>
             <p className="page-subtitle">
-              Resumen general — <span className="capitalize">{todayFormatted}</span>
+              Resumen general 
             </p>
           </div>
           <div className="page-actions">
