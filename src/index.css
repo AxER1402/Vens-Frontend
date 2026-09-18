@@ -1548,7 +1548,7 @@ select.form-control {
   min-width: 0;
 }
 
-.notice svg {
+.notice-body svg {
   flex-shrink: 0;
   color: var(--brand-slate);
 }
@@ -1557,7 +1557,7 @@ select.form-control {
   border-left-color: var(--color-success);
 }
 
-.notice-success svg {
+.notice-success .notice-body svg {
   color: var(--color-success);
 }
 
@@ -1565,7 +1565,7 @@ select.form-control {
   border-left-color: var(--color-danger);
 }
 
-.notice-danger svg {
+.notice-danger .notice-body svg {
   color: var(--color-danger);
 }
 
@@ -1573,7 +1573,7 @@ select.form-control {
   border-left-color: var(--color-warning);
 }
 
-.notice-warning svg {
+.notice-warning .notice-body svg {
   color: var(--color-warning);
 }
 
@@ -3250,6 +3250,60 @@ select.form-control {
   border: 1px solid var(--hc-line);
 }
 
+/* ── Sustituto del taller en el teléfono ─────────────────────────────
+   El taller son tres columnas —herramientas, lienzo y anotaciones— y las dos
+   laterales suman 476px de ancho fijo: más de lo que mide entero un teléfono.
+   Aunque se apilaran, el fondo del asunto no es el armazón sino el dibujo: la
+   plantilla lleva las seis vistas de miembro inferior en un viewBox de
+   1450×848, así que en 343px de ancho cada pierna cae por debajo de 50px y no
+   hay trazo que se pueda colocar sobre la vena que toca.
+
+   Lo que sí cabe es consultarlo, y de eso no se priva a nadie: el informe y la
+   descarga salen del lienzo oculto de exportación, que se monta siempre. */
+.mv-solo-escritorio {
+  border: 1px solid var(--hc-line);
+  border-left: 3px solid var(--color-warning);
+  background: var(--hc-panel);
+  padding: 20px 18px;
+  margin-bottom: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.mv-solo-escritorio-titulo svg {
+  flex-shrink: 0;
+  color: var(--color-warning);
+}
+
+.mv-solo-escritorio-titulo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--brand-text);
+  margin: 0;
+}
+
+.mv-solo-escritorio p {
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--brand-text-muted);
+  margin: 0;
+}
+
+.mv-solo-escritorio-acciones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.mv-solo-escritorio-acciones > .btn {
+  flex: 1 1 auto;
+}
+
 /* ── Lienzo oculto que se rasteriza al guardar ──────────────────────── */
 .mv-exportador {
   position: absolute;
@@ -4682,6 +4736,20 @@ body.mv-expandido .page-content {
     margin-bottom: 20px;
   }
 
+  /* El aviso reparte icono, texto y acción en línea, y el texto es lo único
+     que se estrecha: con una frase de dos renglones la acción se quedaba sin
+     sitio. Envuelve, y el botón baja bajo el texto. */
+  .notice {
+    flex-wrap: wrap;
+    padding: 12px 14px;
+  }
+
+  /* Al envolver, la acción cae al principio de la fila nueva y queda suelta
+     bajo el texto; se la devuelve al borde derecho, que es donde estaba */
+  .notice > .btn {
+    margin-left: auto;
+  }
+
   .page-title {
     font-size: 24px;
   }
@@ -4782,6 +4850,12 @@ body.mv-expandido .page-content {
     position: sticky;
     top: 56px;
     z-index: 20;
+    /* La cinta es la que se desplaza, no la página. Sin esto el panel es una
+       celda de rejilla con min-width automático, que vale el ancho mínimo de su
+       contenido: las ocho secciones en fila, 851px, y esa medida se la queda la
+       columna entera. El desplazamiento lateral no era de la cinta sino de toda
+       la consulta, con el formulario asomando por el borde derecho. */
+    min-width: 0;
   }
 
   .hc-nav-head {
@@ -4805,6 +4879,45 @@ body.mv-expandido .page-content {
   .hc-nav-btn.active {
     border-left-color: transparent;
     border-bottom-color: var(--brand-slate);
+  }
+
+  /* Las tres barras horizontales de la consulta eran lo único que seguía sin
+     caber: se repartían en línea y ninguna envolvía, así que a 343px de ancho
+     los datos del paciente se aplastaban contra unos botones que además se
+     salían de la pantalla. Envuelven, y el grupo de botones baja a su propia
+     fila —es la fila que más ancho necesita y la que menos se puede recortar,
+     porque «Finalizar historia clínica» mide él solo más de media pantalla—. */
+  .hc-patient-bar {
+    flex-wrap: wrap;
+    padding: 14px 16px;
+    /* Centrado, el avatar se iba a la mitad de un bloque de tres renglones y
+       quedaba frente a la residencia. Va con el nombre, que es a quien retrata. */
+    align-items: flex-start;
+  }
+
+  .hc-consultas-head {
+    flex-wrap: wrap;
+    padding: 12px 16px;
+  }
+
+  /* «Nueva consulta» a lo ancho: en la primera fila se queda el rótulo con el
+     recuento, que es lo que se lee, y el botón no le roba los 125px que mide */
+  .hc-consultas-head > .btn {
+    flex-basis: 100%;
+  }
+
+  .hc-save-bar {
+    padding: 12px 16px;
+  }
+
+  .hc-save-actions {
+    flex-wrap: wrap;
+    flex-basis: 100%;
+  }
+
+  /* Los botones se reparten la fila y bajan solos cuando ya no caben dos */
+  .hc-save-actions > .btn {
+    flex: 1 1 auto;
   }
 
   /* El último tramo que faltaba: a 1100px estas bajaron a 3 y 2 columnas, que

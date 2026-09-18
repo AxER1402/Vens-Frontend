@@ -3,7 +3,7 @@ import Layout from '../../components/Layout/Layout';
 import {
   User, Folder, MessageSquare, Search, Stethoscope, CheckCircle, Pill, Clock,
   Save, Activity, PenTool, Check, AlertCircle, Plus, RefreshCw, Lock, FileText,
-  Eye, Receipt, UserPlus
+  Eye, Receipt, UserPlus, Monitor, X
 } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import * as patientService from '../../services/patientService';
@@ -23,6 +23,7 @@ import {
 import { DatePicker } from '@/components/ui/date-picker';
 import { useAvisarCambiosSinGuardar } from '../../context/CambiosSinGuardar';
 import { useAuth } from '../../context/AuthContext';
+import { useIsMobile } from '@/hooks/use-mobile';
 import * as borradorLocal from '../../services/borradorLocal';
 import {
   Dialog,
@@ -163,6 +164,14 @@ function HistoriaClinica() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const avisos = useAvisos();
+
+  /* Aviso de teléfono. La consulta se puede llenar de pie —es un formulario, y
+     un formulario largo se rellena bien con el pulgar—, pero el mapeo venoso de
+     la sección 8 no: eso se dibuja sobre una plantilla que necesita pantalla.
+     Se avisa una vez y se puede cerrar; cerrarlo no cambia nada de lo que se
+     puede hacer, porque aquí no hay nada vedado. */
+  const esMovil = useIsMobile();
+  const [avisoMovilCerrado, setAvisoMovilCerrado] = useState(false);
 
   const [searchParams, setSearchParams] = useSearchParams();
 
@@ -803,6 +812,27 @@ function HistoriaClinica() {
             {saved ? 'Guardado' : 'Sin guardar'}
           </span>
         </div>
+
+        {esMovil && !avisoMovilCerrado && (
+          <div className="notice notice-warning">
+            <span className="notice-body">
+              <Monitor size={16} />
+              <span>
+                Esta pantalla está pensada para el escritorio. La consulta se puede
+                consultar y llenar desde el teléfono, pero el <strong>mapeo venoso</strong>
+                {' '}necesita una pantalla grande para dibujarse.
+              </span>
+            </span>
+            <button
+              type="button"
+              className="btn btn-ghost btn-sm"
+              aria-label="Cerrar el aviso"
+              onClick={() => setAvisoMovilCerrado(true)}
+            >
+              <X size={14} />
+            </button>
+          </div>
+        )}
 
         {/* Selector de paciente */}
         {isModalOpen && (
@@ -1561,6 +1591,16 @@ function HistoriaClinica() {
                   {selectedPatientId && !historiaId && (
                     <span className="hc-notice">
                       <AlertCircle size={14} /> Guarde primero la consulta: el mapeo se archiva dentro de ella.
+                    </span>
+                  )}
+                  {/* Desde el teléfono el botón sigue llevando al mapeo —el
+                      informe y la descarga del que ya existe sí se consultan
+                      ahí—, pero no se puede dibujar uno nuevo. Se dice antes de
+                      pulsar, no después. */}
+                  {esMovil && (
+                    <span className="hc-notice">
+                      <Monitor size={14} /> Desde el teléfono el mapeo solo se puede
+                      consultar y descargar. Para dibujarlo hace falta una computadora.
                     </span>
                   )}
                 </div>

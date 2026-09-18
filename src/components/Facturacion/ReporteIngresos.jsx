@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { CalendarDays, Download, Eye, TrendingUp } from 'lucide-react';
 
 import { DatePicker } from '@/components/ui/date-picker';
+import { useAvisos } from '../Avisos';
 import * as reporteService from '../../services/reporteService';
 import './ReporteIngresos.css';
 
@@ -62,7 +63,7 @@ function ReporteIngresos({ onVistaPrevia }) {
   const [catalogo, setCatalogo] = useState([]);
   const [rango, setRango] = useState(ATAJOS[1].calcular());
   const [descargando, setDescargando] = useState(false);
-  const [error, setError] = useState('');
+  const avisos = useAvisos();
 
   useEffect(() => {
     (async () => {
@@ -95,10 +96,9 @@ function ReporteIngresos({ onVistaPrevia }) {
 
   const descargar = async () => {
     setDescargando(true);
-    setError('');
 
     const res = await reporteService.descargarReportePeriodo(reporte, rango, 'pdf');
-    if (!res?.success && res?.message) setError(res.message);
+    if (!res?.success && res?.message) avisos.error(res.message);
 
     setDescargando(false);
   };
@@ -145,12 +145,6 @@ function ReporteIngresos({ onVistaPrevia }) {
           ))}
         </div>
       </div>
-
-      {error && (
-        <div className="notice notice-danger">
-          <span className="notice-body">{error}</span>
-        </div>
-      )}
 
       <div className="ri-acciones">
         <button

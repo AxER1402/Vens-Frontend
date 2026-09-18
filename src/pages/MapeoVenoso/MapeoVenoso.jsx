@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   ArrowLeft, User, RefreshCw, AlertCircle, Check, Save, Lock, PenTool,
   Undo2, Redo2, Trash2, Download, Maximize2, Minimize2, ZoomIn, ZoomOut, Scan, Eye,
+  Monitor,
 } from 'lucide-react';
 
 import Layout from '../../components/Layout/Layout';
@@ -37,6 +38,7 @@ import { avisarSiElCatalogoDivergió } from '../../services/venousMapService';
 import * as patientService from '../../services/patientService';
 import * as clinicalHistoryService from '../../services/clinicalHistoryService';
 import { useAuth } from '../../context/AuthContext';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 const tagClass = {
   Activo: 'tag-success',
@@ -69,6 +71,13 @@ function MapeoVenoso() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { user } = useAuth();
+
+  /* El taller no cabe en un teléfono y no es cuestión de apilar columnas: se
+     dibuja a mano alzada sobre las seis vistas de miembro inferior, que en
+     343px de ancho quedan a menos de 50px cada una. En móvil se sustituye por
+     el aviso, que conserva lo que sí se puede hacer de pie: ver el informe del
+     mapeo archivado y descargar su imagen. */
+  const esMovil = useIsMobile();
 
   /* El expediente llega desde la historia clínica: el mapeo pertenece al
      paciente y a la consulta que ya estaban abiertos. */
@@ -107,7 +116,7 @@ function MapeoVenoso() {
 
   // Registrar y editar está restringido a Administrador y Médico (igual que el API)
   const canEdit = ['administrador', 'medico'].includes(user?.rol);
-  const bloqueado = soloLectura || !canEdit || loadingHistoria;
+  const bloqueado = soloLectura || !canEdit || loadingHistoria || esMovil;
 
   /* En desarrollo, avisar por consola si el catálogo del editor y el del
      backend se separaron. Ahora que son tres ejes hay tres listas que mantener
@@ -529,7 +538,7 @@ function MapeoVenoso() {
         {!expandido && aviso && (
           <div className="notice notice-warning notice-flush">
             <span className="notice-body"><AlertCircle size={16} /> {aviso}</span>
-            {soloLectura && canEdit && (
+            {soloLectura && canEdit && !esMovil && (
               <button
                 type="button"
                 className="btn btn-sm btn-primary"
@@ -545,6 +554,43 @@ function MapeoVenoso() {
         )}
 
         {/* ── Taller de trabajo ────────────────────────────────────────── */}
+        {esMovil ? (
+          <div className="mv-solo-escritorio">
+            <h2 className="mv-solo-escritorio-titulo">
+              <Monitor size={20} />
+              El mapeo se dibuja en una computadora
+            </h2>
+            <p>
+              El taller reparte la pantalla en tres: las herramientas, la plantilla de
+              las seis vistas de miembro inferior y las anotaciones. En un teléfono cada
+              pierna queda en poco más de un centímetro de ancho, y un trazo puesto ahí
+              no cae sobre la vena que le toca. Este apartado no funciona desde el móvil.
+            </p>
+            <p>
+              Lo que ya esté mapeado sí se puede consultar aquí: el informe trae la
+              plantilla con la leyenda y la tabla de hallazgos numerados.
+            </p>
+            <div className="mv-solo-escritorio-acciones">
+              {historiaId && mapeoUrl && (
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  onClick={() => setVistaPrevia(reporteMapeoVenoso(historiaId))}
+                >
+                  <Eye size={14} /> Vista previa del informe
+                </button>
+              )}
+              {objetos.length > 0 && (
+                <button type="button" className="btn btn-secondary" onClick={descargar}>
+                  <Download size={14} /> Descargar PNG
+                </button>
+              )}
+              <button type="button" className="btn btn-ghost" onClick={volverAHistoria}>
+                <ArrowLeft size={14} /> Volver a Historia Clínica
+              </button>
+            </div>
+          </div>
+        ) : (
         <div className="mv-taller">
           <BarraHerramientas
             estilo={estilo}
@@ -678,9 +724,11 @@ function MapeoVenoso() {
             onEliminar={eliminarObjeto}
           />
         </div>
+        )}
 
         {!expandido && (
           <>
+            {!esMovil && (
             <div className="hc-save-bar">
               <div className={`hc-save-info${guardado ? ' saved' : ''}`}>
                 {guardado ? (
@@ -723,6 +771,7 @@ function MapeoVenoso() {
                 </button>
               </div>
             </div>
+            )}
 
             {/* Mapeos archivados antes del editor vectorial: solo existe la imagen */}
             {mapeoUrl && (

@@ -106,7 +106,6 @@ function Facturacion() {
 
   const [emitiendo, setEmitiendo] = useState('');
   const [cargandoHistorial, setCargandoHistorial] = useState(false);
-  const [error, setError] = useState('');
   const [aAnular, setAAnular] = useState(null);
   const [motivoAnulacion, setMotivoAnulacion] = useState('');
   const [vistaPrevia, setVistaPrevia] = useState(null);
@@ -323,11 +322,9 @@ function Facturacion() {
    * deshace: si se emitió de más, hay que anularlo y el número queda gastado.
    */
   const pedirConfirmacion = (tipo) => {
-    setError('');
-    
-    if (!form.patient_id) return setError('Elija el paciente al que se le cobra.');
+    if (!form.patient_id) return avisos.error('Elija el paciente al que se le cobra.');
     if (renglonesValidos().length === 0) {
-      return setError('Agregue al menos un renglón con su descripción.');
+      return avisos.error('Agregue al menos un renglón con su descripción.');
     }
 
     setAEmitir(tipo);
@@ -344,8 +341,6 @@ function Facturacion() {
     }));
 
   const emitir = async (tipo) => {
-    setError('');
-    
     const renglones = items
       .filter((i) => i.descripcion.trim() !== '')
       .map((i) => ({
@@ -356,8 +351,8 @@ function Facturacion() {
         descuento: aNumero(i.descuento),
       }));
 
-    if (!form.patient_id) return setError('Elija el paciente al que se le cobra.');
-    if (renglones.length === 0) return setError('Agregue al menos un renglón con su descripción.');
+    if (!form.patient_id) return avisos.error('Elija el paciente al que se le cobra.');
+    if (renglones.length === 0) return avisos.error('Agregue al menos un renglón con su descripción.');
 
     setEmitiendo(tipo);
     setAEmitir(null);
@@ -369,7 +364,7 @@ function Facturacion() {
     });
     setEmitiendo('');
 
-    if (!res.success) return setError(res.message);
+    if (!res.success) return avisos.error(res.message);
 
     avisos.exito(res.message);
     limpiar();
@@ -398,7 +393,7 @@ function Facturacion() {
       // que dejar de marcarla sin obligar a volver a elegir al paciente.
       cargarCobrosDelPaciente(form.patient_id);
     } else {
-      setError(res.message);
+      avisos.error(res.message);
     }
   };
 
@@ -436,13 +431,6 @@ function Facturacion() {
             </button>
           </div>
         </div>
-
-        {error && (
-          <div className="notice notice-danger">
-            <span className="notice-body"><AlertCircle size={16} />{error}</span>
-            <button type="button" className="btn btn-ghost btn-sm" onClick={() => setError('')}>Cerrar</button>
-          </div>
-        )}
 
         {/* ── A quién se le cobra ──────────────────────────────────────── */}
         <section className="hc-section">
