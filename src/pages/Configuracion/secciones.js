@@ -1,4 +1,4 @@
-import { User, KeyRound, Building2, CalendarClock, Tags } from 'lucide-react';
+import { User, KeyRound, Building2, CalendarClock, Tags, MessageCircle } from 'lucide-react';
 
 /**
  * Las secciones de la pantalla de configuración.
@@ -59,6 +59,13 @@ export const SECCIONES = [
     titulo: 'Servicios y tarifas',
     descripcion: 'El catálogo con el que se llenan los recibos.',
     icono: Tags,
+    roles: ['administrador', 'medico'],
+  },
+  {
+    clave: 'whatsapp',
+    titulo: 'WhatsApp',
+    descripcion: 'Recordatorios de citas 24 horas antes.',
+    icono: MessageCircle,
     roles: ['administrador', 'medico'],
   },
 ];

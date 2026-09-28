@@ -7,6 +7,7 @@ import CambiarPassword from './CambiarPassword';
 import DatosClinica from './DatosClinica';
 import AgendaHorario from './AgendaHorario';
 import ServiciosTarifas from './ServiciosTarifas';
+import WhatsAppRecordatorios from './WhatsAppRecordatorios';
 import './Configuracion.css';
 
 /** Qué componente pinta cada sección. */
@@ -16,6 +17,7 @@ const CONTENIDOS = {
   clinica: DatosClinica,
   agenda: AgendaHorario,
   servicios: ServiciosTarifas,
+  whatsapp: WhatsAppRecordatorios,
 };
 
 /**
