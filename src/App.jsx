@@ -17,6 +17,7 @@ import Facturacion     from './pages/Facturacion/Facturacion';
 import ReporteDoppler  from './pages/ReporteDoppler/ReporteDoppler';
 import MapeoVenoso     from './pages/MapeoVenoso/MapeoVenoso';
 import Usuarios        from './pages/Usuarios/Usuarios';
+import Auditoria       from './pages/Auditoria/Auditoria';
 import Configuracion   from './pages/Configuracion/Configuracion';
 
 import { TooltipProvider } from '@/components/ui/tooltip';
@@ -59,6 +60,7 @@ const router = createBrowserRouter([
       { path: '/reporte-doppler',  element: <ProtectedRoute><ReporteDoppler /></ProtectedRoute> },
       { path: '/mapeo-venoso',     element: <ProtectedRoute><MapeoVenoso /></ProtectedRoute> },
       { path: '/usuarios',         element: <AdminRoute><Usuarios /></AdminRoute> },
+      { path: '/auditoria',        element: <AdminRoute><Auditoria /></AdminRoute> },
 
       // Configuración: protegida, no restringida a administrador. Su cuenta la
       // gestiona cada quien; las secciones de administración se filtran dentro

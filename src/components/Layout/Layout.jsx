@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, NavLink, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Users, Calendar, Clipboard, BarChart3, Bell, Receipt, LogOut, UserCog } from 'lucide-react';
+import { LayoutDashboard, Users, Calendar, Clipboard, BarChart3, Bell, Receipt, LogOut, UserCog, ShieldCheck } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useNotificaciones } from '@/hooks/useNotificaciones';
 import PanelNotificaciones from './PanelNotificaciones';
@@ -35,6 +35,7 @@ const navItems = [
   { to: '/facturacion', icon: Receipt, label: 'Facturación' },
   { to: '/reportes', icon: BarChart3, label: 'Reportes' },
   { to: '/usuarios', icon: UserCog, label: 'Usuarios', adminOnly: true },
+  { to: '/auditoria', icon: ShieldCheck, label: 'Auditoría', adminOnly: true },
 ];
 
 function AppSidebar() {

@@ -1,0 +1,58 @@
+/* Auditoría: lo que no cubren las clases compartidas de tablas y secciones. */
+
+.au-contador {
+  margin-left: auto;
+  font-size: 12px;
+  color: var(--brand-text-light, #6b7280);
+}
+
+.au-fecha {
+  min-width: 160px;
+}
+
+.au-alerta {
+  color: var(--color-danger);
+  font-weight: 700;
+}
+
+.au-col-toggle {
+  width: 28px;
+  color: var(--brand-slate);
+}
+
+.au-fila-clic {
+  cursor: pointer;
+}
+
+.au-descripcion {
+  max-width: 460px;
+}
+
+.au-detalle > td {
+  background: rgba(36, 55, 87, 0.03);
+}
+
+.au-cambios {
+  width: 100%;
+  max-width: 640px;
+  border-collapse: collapse;
+  font-size: 12px;
+  margin: 4px 0 8px;
+}
+
+.au-cambios th,
+.au-cambios td {
+  text-align: left;
+  padding: 4px 10px;
+  border-bottom: 1px solid var(--brand-border-light, #e5e1d8);
+  word-break: break-word;
+}
+
+.au-cambios th {
+  font-weight: 600;
+  color: var(--brand-slate);
+}
+
+.au-agente {
+  word-break: break-all;
+}
