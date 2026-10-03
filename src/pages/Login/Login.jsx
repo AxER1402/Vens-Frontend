@@ -2,11 +2,12 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Users, Calendar, Clipboard, BarChart3, Mail, Lock, Eye, EyeOff, ShieldAlert, ArrowRight, AlertCircle, Clock } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import BotonGoogle from '../../components/BotonGoogle';
 import logo from '../../assets/isotipo.png';
 
 function Login() {
   const navigate = useNavigate();
-  const { loginUser, sesionExpirada } = useAuth();
+  const { loginUser, loginConGoogle, sesionExpirada } = useAuth();
 
   const [form, setForm] = useState({ email: '', password: '' });
   const [showPassword, setShowPassword] = useState(false);
@@ -30,6 +31,24 @@ function Login() {
         navigate('/dashboard', { replace: true });
       } else {
         setErrorMsg(res.message || 'Las credenciales proporcionadas son incorrectas.');
+      }
+    } catch (err) {
+      setErrorMsg('Ocurrió un error al conectar con el servidor.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleGoogle = async (credential) => {
+    setLoading(true);
+    setErrorMsg('');
+
+    try {
+      const res = await loginConGoogle(credential);
+      if (res.success) {
+        navigate('/dashboard', { replace: true });
+      } else {
+        setErrorMsg(res.message || 'No se pudo iniciar sesión con Google.');
       }
     } catch (err) {
       setErrorMsg('Ocurrió un error al conectar con el servidor.');
@@ -154,6 +173,12 @@ function Login() {
               )}
             </button>
           </form>
+
+          <BotonGoogle
+            onCredencial={handleGoogle}
+            onError={setErrorMsg}
+            deshabilitado={loading}
+          />
 
           <div className="login-note mt-6">
             <ShieldAlert size={13} style={{ display: 'inline', verticalAlign: 'text-bottom' }} />&nbsp; Acceso restringido a personal autorizado.
