@@ -141,8 +141,8 @@ export function AuthProvider({ children }) {
     return () => window.removeEventListener(SESION_RENOVADA_EVENT, alRenovar);
   }, [programarVencimiento]);
 
-  const loginUser = async (email, password) => {
-    const res = await authService.login(email, password);
+  /** Deja en el contexto la sesión que acaba de abrir el backend. */
+  const tomarSesion = (res) => {
     if (res.success) {
       setUser(res.user);
       setToken(res.token);
@@ -151,6 +151,12 @@ export function AuthProvider({ children }) {
     }
     return res;
   };
+
+  const loginUser = async (email, password) =>
+    tomarSesion(await authService.login(email, password));
+
+  const loginConGoogle = async (credential) =>
+    tomarSesion(await authService.loginConGoogle(credential));
 
   /**
    * Vuelve a leer la cuenta del backend y la deja en el contexto.
@@ -190,6 +196,7 @@ export function AuthProvider({ children }) {
     sesionExpirada,
     isAuthenticated: !!token && !!user,
     loginUser,
+    loginConGoogle,
     logoutUser,
     refrescarUsuario,
   };

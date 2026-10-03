@@ -45,9 +45,13 @@ export const clearSession = () => {
   localStorage.removeItem(EXPIRACION_KEY);
 };
 
-export const login = async (email, password) => {
+/**
+ * Guarda la sesión que devuelve el backend. El login con contraseña y el de
+ * Google responden igual, así que los dos terminan aquí.
+ */
+const abrirSesion = async (peticion) => {
   try {
-    const response = await api.post('/auth/login', { email, password });
+    const response = await peticion();
     const { access_token, user, expires_at: expiresAt } = response.data.data;
 
     if (access_token) {
@@ -72,6 +76,16 @@ export const login = async (email, password) => {
     };
   }
 };
+
+export const login = (email, password) =>
+  abrirSesion(() => api.post('/auth/login', { email, password }));
+
+/**
+ * Inicia sesión con el access token que entrega Google al elegir la cuenta.
+ * El backend solo deja entrar a cuentas que el administrador ya dio de alta.
+ */
+export const loginConGoogle = (accessToken) =>
+  abrirSesion(() => api.post('/auth/google', { access_token: accessToken }));
 
 export const getProfile = async () => {
   try {

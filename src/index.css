@@ -1333,6 +1333,64 @@ select.form-control {
   transform: translateY(0);
 }
 
+/* Inicio de sesión con Google, debajo del formulario */
+.login-google {
+  margin-top: 20px;
+}
+
+.login-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 20px;
+  font-size: 12px;
+  color: var(--brand-text-light);
+}
+
+.login-divider::before,
+.login-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--brand-border);
+}
+
+.btn-google {
+  width: 100%;
+  height: 48px;
+  background: #FFFFFF;
+  border: 1px solid var(--brand-border);
+  border-radius: 10px;
+  color: var(--brand-deep);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: var(--font-sans);
+  transition: all var(--t-fast);
+  box-shadow: var(--shadow-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+
+.btn-google:hover:not(:disabled) {
+  background: var(--brand-surface-deep);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-md);
+}
+
+.btn-google:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.login-google-fallo {
+  font-size: 12px;
+  color: var(--brand-text-light);
+  text-align: center;
+}
+
 .login-note,
 .btn-note {
   margin-top: 28px;
