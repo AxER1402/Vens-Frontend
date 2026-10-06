@@ -824,8 +824,47 @@ function HistoriaClinica() {
     setSaveMessage(mensaje);
     setSaving(false);
 
-    return true;
+    // El id, y no solo «se guardó»: quien abre el Ecodöppler o el mapeo
+    // justo después necesita saber a qué consulta vincularlo.
+    return id || true;
   };
+
+  /*
+     Abrir el Ecodöppler o el mapeo de esta consulta. Los dos se archivan
+     dentro de la consulta, así que una consulta nueva se guarda antes como
+     borrador, aunque esté en blanco: abrirlos sin ella dejaba al médico
+     dibujando algo que después no podía guardar.
+
+     La navegación espera al repintado siguiente al guardado: hasta entonces
+     el aviso de cambios sin guardar todavía ve el formulario como pendiente y
+     frenaría la salida.
+  */
+  const [estudioPendiente, setEstudioPendiente] = useState(null);
+
+  const abrirEstudio = async (ruta) => {
+    const destino = (consultaId) => `${ruta}?${new URLSearchParams({
+      patientId: String(selectedPatientId),
+      ...(consultaId ? { historiaId: String(consultaId) } : {})
+    })}`;
+
+    // Consulta ya guardada: se navega directo y, si quedaron cambios, el
+    // aviso de siempre ofrece guardarlos antes de salir.
+    if (historiaId) {
+      navigate(destino(historiaId));
+      return;
+    }
+
+    const guardada = await guardarHistoria('Borrador');
+    if (!guardada) return;
+
+    setEstudioPendiente(destino(guardada === true ? null : guardada));
+  };
+
+  useEffect(() => {
+    if (!estudioPendiente || hayCambios) return;
+    setEstudioPendiente(null);
+    navigate(estudioPendiente);
+  }, [estudioPendiente, hayCambios, navigate]);
 
   const handleSave = (e) => {
     e.preventDefault();
@@ -1560,13 +1599,8 @@ function HistoriaClinica() {
                   <button
                     type="button"
                     className="btn btn-primary btn-sm hc-estudio-btn"
-                    disabled={!selectedPatientId}
-                    onClick={() => navigate(
-                      `/reporte-doppler?${new URLSearchParams({
-                        patientId: String(selectedPatientId),
-                        ...(historiaId ? { historiaId: String(historiaId) } : {})
-                      })}`
-                    )}
+                    disabled={!selectedPatientId || saving}
+                    onClick={() => abrirEstudio('/reporte-doppler')}
                   >
                     {reporteDoppler ? <FileText size={14} /> : <Activity size={14} />}
                     {reporteDoppler ? 'Ver reporte Ecodöppler' : 'Registrar reporte Ecodöppler'}
@@ -1606,13 +1640,8 @@ function HistoriaClinica() {
                   <button
                     type="button"
                     className="btn btn-primary btn-sm hc-estudio-btn"
-                    disabled={!selectedPatientId}
-                    onClick={() => navigate(
-                      `/mapeo-venoso?${new URLSearchParams({
-                        patientId: String(selectedPatientId),
-                        ...(historiaId ? { historiaId: String(historiaId) } : {})
-                      })}`
-                    )}
+                    disabled={!selectedPatientId || saving}
+                    onClick={() => abrirEstudio('/mapeo-venoso')}
                   >
                     <PenTool size={14} />
                     {tieneMapeo ? 'Ver mapeo venoso' : 'Registrar mapeo venoso'}
@@ -1625,7 +1654,7 @@ function HistoriaClinica() {
                   )}
                   {selectedPatientId && !historiaId && (
                     <span className="hc-notice">
-                      <AlertCircle size={14} /> Guarde primero la consulta: el mapeo se archiva dentro de ella.
+                      <AlertCircle size={14} /> Al abrirlo, la consulta se guarda como borrador: el mapeo se archiva dentro de ella.
                     </span>
                   )}
                   {/* Desde el teléfono el botón sigue llevando al mapeo —el
