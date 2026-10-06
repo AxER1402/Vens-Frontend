@@ -538,18 +538,6 @@ function MapeoVenoso() {
         {!expandido && aviso && (
           <div className="notice notice-warning notice-flush">
             <span className="notice-body"><AlertCircle size={16} /> {aviso}</span>
-            {soloLectura && canEdit && !esMovil && (
-              <button
-                type="button"
-                className="btn btn-sm btn-primary"
-                onClick={() => {
-                  setSoloLectura(false);
-                  setAviso('Modo edición: al guardar se reemplazará el mapeo archivado de esta consulta.');
-                }}
-              >
-                <PenTool size={14} /> Editar mapeo
-              </button>
-            )}
           </div>
         )}
 
@@ -761,14 +749,30 @@ function MapeoVenoso() {
                     <Eye size={14} /> Vista previa del informe
                   </button>
                 )}
-                <button
-                  type="button"
-                  className="btn btn-primary"
-                  disabled={bloqueado || guardando || !historiaId}
-                  onClick={guardarMapeo}
-                >
-                  <Save size={14} /> {guardando ? 'Guardando…' : 'Guardar mapeo'}
-                </button>
+                {/* El mismo botón cambia según el estado: en un mapeo bloqueado
+                    abre la edición y, una vez abierta, guarda. */}
+                {soloLectura && canEdit ? (
+                  <button
+                    type="button"
+                    className="btn btn-primary"
+                    disabled={loadingHistoria}
+                    onClick={() => {
+                      setSoloLectura(false);
+                      setAviso('Modo edición: al guardar se reemplazará el mapeo archivado de esta consulta.');
+                    }}
+                  >
+                    <PenTool size={14} /> Editar mapeo
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    className="btn btn-primary"
+                    disabled={bloqueado || guardando || !historiaId}
+                    onClick={guardarMapeo}
+                  >
+                    <Save size={14} /> {guardando ? 'Guardando…' : 'Guardar mapeo'}
+                  </button>
+                )}
               </div>
             </div>
             )}
