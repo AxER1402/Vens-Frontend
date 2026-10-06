@@ -964,6 +964,24 @@ h6 {
   color: var(--color-danger);
 }
 
+/* En una columna de estados, cada etiqueta medía lo que su palabra: «Alta»
+   salía mucho más corta que «Seguimiento» y la columna se veía dispareja.
+   En una tabla, la etiqueta llena su celda: la columna ya mide lo que la
+   etiqueta más larga, así que todas quedan de ese ancho, también con textos
+   largos como los eventos de la bitácora. Fuera de tablas, como en la lista
+   de citas del panel, se usa un ancho mínimo común. */
+.data-table td .tag {
+  width: 100%;
+  min-width: 96px;
+  justify-content: center;
+  white-space: nowrap;
+}
+
+.appt-row > .tag {
+  min-width: 96px;
+  justify-content: center;
+}
+
 /* ======================================
    FORM ELEMENTS
 ====================================== */
@@ -2451,6 +2469,19 @@ select.form-control {
 
 .hc-chip.grow {
   flex: 1;
+}
+
+/* Casillas parejas (ChipGrupo): todas del ancho de la más larga del grupo.
+   El min() evita que una frase larga desborde una pantalla angosta. */
+.hc-estudio-btn {
+  /* «Registrar reporte Ecodöppler» y «Registrar mapeo venoso» tienen textos
+     de distinto largo: con un ancho común, los dos botones quedan iguales. */
+  min-width: 230px;
+}
+
+.hc-chips.parejos {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(var(--chip-w), 100%), 1fr));
 }
 
 /* Lista vertical de opciones */

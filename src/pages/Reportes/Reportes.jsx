@@ -443,11 +443,11 @@ function Reportes() {
           <div className="page-actions">
             <button
               type="button"
-              className="btn btn-secondary flex items-center gap-2"
+              className="btn btn-secondary btn-sm flex items-center gap-1.5"
               onClick={cargarResumen}
               disabled={cargandoResumen}
             >
-              <RefreshCw size={15} className={cargandoResumen ? 'animate-spin' : ''} />
+              <RefreshCw size={14} className={cargandoResumen ? 'animate-spin' : ''} />
               Actualizar
             </button>
           </div>

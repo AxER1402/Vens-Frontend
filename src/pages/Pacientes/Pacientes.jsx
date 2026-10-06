@@ -244,7 +244,7 @@ function Pacientes() {
           {canCreateOrEditPatients ? (
             <button
               id="btn-nuevo-paciente"
-              className="btn btn-primary flex items-center gap-2"
+              className="btn btn-primary btn-sm flex items-center gap-1.5"
               onClick={handleOpenCreate}
             >
               <UserPlus size={16} />

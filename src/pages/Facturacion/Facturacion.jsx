@@ -425,8 +425,8 @@ function Facturacion() {
             </p>
           </div>
           <div className="page-actions">
-            <button type="button" className="btn btn-secondary" onClick={cargarHistorial} disabled={cargandoHistorial}>
-              <RefreshCw size={15} className={cargandoHistorial ? 'animate-spin' : ''} />
+            <button type="button" className="btn btn-secondary btn-sm" onClick={cargarHistorial} disabled={cargandoHistorial}>
+              <RefreshCw size={14} className={cargandoHistorial ? 'animate-spin' : ''} />
               Actualizar
             </button>
           </div>

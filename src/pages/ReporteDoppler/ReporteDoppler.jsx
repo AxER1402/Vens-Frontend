@@ -492,7 +492,7 @@ function ReporteDoppler() {
                   )}
                 </div>
                 <div className="hc-save-actions">
-                  <button type="button" className="btn btn-secondary btn-sm" onClick={volverAHistoria}>
+                  <button type="button" className="btn btn-primary btn-sm" onClick={volverAHistoria}>
                     {patient ? 'Ver historia clínica' : 'Seleccionar paciente'}
                   </button>
                 </div>
@@ -622,7 +622,7 @@ function ReporteDoppler() {
                       guardado, así que necesita el estudio ya registrado. */}
                   <button
                     type="button"
-                    className="btn btn-ghost"
+                    className="btn btn-ghost btn-sm"
                     disabled={!reporteId}
                     title={reporteId
                       ? 'Ver el informe antes de descargarlo'
@@ -638,7 +638,7 @@ function ReporteDoppler() {
                   {soloLectura && canEdit ? (
                     <button
                       type="button"
-                      className="btn btn-primary"
+                      className="btn btn-primary btn-sm"
                       onClick={() => {
                         setSoloLectura(false);
                         setSaved(false);
@@ -649,12 +649,12 @@ function ReporteDoppler() {
                     </button>
                   ) : (
                     <>
-                      <button type="button" className="btn btn-ghost" onClick={volverAHistoria}>
+                      <button type="button" className="btn btn-ghost btn-sm" onClick={volverAHistoria}>
                         Cancelar
                       </button>
                       <button
                         type="submit"
-                        className="btn btn-primary"
+                        className="btn btn-primary btn-sm"
                         disabled={saving || bloqueado || !patientId}
                       >
                         <Save size={14} /> {saving ? 'Guardando…' : `${reporteId ? 'Actualizar' : 'Guardar'} estudio`}

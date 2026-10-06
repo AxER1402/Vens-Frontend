@@ -182,8 +182,10 @@ function MapeoVenoso() {
       reiniciar(leerDocumento(mapeo.datos));
       setSoloLectura(finalizada);
 
+      // Una consulta finalizada no lleva aviso: la barra inferior ya dice que
+      // el mapeo está en modo lectura y su botón ofrece «Editar mapeo».
       if (finalizada) {
-        setAviso(`Consulta del ${formatearFecha(consulta.fecha_consulta)} finalizada. Ábrala en modo edición para corregir el mapeo.`);
+        setAviso('');
       } else if (mapeo.datos) {
         setAviso(`Retomando el mapeo guardado el ${formatearFecha(mapeo.actualizado)}.`);
       } else if (mapeo.url) {
@@ -556,7 +558,7 @@ function MapeoVenoso() {
               )}
             </div>
             <div className="hc-save-actions">
-              <button type="button" className="btn btn-secondary btn-sm" onClick={volverAHistoria}>
+              <button type="button" className="btn btn-primary btn-sm" onClick={volverAHistoria}>
                 {patient ? 'Ver historia clínica' : 'Seleccionar paciente'}
               </button>
             </div>
@@ -761,7 +763,7 @@ function MapeoVenoso() {
                 {historiaId && mapeoUrl && (
                   <button
                     type="button"
-                    className="btn btn-ghost"
+                    className="btn btn-ghost btn-sm"
                     onClick={() => setVistaPrevia({
                       ...reporteMapeoVenoso(historiaId),
                       aviso: limpio ? null : 'Esta vista muestra el mapeo archivado. Los trazos que no haya guardado todavía no aparecen aquí.',
@@ -770,7 +772,7 @@ function MapeoVenoso() {
                     <Eye size={14} /> Vista previa del informe
                   </button>
                 )}
-                {botonGuardarOEditar('btn btn-primary')}
+                {botonGuardarOEditar('btn btn-primary btn-sm')}
               </div>
             </div>
             )}

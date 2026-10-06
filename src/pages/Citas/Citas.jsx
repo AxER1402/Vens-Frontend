@@ -1098,11 +1098,11 @@ function Citas() {
             {canManageBlocked && (
               <button
                 id="btn-dias-bloqueados"
-                className="btn btn-secondary flex items-center gap-2"
+                className="btn btn-secondary btn-sm flex items-center gap-1.5"
                 title="Registrar feriados, vacaciones o cierres de la clínica"
                 onClick={handleOpenBlockedModal}
               >
-                <CalendarOff size={15} />
+                <CalendarOff size={14} />
                 Días bloqueados
                 {blockedDays.length > 0 && (
                   <span className="tag tag-warning">{blockedDays.length}</span>
@@ -1111,10 +1111,10 @@ function Citas() {
             )}
             <button
               id="btn-agendar-cita"
-              className="btn btn-primary flex items-center gap-2"
+              className="btn btn-primary btn-sm flex items-center gap-1.5"
               onClick={handleOpenCreate}
             >
-              <CalendarIcon size={15} />
+              <CalendarIcon size={14} />
               Agendar cita
             </button>
           </div>

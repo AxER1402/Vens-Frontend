@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import Layout from '../../components/Layout/Layout';
 import {
   User, Folder, MessageSquare, Search, Stethoscope, CheckCircle, Pill, Clock,
@@ -136,6 +136,41 @@ function ChipCheck({ value, label, list, onToggle }) {
       {label || value}
     </label>
   );
+}
+
+/**
+ * Grupo de casillas en el que todas miden lo mismo: lo que mide la más larga
+ * del grupo. Se mide cada grupo por separado, así que un grupo de palabras
+ * cortas no hereda el ancho de otro de frases largas.
+ */
+function ChipGrupo({ children }) {
+  const ref = useRef(null);
+
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return undefined;
+    let vigente = true;
+
+    const medir = () => {
+      if (!vigente) return;
+      // Se mide con el acomodo natural, sin la rejilla, que estiraría las casillas
+      el.classList.remove('parejos');
+      const ancho = Math.max(0, ...Array.from(el.children, c => c.getBoundingClientRect().width));
+      // Oculto (ancho 0) no hay nada que medir: se queda con el acomodo natural
+      if (ancho > 0) {
+        el.style.setProperty('--chip-w', `${Math.ceil(ancho)}px`);
+        el.classList.add('parejos');
+      }
+    };
+
+    medir();
+    // La fuente web cambia el ancho del texto: se vuelve a medir cuando termina de cargar
+    document.fonts?.ready.then(medir);
+
+    return () => { vigente = false; };
+  }, []);
+
+  return <div ref={ref} className="hc-chips">{children}</div>;
 }
 
 function OptRadio({ name, value, label, current, onChange, danger }) {
@@ -1036,7 +1071,7 @@ function HistoriaClinica() {
                       </button>
                     </>
                   ) : (
-                    <button type="button" className="btn btn-ghost btn-sm" onClick={() => handleOpenRegisterPatient('')}>
+                    <button type="button" className="btn btn-secondary btn-sm" onClick={() => handleOpenRegisterPatient('')}>
                       <Plus size={14} /> Registrar nuevo
                     </button>
                   )}
@@ -1137,11 +1172,11 @@ function HistoriaClinica() {
                   </Field>
 
                   <Field label="¿En qué zona presenta molestias?">
-                    <div className="hc-chips">
+                    <ChipGrupo>
                       {['Muslo', 'Pantorrilla', 'Tobillo', 'Pies', 'Otro'].map(o => (
                         <ChipCheck key={o} value={o} list={form.zonasPierna} onToggle={v => toggleArr('zonasPierna', v)} />
                       ))}
-                    </div>
+                    </ChipGrupo>
                     {/* Marcar 'Otro' sin poder decir cuál guarda que hay otra
                         zona pero no cuál es, que es el dato por el que se
                         marca. Igual que 'Otros' en las enfermedades. */}
@@ -1159,11 +1194,11 @@ function HistoriaClinica() {
                 </div>
 
                 <Field label="¿Presenta alguno de los siguientes síntomas?">
-                  <div className="hc-chips">
+                  <ChipGrupo>
                     {['Adormecimiento', 'Cansancio', 'Calambres', 'Picazón', 'Manchas en la piel', 'Pesadez', 'Hinchazón', 'Úlceras', 'Asintomática'].map(o => (
                       <ChipCheck key={o} value={o} list={form.sintomas} onToggle={v => toggleArr('sintomas', v)} />
                     ))}
-                  </div>
+                  </ChipGrupo>
                 </Field>
 
                 <div className="hc-grid-2">
@@ -1274,11 +1309,11 @@ function HistoriaClinica() {
 
                 <div>
                   <div className="hc-subhead">¿Sufre alguna de las siguientes enfermedades?</div>
-                  <div className="hc-chips">
+                  <ChipGrupo>
                     {['Enfermedades del corazón', 'Diabetes', 'Lumbalgia', 'Artritis', 'VIH', 'Alta o baja presión', 'Fiebre Reumática', 'Ciática', 'Anemia', 'Otros'].map(o => (
                       <ChipCheck key={o} value={o} list={form.enfermedades} onToggle={v => toggleArr('enfermedades', v)} />
                     ))}
-                  </div>
+                  </ChipGrupo>
                   {form.enfermedades.includes('Otros') && (
                     <input
                       name="enfermedadesOtros"
@@ -1378,11 +1413,11 @@ function HistoriaClinica() {
               {/* 5. Tratamiento */}
               <Section id="tratamiento" icon={<Pill size={14} />} title="Plan de Tratamiento y Escleroterapia">
                 <Field label="Zonas a tratar">
-                  <div className="hc-chips">
+                  <ChipGrupo>
                     {['Telangiectasias', 'Reticulares', 'Varicosas trunculares', 'Perforantes'].map(o => (
                       <ChipCheck key={o} value={o} list={form.txZonas} onToggle={v => toggleArr('txZonas', v)} />
                     ))}
-                  </div>
+                  </ChipGrupo>
                 </Field>
 
                 <div>
@@ -1472,11 +1507,11 @@ function HistoriaClinica() {
                 </div>
 
                 <Field label="Observaciones">
-                  <div className="hc-chips">
+                  <ChipGrupo>
                     {['Buena respuesta', 'Pigmentación', 'Inflamación', 'Flebitis superficial', 'Sin complicaciones', 'Matting', 'Nódulo esclerosado', 'Úlcera esclerosante', 'Eritema leve', 'Dolor', 'Recanalización'].map(o => (
                       <ChipCheck key={o} value={o} list={form.observaciones} onToggle={v => toggleArr('observaciones', v)} />
                     ))}
-                  </div>
+                  </ChipGrupo>
                 </Field>
 
                 <InputField label="Notas adicionales">
@@ -1524,7 +1559,7 @@ function HistoriaClinica() {
                       ya vinculado y al volver se retoma esta misma consulta. */}
                   <button
                     type="button"
-                    className={`btn ${reporteDoppler ? 'btn-primary' : 'btn-secondary'}`}
+                    className={`btn btn-sm hc-estudio-btn ${reporteDoppler ? 'btn-primary' : 'btn-secondary'}`}
                     disabled={!selectedPatientId}
                     onClick={() => navigate(
                       `/reporte-doppler?${new URLSearchParams({
@@ -1570,7 +1605,7 @@ function HistoriaClinica() {
                   {/* El expediente y la consulta viajan en la URL, igual que en el Ecodöppler */}
                   <button
                     type="button"
-                    className={`btn ${tieneMapeo ? 'btn-primary' : 'btn-secondary'}`}
+                    className={`btn btn-sm hc-estudio-btn ${tieneMapeo ? 'btn-primary' : 'btn-secondary'}`}
                     disabled={!selectedPatientId}
                     onClick={() => navigate(
                       `/mapeo-venoso?${new URLSearchParams({
@@ -1627,7 +1662,7 @@ function HistoriaClinica() {
                       en la base, no con lo que hay en el formulario. */}
                   <button
                     type="button"
-                    className="btn btn-ghost"
+                    className="btn btn-ghost btn-sm"
                     disabled={!historiaId}
                     title={historiaId
                       ? 'Elegir qué incluye el informe y verlo antes de descargarlo'
@@ -1646,7 +1681,7 @@ function HistoriaClinica() {
                       teclear —y lo que se teclea mal—. */}
                   <button
                     type="button"
-                    className="btn btn-ghost"
+                    className="btn btn-ghost btn-sm"
                     disabled={!historiaId}
                     title={historiaId
                       ? 'Abrir el cobro de esta consulta con el paciente ya elegido'
@@ -1664,7 +1699,7 @@ function HistoriaClinica() {
                   {soloLectura ? (
                     <button
                       type="button"
-                      className="btn btn-primary"
+                      className="btn btn-primary btn-sm"
                       onClick={() => {
                         setSoloLectura(false);
                         setSaved(false);
@@ -1679,7 +1714,7 @@ function HistoriaClinica() {
                       {estadoHistoria !== 'Finalizada' && (
                         <button
                           type="button"
-                          className="btn btn-secondary"
+                          className="btn btn-secondary btn-sm"
                           disabled={saving || !selectedPatientId}
                           onClick={() => guardarHistoria('Borrador')}
                         >
@@ -1689,7 +1724,7 @@ function HistoriaClinica() {
                       <button
                         id="btn-guardar-historia"
                         type="submit"
-                        className="btn btn-primary"
+                        className="btn btn-primary btn-sm"
                         disabled={saving || !selectedPatientId}
                       >
                         <Save size={14} /> {saving ? 'Guardando…' : `${estadoHistoria === 'Finalizada' ? 'Actualizar' : 'Finalizar'} historia clínica`}

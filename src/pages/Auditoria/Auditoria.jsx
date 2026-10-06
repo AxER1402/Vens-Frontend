@@ -189,7 +189,7 @@ function Auditoria() {
             </p>
           </div>
           <div className="page-actions">
-            <button className="btn btn-secondary flex items-center gap-2" onClick={recargar}>
+            <button className="btn btn-secondary btn-sm flex items-center gap-1.5" onClick={recargar}>
               <RefreshCw size={16} className={cargando || cargandoResumen ? 'animate-spin' : ''} />
               Actualizar
             </button>
