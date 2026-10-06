@@ -20,6 +20,7 @@ export function Combobox({
   const [search, setSearch] = useState('');
   const containerRef = useRef(null);
   const inputRef = useRef(null);
+  const popRef = useRef(null);
 
   // Normalize items to { value, label }
   const normalizedItems = items.map(item => {
@@ -78,6 +79,12 @@ export function Combobox({
     setSearch('');
   };
 
+  // Dentro de un diálogo con desplazamiento, el desplegable puede abrirse por
+  // debajo del borde visible: se lleva a la vista para que no quede oculto.
+  useEffect(() => {
+    if (isOpen) popRef.current?.scrollIntoView({ block: 'nearest' });
+  }, [isOpen]);
+
   return (
     <div className={`relative w-full ${className}`} ref={containerRef}>
       {/* Disparador: hereda tamaño, color y radio de .form-control */}
@@ -110,7 +117,7 @@ export function Combobox({
       </button>
 
       {isOpen && (
-        <div className="picker-pop animate-in fade-in-0 zoom-in-95">
+        <div ref={popRef} className="picker-pop animate-in fade-in-0 zoom-in-95">
           {/* Buscador */}
           {showSearch && (
             <div className="combobox-search-wrapper">

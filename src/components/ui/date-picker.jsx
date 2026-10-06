@@ -15,6 +15,7 @@ const WEEKDAYS = ['Lu', 'Ma', 'Mi', 'Ju', 'Vi', 'Sá', 'Do'];
 export function DatePicker({ value, onChange, placeholder = "Seleccionar fecha…", max = null }) {
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef(null);
+  const popRef = useRef(null);
 
   // Current view year & month
   const initialDate = value ? new Date(value + 'T00:00:00') : new Date();
@@ -105,6 +106,12 @@ export function DatePicker({ value, onChange, placeholder = "Seleccionar fecha�
     setIsOpen(false);
   };
 
+  // Dentro de un diálogo con desplazamiento, el desplegable puede abrirse por
+  // debajo del borde visible: se lleva a la vista para que no quede oculto.
+  useEffect(() => {
+    if (isOpen) popRef.current?.scrollIntoView({ block: 'nearest' });
+  }, [isOpen]);
+
   return (
     <div className="relative w-full" ref={containerRef}>
       <button
@@ -125,7 +132,7 @@ export function DatePicker({ value, onChange, placeholder = "Seleccionar fecha�
       </button>
 
       {isOpen && (
-        <div className="picker-pop picker-pop-cal animate-in fade-in-0 zoom-in-95">
+        <div ref={popRef} className="picker-pop picker-pop-cal animate-in fade-in-0 zoom-in-95">
           {/* Cabecera de navegación */}
           <div className="picker-head">
             <button type="button" className="picker-nav" onClick={prevMonth} title="Mes anterior">

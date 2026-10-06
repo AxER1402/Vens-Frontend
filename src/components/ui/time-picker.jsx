@@ -27,6 +27,7 @@ const format12H = (time24) => {
 export function TimePicker({ value, onChange, placeholder = "Seleccionar hora…" }) {
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef(null);
+  const popRef = useRef(null);
 
   useEffect(() => {
     const handleClickOutside = (e) => {
@@ -63,6 +64,12 @@ export function TimePicker({ value, onChange, placeholder = "Seleccionar hora…
     </div>
   );
 
+  // Dentro de un diálogo con desplazamiento, el desplegable puede abrirse por
+  // debajo del borde visible: se lleva a la vista para que no quede oculto.
+  useEffect(() => {
+    if (isOpen) popRef.current?.scrollIntoView({ block: 'nearest' });
+  }, [isOpen]);
+
   return (
     <div className="relative w-full" ref={containerRef}>
       <button
@@ -84,7 +91,7 @@ export function TimePicker({ value, onChange, placeholder = "Seleccionar hora…
       </button>
 
       {isOpen && (
-        <div className="picker-pop animate-in fade-in-0 zoom-in-95" style={{ maxHeight: 320, overflowY: 'auto' }}>
+        <div ref={popRef} className="picker-pop animate-in fade-in-0 zoom-in-95" style={{ maxHeight: 320, overflowY: 'auto' }}>
           <div className="picker-label">Mañana</div>
           {renderSlots(MORNING)}
 
