@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Link, NavLink, useNavigate } from 'react-router-dom';
+import React, { useEffect, useState } from 'react';
+import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { LayoutDashboard, Users, Calendar, Clipboard, BarChart3, Bell, Receipt, LogOut, UserCog, ScrollText } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useNotificaciones } from '@/hooks/useNotificaciones';
@@ -222,6 +222,17 @@ function Topbar() {
 }
 
 function Layout({ children }) {
+  const { pathname } = useLocation();
+
+  // Cada pantalla se abre desde arriba. Sin esto se hereda el desplazamiento
+  // de la anterior: el botón del mapeo venoso, al pie de la historia clínica,
+  // abría el mapeo ya desplazado hacia abajo. Se mira solo la ruta y no la
+  // consulta (?historiaId=…) para no saltar arriba cuando una pantalla
+  // actualiza sus propios parámetros al guardar.
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [pathname]);
+
   return (
     <SidebarProvider open={true}>
       <AppSidebar />
