@@ -171,7 +171,6 @@ function ReporteDoppler() {
      backend, así que el siguiente guardado lo registra en lugar de editarlo.
      Un estudio ya finalizado se abre bloqueado. */
   const [reporteId, setReporteId] = useState(null);
-  const [estadoReporte, setEstadoReporte] = useState(null);
   const [soloLectura, setSoloLectura] = useState(false);
   const [loadingReporte, setLoadingReporte] = useState(!!historiaId);
   const [avisoReporte, setAvisoReporte] = useState('');
@@ -239,7 +238,6 @@ function ReporteDoppler() {
         setForm(cargado);
         recordarLimpio(cargado);
         setReporteId(reporte.id);
-        setEstadoReporte(reporte.estado_registro);
         setSoloLectura(reporte.estado_registro === 'Finalizada');
         setSaved(reporte.estado_registro === 'Finalizada');
         setAvisoReporte(
@@ -310,9 +308,11 @@ function ReporteDoppler() {
 
   /**
    * Persistir el estudio. La primera vez se registra (POST) y a partir de ahí se
-   * actualiza el mismo reporte (PUT), tanto en borrador como al finalizarlo.
+   * actualiza el mismo reporte (PUT). Se guarda siempre finalizado: no hay
+   * borradores, guardar es guardar de una vez.
    */
-  const guardarReporte = async (estadoRegistro) => {
+  const guardarReporte = async () => {
+    const estadoRegistro = 'Finalizada';
     if (!patientId) {
       setSaved(false);
       setSaveMessage('Abra el reporte desde la historia clínica de un paciente para poder guardarlo.');
@@ -336,13 +336,10 @@ function ReporteDoppler() {
     }
 
     setReporteId(res.data?.id || reporteId);
-    setEstadoReporte(res.data?.estado_registro || estadoRegistro);
 
-    // Al finalizar, el estudio queda cerrado: para corregirlo hay que reabrirlo
-    if (estadoRegistro === 'Finalizada') {
-      setSoloLectura(true);
-      setAvisoReporte(`Estudio del ${formatearFecha(res.data?.fecha_estudio || form.fecha)} finalizado.`);
-    }
+    // Al guardar, el estudio queda cerrado: para corregirlo hay que reabrirlo
+    setSoloLectura(true);
+    setAvisoReporte(`Estudio del ${formatearFecha(res.data?.fecha_estudio || form.fecha)} guardado.`);
 
     // Lo guardado pasa a ser el punto de partida: desde aquí, salir no avisa.
     recordarLimpio(form);
@@ -355,17 +352,13 @@ function ReporteDoppler() {
 
   /*
      Un estudio abierto en solo lectura no tiene cambios: no se puede escribir
-     en él. Uno ya finalizado no puede volver a borrador, así que al salir
-     desde él se guarda como lo que es.
+     en él. Al salir con cambios pendientes se guarda igual que con el botón.
   */
   const bloqueado = soloLectura || !canEdit || loadingReporte;
 
   const hayCambios = !bloqueado && JSON.stringify(form) !== formLimpioRef.current;
 
-  useAvisarCambiosSinGuardar(
-    hayCambios,
-    () => guardarReporte(estadoReporte === 'Finalizada' ? 'Finalizada' : 'Borrador'),
-  );
+  useAvisarCambiosSinGuardar(hayCambios, guardarReporte);
 
   /* ── Copia local de lo que todavía no llegó al servidor ─────────────────
    *
@@ -422,7 +415,7 @@ function ReporteDoppler() {
 
   const handleSave = (e) => {
     e.preventDefault();
-    guardarReporte('Finalizada');
+    guardarReporte();
   };
 
   return (
@@ -437,7 +430,7 @@ function ReporteDoppler() {
             <p className="page-subtitle">Registro ecográfico de miembros inferiores</p>
           </div>
           <span className={`tag ${saved ? 'tag-success' : 'tag-info'}`}>
-            {saved ? (estadoReporte === 'Borrador' ? 'Borrador guardado' : 'Guardado') : 'Sin guardar'}
+            {saved ? 'Guardado' : 'Sin guardar'}
           </span>
         </div>
 
@@ -600,8 +593,7 @@ function ReporteDoppler() {
                     />
                   </InputField>
                   <p className="hc-field-hint">
-                    La conclusión es obligatoria para finalizar el estudio: es lo que se
-                    adjunta a la consulta del expediente.
+                    La conclusión es lo que se adjunta a la consulta del expediente.
                   </p>
                 </Section>
 
@@ -650,7 +642,7 @@ function ReporteDoppler() {
                       onClick={() => {
                         setSoloLectura(false);
                         setSaved(false);
-                        setAvisoReporte('Modo edición: los cambios se guardarán sobre este estudio ya finalizado.');
+                        setAvisoReporte('Modo edición: los cambios se guardarán sobre este estudio.');
                       }}
                     >
                       <PenTool size={14} /> Editar estudio
@@ -660,23 +652,12 @@ function ReporteDoppler() {
                       <button type="button" className="btn btn-ghost" onClick={volverAHistoria}>
                         Cancelar
                       </button>
-                      {/* Un estudio ya finalizado no puede volver a borrador */}
-                      {estadoReporte !== 'Finalizada' && (
-                        <button
-                          type="button"
-                          className="btn btn-secondary"
-                          disabled={saving || bloqueado || !patientId}
-                          onClick={() => guardarReporte('Borrador')}
-                        >
-                          Guardar borrador
-                        </button>
-                      )}
                       <button
                         type="submit"
                         className="btn btn-primary"
                         disabled={saving || bloqueado || !patientId}
                       >
-                        <Save size={14} /> {saving ? 'Guardando…' : `${estadoReporte === 'Finalizada' ? 'Actualizar' : 'Finalizar'} estudio`}
+                        <Save size={14} /> {saving ? 'Guardando…' : `${reporteId ? 'Actualizar' : 'Guardar'} estudio`}
                       </button>
                     </>
                   )}
