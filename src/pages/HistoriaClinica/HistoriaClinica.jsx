@@ -1054,7 +1054,7 @@ function HistoriaClinica() {
                   )}
                 </div>
                 <div className="hc-save-actions">
-                  <button type="button" className="btn btn-secondary btn-sm" onClick={handleOpenModal}>
+                  <button type="button" className="btn btn-primary btn-sm" onClick={handleOpenModal}>
                     {patient ? 'Cambiar paciente' : 'Seleccionar paciente'}
                   </button>
                   {patient ? (
@@ -1071,7 +1071,7 @@ function HistoriaClinica() {
                       </button>
                     </>
                   ) : (
-                    <button type="button" className="btn btn-secondary btn-sm" onClick={() => handleOpenRegisterPatient('')}>
+                    <button type="button" className="btn btn-primary btn-sm" onClick={() => handleOpenRegisterPatient('')}>
                       <Plus size={14} /> Registrar nuevo
                     </button>
                   )}
@@ -1559,7 +1559,7 @@ function HistoriaClinica() {
                       ya vinculado y al volver se retoma esta misma consulta. */}
                   <button
                     type="button"
-                    className={`btn btn-sm hc-estudio-btn ${reporteDoppler ? 'btn-primary' : 'btn-secondary'}`}
+                    className="btn btn-primary btn-sm hc-estudio-btn"
                     disabled={!selectedPatientId}
                     onClick={() => navigate(
                       `/reporte-doppler?${new URLSearchParams({
@@ -1605,7 +1605,7 @@ function HistoriaClinica() {
                   {/* El expediente y la consulta viajan en la URL, igual que en el Ecodöppler */}
                   <button
                     type="button"
-                    className={`btn btn-sm hc-estudio-btn ${tieneMapeo ? 'btn-primary' : 'btn-secondary'}`}
+                    className="btn btn-primary btn-sm hc-estudio-btn"
                     disabled={!selectedPatientId}
                     onClick={() => navigate(
                       `/mapeo-venoso?${new URLSearchParams({
