@@ -1110,7 +1110,7 @@ function HistoriaClinica() {
                       </button>
                     </>
                   ) : (
-                    <button type="button" className="btn btn-primary btn-sm" onClick={() => handleOpenRegisterPatient('')}>
+                    <button type="button" className="btn btn-secondary btn-sm" onClick={() => handleOpenRegisterPatient('')}>
                       <Plus size={14} /> Registrar nuevo
                     </button>
                   )}
