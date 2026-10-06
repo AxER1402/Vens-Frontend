@@ -126,22 +126,22 @@ export default function MiCuenta() {
               <div className="config-foto-acciones">
                 <button
                   type="button"
-                  className="btn btn-secondary"
+                  className="btn btn-secondary btn-sm"
                   onClick={() => selectorArchivo.current?.click()}
                   disabled={ocupadaFoto}
                 >
-                  <Camera size={15} />
+                  <Camera size={14} />
                   {user?.foto_url ? 'Cambiar foto' : 'Subir foto'}
                 </button>
 
                 {user?.foto_url && (
                   <button
                     type="button"
-                    className="btn btn-secondary"
+                    className="btn btn-secondary btn-sm"
                     onClick={quitarFoto}
                     disabled={ocupadaFoto}
                   >
-                    <Trash2 size={15} />
+                    <Trash2 size={14} />
                     Quitar
                   </button>
                 )}
@@ -239,10 +239,10 @@ export default function MiCuenta() {
             <div className="config-acciones">
               <button
                 type="submit"
-                className="btn btn-primary"
+                className="btn btn-primary btn-sm"
                 disabled={guardando || sinCambios || !nombre.trim()}
               >
-                <Save size={15} />
+                <Save size={14} />
                 {guardando ? 'Guardando…' : 'Guardar cambios'}
               </button>
             </div>

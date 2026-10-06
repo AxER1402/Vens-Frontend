@@ -214,8 +214,8 @@ export default function ServiciosTarifas() {
             </div>
 
             {puedeEditar && (
-              <button type="button" className="btn btn-primary" onClick={abrirNuevo}>
-                <Plus size={15} />
+              <button type="button" className="btn btn-primary btn-sm" onClick={abrirNuevo}>
+                <Plus size={14} />
                 Nuevo servicio
               </button>
             )}

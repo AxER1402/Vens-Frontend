@@ -155,8 +155,8 @@ export default function CambiarPassword() {
           </p>
 
           <div className="config-acciones">
-            <button type="submit" className="btn btn-primary" disabled={!puedeGuardar}>
-              <KeyRound size={15} />
+            <button type="submit" className="btn btn-primary btn-sm" disabled={!puedeGuardar}>
+              <KeyRound size={14} />
               {guardando ? 'Cambiando…' : 'Cambiar contraseña'}
             </button>
           </div>

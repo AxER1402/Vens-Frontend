@@ -202,10 +202,10 @@ export default function WhatsAppRecordatorios() {
               <div className="config-acciones config-acciones-izquierda">
                 <button
                   type="button"
-                  className="btn btn-secondary"
+                  className="btn btn-secondary btn-sm"
                   onClick={() => setConfirmando(true)}
                 >
-                  <Unlink size={15} />
+                  <Unlink size={14} />
                   Desvincular teléfono
                 </button>
               </div>
@@ -261,7 +261,7 @@ export default function WhatsAppRecordatorios() {
           <div className="confirm-actions dialog-sep">
             <button
               type="button"
-              className="btn btn-secondary"
+              className="btn btn-secondary btn-sm"
               onClick={() => setConfirmando(false)}
               disabled={desvinculando}
             >
@@ -269,7 +269,7 @@ export default function WhatsAppRecordatorios() {
             </button>
             <button
               type="button"
-              className="btn btn-danger"
+              className="btn btn-danger btn-sm"
               onClick={desvincular}
               disabled={desvinculando}
             >

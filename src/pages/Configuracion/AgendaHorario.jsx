@@ -240,8 +240,8 @@ export default function AgendaHorario() {
           </p>
 
           <div className="config-acciones config-acciones-izquierda">
-            <Link to="/citas" className="btn btn-secondary">
-              <CalendarOff size={15} />
+            <Link to="/citas" className="btn btn-secondary btn-sm">
+              <CalendarOff size={14} />
               Ir a la agenda
             </Link>
           </div>
@@ -252,8 +252,8 @@ export default function AgendaHorario() {
           al pie y no dentro de una de las secciones, donde parecería que
           guarda solo esa. */}
       <div className="config-acciones config-pie-guardar">
-        <button type="submit" className="btn btn-primary" disabled={guardando}>
-          <Save size={15} />
+        <button type="submit" className="btn btn-primary btn-sm" disabled={guardando}>
+          <Save size={14} />
           {guardando ? 'Guardando…' : 'Guardar horario'}
         </button>
       </div>

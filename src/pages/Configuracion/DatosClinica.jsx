@@ -188,11 +188,11 @@ export default function DatosClinica() {
                 <div className="config-foto-acciones">
                   <button
                     type="button"
-                    className="btn btn-secondary"
+                    className="btn btn-secondary btn-sm"
                     onClick={() => selectorLogo.current?.click()}
                     disabled={subiendoLogo}
                   >
-                    <Upload size={15} />
+                    <Upload size={14} />
                     {subiendoLogo ? 'Subiendo…' : 'Cambiar logo'}
                   </button>
                 </div>
@@ -294,10 +294,10 @@ export default function DatosClinica() {
             <div className="config-acciones">
               <button
                 type="submit"
-                className="btn btn-primary"
+                className="btn btn-primary btn-sm"
                 disabled={guardando || sinCambios}
               >
-                <Save size={15} />
+                <Save size={14} />
                 {guardando ? 'Guardando…' : 'Guardar cambios'}
               </button>
             </div>
