@@ -436,6 +436,34 @@ function MapeoVenoso() {
   // nada pendiente por definición.
   useAvisarCambiosSinGuardar(!limpio && !bloqueado, guardarMapeo);
 
+  /*
+     El mismo botón cambia según el estado: en un mapeo bloqueado abre la
+     edición y, una vez abierta, guarda. Lo usan la barra inferior y el pie de
+     la pantalla completa, que tienen que comportarse igual.
+  */
+  const botonGuardarOEditar = (className) => (soloLectura && canEdit ? (
+    <button
+      type="button"
+      className={className}
+      disabled={loadingHistoria}
+      onClick={() => {
+        setSoloLectura(false);
+        setAviso('Modo edición: al guardar se reemplazará el mapeo archivado de esta consulta.');
+      }}
+    >
+      <PenTool size={14} /> Editar mapeo
+    </button>
+  ) : (
+    <button
+      type="button"
+      className={className}
+      disabled={bloqueado || guardando || !historiaId}
+      onClick={guardarMapeo}
+    >
+      <Save size={14} /> {guardando ? 'Guardando…' : 'Guardar mapeo'}
+    </button>
+  ));
+
   const descargar = async () => {
     try {
       await descargarPng(
@@ -691,14 +719,7 @@ function MapeoVenoso() {
                   {objetos.length} elemento{objetos.length === 1 ? '' : 's'}
                   {!limpio && ' · sin guardar'}
                 </span>
-                <button
-                  type="button"
-                  className="btn btn-primary btn-sm"
-                  disabled={bloqueado || guardando || !historiaId}
-                  onClick={guardarMapeo}
-                >
-                  <Save size={14} /> {guardando ? 'Guardando…' : 'Guardar mapeo'}
-                </button>
+                {botonGuardarOEditar('btn btn-primary btn-sm')}
               </div>
             )}
           </div>
@@ -749,30 +770,7 @@ function MapeoVenoso() {
                     <Eye size={14} /> Vista previa del informe
                   </button>
                 )}
-                {/* El mismo botón cambia según el estado: en un mapeo bloqueado
-                    abre la edición y, una vez abierta, guarda. */}
-                {soloLectura && canEdit ? (
-                  <button
-                    type="button"
-                    className="btn btn-primary"
-                    disabled={loadingHistoria}
-                    onClick={() => {
-                      setSoloLectura(false);
-                      setAviso('Modo edición: al guardar se reemplazará el mapeo archivado de esta consulta.');
-                    }}
-                  >
-                    <PenTool size={14} /> Editar mapeo
-                  </button>
-                ) : (
-                  <button
-                    type="button"
-                    className="btn btn-primary"
-                    disabled={bloqueado || guardando || !historiaId}
-                    onClick={guardarMapeo}
-                  >
-                    <Save size={14} /> {guardando ? 'Guardando…' : 'Guardar mapeo'}
-                  </button>
-                )}
+                {botonGuardarOEditar('btn btn-primary')}
               </div>
             </div>
             )}
